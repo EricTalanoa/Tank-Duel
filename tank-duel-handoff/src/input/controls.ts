@@ -12,6 +12,13 @@ export interface PointerControlsOptions {
   onPress(point: FieldPoint): void;
 }
 
+export interface PointerDragControlsOptions {
+  toField(clientX: number, clientY: number): FieldPoint | null;
+  onStart(point: FieldPoint): boolean;
+  onMove(point: FieldPoint): void;
+  onEnd(): void;
+}
+
 export interface Controls {
   dispose(): void;
 }
@@ -85,4 +92,50 @@ export function attachPointerControls(
 
   canvas.addEventListener('pointerdown', handlePointerDown);
   return { dispose: () => canvas.removeEventListener('pointerdown', handlePointerDown) };
+}
+
+export function attachPointerDragControls(
+  canvas: HTMLCanvasElement,
+  options: PointerDragControlsOptions,
+): Controls {
+  let activePointer: number | null = null;
+  const pointFor = (event: PointerEvent): FieldPoint | null =>
+    options.toField(event.clientX, event.clientY);
+  const onDown = (event: PointerEvent): void => {
+    if (event.button !== 0 || activePointer !== null) return;
+    const point = pointFor(event);
+    if (!point || !options.onStart(point)) return;
+    activePointer = event.pointerId;
+    canvas.setPointerCapture(event.pointerId);
+    event.preventDefault();
+  };
+  const onMove = (event: PointerEvent): void => {
+    if (event.pointerId !== activePointer) return;
+    const point = pointFor(event);
+    if (point) options.onMove(point);
+    event.preventDefault();
+  };
+  const finish = (event: PointerEvent): void => {
+    if (event.pointerId !== activePointer) return;
+    if (canvas.hasPointerCapture(event.pointerId)) canvas.releasePointerCapture(event.pointerId);
+    activePointer = null;
+    options.onEnd();
+    event.preventDefault();
+  };
+  canvas.addEventListener('pointerdown', onDown);
+  canvas.addEventListener('pointermove', onMove);
+  canvas.addEventListener('pointerup', finish);
+  canvas.addEventListener('pointercancel', finish);
+  return {
+    dispose(): void {
+      if (activePointer !== null && canvas.hasPointerCapture(activePointer)) {
+        canvas.releasePointerCapture(activePointer);
+      }
+      activePointer = null;
+      canvas.removeEventListener('pointerdown', onDown);
+      canvas.removeEventListener('pointermove', onMove);
+      canvas.removeEventListener('pointerup', finish);
+      canvas.removeEventListener('pointercancel', finish);
+    },
+  };
 }

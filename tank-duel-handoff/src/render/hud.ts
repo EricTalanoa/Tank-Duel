@@ -54,21 +54,13 @@ export interface DeckChipModel {
   readonly locked: boolean;
 }
 
-export interface DeckChipRect {
-  readonly x: number;
-  readonly y: number;
-  readonly width: number;
-  readonly height: number;
-}
-
 /** Distance from any viewport edge to the block anchored against it. */
 const MARGIN = 32;
 const TOP_SCRIM = 96;
 const BOTTOM_SCRIM = 230;
 
 const NAMEPLATE = { tagWidth: 36, tagHeight: 20, tagY: 30, barWidth: 190, barHeight: 16, barY: 32, gap: 14 } as const;
-const SOLUTION = { width: 340, height: 190 } as const;
-const DECK = { width: 108, height: 82, gap: 10 } as const;
+const SOLUTION = { x: 354, width: 220, height: 122, bottomClearance: 12 } as const;
 const TELEMETRY_PANEL = { width: 210, height: 92, y: 110 } as const;
 
 /**
@@ -95,20 +87,15 @@ export function track(text: string): string {
  * Chips shrink only if the firing-solution panel would otherwise be underneath them, which
  * cannot happen at the 1194px design width and only bites near the 900px landscape floor.
  */
-export function deckChipLayout(viewport: Viewport, count: number): readonly DeckChipRect[] {
-  const available = viewport.width - MARGIN - (MARGIN + SOLUTION.width + 16);
-  const natural = DECK.width * count + DECK.gap * (count - 1);
-  const width = natural <= available
-    ? DECK.width
-    : Math.max(1, Math.floor((available - DECK.gap * (count - 1)) / count));
-  const x0 = viewport.width - MARGIN - (width * count + DECK.gap * (count - 1));
-  const y = viewport.height - MARGIN - DECK.height;
-  return Array.from({ length: count }, (_, index) => ({
-    x: x0 + index * (width + DECK.gap),
-    y,
-    width,
-    height: DECK.height,
-  }));
+export function firingSolutionLayout(viewport: Viewport): Readonly<{
+  x: number; y: number; width: number; height: number;
+}> {
+  return {
+    x: SOLUTION.x,
+    y: viewport.height - SOLUTION.bottomClearance - SOLUTION.height,
+    width: SOLUTION.width,
+    height: SOLUTION.height,
+  };
 }
 
 export function deckChipModels(state: GameState): readonly DeckChipModel[] {
@@ -143,7 +130,7 @@ export function drawHud(
   ctx: CanvasRenderingContext2D,
   state: GameState,
   telemetry: LoopTelemetry,
-  icons: ReadonlyMap<string, HTMLImageElement> = new Map(),
+  _icons: ReadonlyMap<string, HTMLImageElement> = new Map(),
   viewport: Viewport = state.field,
   chrome: HudChrome = {},
 ): void {
@@ -157,7 +144,6 @@ export function drawHud(
   drawNameplate(ctx, state, 1, viewport);
   drawCentre(ctx, state, viewport, chrome);
   drawFiringSolution(ctx, state, viewport);
-  drawDeck(ctx, state, icons, viewport);
   if (chrome.showTelemetry) drawTelemetry(ctx, state, telemetry, viewport);
 
   ctx.restore();
@@ -258,6 +244,7 @@ function drawCentre(
   ctx.font = monoFont(10);
   ctx.fillStyle = state.world.palette.accent;
   ctx.fillText(worldStripText(state.world), centre, 74);
+  drawWind(ctx, state, centre, 90);
   ctx.textAlign = 'left';
 }
 
@@ -271,32 +258,31 @@ function drawFiringSolution(
   viewport: Viewport,
 ): void {
   const active = state.tanks[state.activePlayer];
-  const x = MARGIN;
-  const y = viewport.height - MARGIN - SOLUTION.height;
+  const { x, y, width, height } = firingSolutionLayout(viewport);
 
-  drawPanel(ctx, x, y, SOLUTION.width, SOLUTION.height);
+  drawPanel(ctx, x, y, width, height);
   ctx.fillStyle = CHROME.action;
-  ctx.fillRect(x, y, 3, SOLUTION.height);
+  ctx.fillRect(x, y, 3, height);
 
   ctx.font = monoFont(10, 700);
   ctx.fillStyle = CHROME.sand;
-  ctx.fillText(track('FIRING SOLUTION'), x + 22, y + 18);
+  ctx.fillText(track('FIRING SOLUTION'), x + 20, y + 14);
 
   ctx.font = monoFont(10);
   ctx.fillStyle = CHROME.dim;
-  ctx.fillText('ANGLE', x + 22, y + 46);
-  ctx.fillText('POWER', x + 190, y + 46);
+  ctx.fillText('ANGLE', x + 20, y + 38);
+  ctx.fillText('POWER', x + 120, y + 38);
 
-  ctx.font = displayFont(46, 800);
+  ctx.font = displayFont(36, 800);
   ctx.fillStyle = CHROME.paper;
-  ctx.fillText(`${active.aim.angleDeg.toFixed(0)}°`, x + 22, y + 60);
+  ctx.fillText(`${active.aim.angleDeg.toFixed(0)}°`, x + 20, y + 50);
   ctx.fillStyle = CHROME.action;
-  ctx.fillText(active.aim.power.toFixed(0), x + 190, y + 60);
+  ctx.fillText(active.aim.power.toFixed(0), x + 120, y + 50);
 
-  const barWidth = SOLUTION.width - 44;
-  const barY = y + 128;
+  const barWidth = width - 36;
+  const barY = y + 91;
   drawMeter(ctx, {
-    x: x + 22,
+    x: x + 20,
     y: barY,
     width: barWidth,
     height: 11,
@@ -307,10 +293,9 @@ function drawFiringSolution(
   });
   ctx.fillStyle = CHROME.hairlineFaint;
   for (let tick = 1; tick < 10; tick++) {
-    ctx.fillRect(x + 22 + (barWidth / 10) * tick, barY + 11, 1, 5);
+    ctx.fillRect(x + 20 + (barWidth / 10) * tick, barY + 11, 1, 4);
   }
 
-  drawWind(ctx, state, x, y);
 }
 
 /**
@@ -319,104 +304,22 @@ function drawFiringSolution(
  * `tank.direction`, not with the sign.
  */
 function drawWind(ctx: CanvasRenderingContext2D, state: GameState, x: number, y: number): void {
+  ctx.textAlign = 'center';
   ctx.font = monoFont(10);
   ctx.fillStyle = CHROME.dim;
-  ctx.fillText('WIND', x + 22, y + 160);
 
   if (state.world.windRange === 0) {
-    ctx.font = monoFont(13);
-    ctx.fillText('NONE — VACUUM', x + 74, y + 157);
+    ctx.fillText(track('WIND · NONE — VACUUM'), x, y);
     return;
   }
 
-  ctx.font = monoFont(14, 700);
-  ctx.fillStyle = CHROME.sand;
-  ctx.fillText(Math.abs(state.wind).toFixed(0), x + 74, y + 157);
-
   const relative = state.wind * state.tanks[state.activePlayer].direction;
   const direction = relative >= 0 ? 1 : -1;
-  const arrowX = x + 124;
-  const arrowY = y + 164;
-  const tail = direction > 0 ? arrowX : arrowX + 38;
-  const tip = direction > 0 ? arrowX + 38 : arrowX;
-  ctx.strokeStyle = CHROME.sand;
-  ctx.lineWidth = 1.5;
-  ctx.beginPath();
-  ctx.moveTo(tail, arrowY);
-  ctx.lineTo(tip - direction * 7, arrowY);
-  ctx.stroke();
+  const arrow = direction > 0 ? '→' : '←';
+  const bearing = direction > 0 ? 'DOWNRANGE' : 'AGAINST YOU';
+  ctx.font = monoFont(11, 700);
   ctx.fillStyle = CHROME.sand;
-  ctx.beginPath();
-  ctx.moveTo(tip, arrowY);
-  ctx.lineTo(tip - direction * 8, arrowY - 4.5);
-  ctx.lineTo(tip - direction * 8, arrowY + 4.5);
-  ctx.closePath();
-  ctx.fill();
-
-  ctx.font = monoFont(9);
-  ctx.fillStyle = CHROME.dim;
-  ctx.fillText(direction > 0 ? 'DOWNRANGE' : 'AGAINST YOU', x + 176, y + 160);
-}
-
-function drawDeck(
-  ctx: CanvasRenderingContext2D,
-  state: GameState,
-  icons: ReadonlyMap<string, HTMLImageElement>,
-  viewport: Viewport,
-): void {
-  const chips = deckChipModels(state);
-  const layout = deckChipLayout(viewport, chips.length);
-
-  chips.forEach((chip, index) => {
-    const { x, y, width, height } = layout[index]!;
-    ctx.globalAlpha = chip.spent || chip.locked ? 0.35 : 1;
-    ctx.fillStyle = chip.selected ? CHROME.chipSelected : CHROME.chip;
-    ctx.fillRect(x, y, width, height);
-    ctx.strokeStyle = chip.selected ? CHROME.action : CHROME.hairlineChip;
-    ctx.lineWidth = 1;
-    ctx.strokeRect(x + 0.5, y + 0.5, width - 1, height - 1);
-    if (chip.selected) {
-      ctx.fillStyle = CHROME.action;
-      ctx.fillRect(x, y, width, 3);
-    }
-
-    ctx.font = monoFont(10, 700);
-    ctx.fillStyle = chip.selected ? CHROME.action : CHROME.dim;
-    ctx.fillText(String(chip.key), x + 10, y + 12);
-
-    const image = icons.get(chip.icon);
-    if (image?.complete && image.naturalWidth > 0) ctx.drawImage(image, x + width - 36, y + 10, 26, 26);
-
-    ctx.font = monoFont(10);
-    ctx.fillStyle = chip.selected ? CHROME.actionText : CHROME.muted;
-    ctx.fillText(chipName(chip.name), x + 10, y + 44);
-
-    ctx.font = monoFont(16, 700);
-    ctx.fillStyle = chip.selected ? CHROME.paper : CHROME.sand;
-    ctx.fillText(chip.ammo === 'inf' ? '∞' : String(chip.ammo), x + 10, y + 58);
-
-    // Mass changes the firing solution, so it earns its place; 1.00 tells you nothing.
-    if (chip.mass !== 1) {
-      ctx.font = monoFont(10);
-      ctx.fillStyle = CHROME.dim;
-      ctx.textAlign = 'right';
-      ctx.fillText(`M${chip.mass}`, x + width - 10, y + 62);
-      ctx.textAlign = 'left';
-    }
-  });
-
-  ctx.globalAlpha = 1;
-  const first = layout[0];
-  if (!first) return;
-  ctx.font = monoFont(10);
-  ctx.fillStyle = CHROME.dim;
-  ctx.fillText('1–6 SELECT   ←→ ANGLE   ↑↓ POWER   SHIFT COARSE   SPACE FIRE', first.x, first.y - 20);
-}
-
-/** A chip is 108px wide; a long name gets its first word rather than being clipped. */
-function chipName(name: string): string {
-  const upper = name.toUpperCase();
-  return upper.length > 12 ? upper.split(' ')[0]! : upper;
+  ctx.fillText(`WIND · ${Math.abs(state.wind).toFixed(0)} ${arrow} ${bearing}`, x, y);
 }
 
 /**

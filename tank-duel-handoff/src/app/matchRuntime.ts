@@ -27,9 +27,18 @@ import { createRenderer, type Renderer } from '../render/renderer';
 import type { HudChrome } from '../render/hud';
 import {
   attachAimControls,
+  attachPointerDragControls,
   type AimControlsOptions,
   type Controls,
+  type PointerDragControlsOptions,
 } from '../input/controls';
+import { mapTouchAim, type TouchAimPoint } from '../input/touchAim';
+import {
+  mountTouchControls,
+  type MountedTouchControls,
+  type TouchControlCallbacks,
+  type TouchControlState,
+} from '../ui/touchControls';
 import { createEffects, type EffectsEngine } from '../render/effects';
 import { motionPolicy } from '../render/motion';
 import {
@@ -81,10 +90,13 @@ export interface MatchRuntimeDependencies {
     chrome: HudChrome,
   ): Renderer;
   attachControls(options: AimControlsOptions): Controls;
+  attachPointerDragControls?(canvas: HTMLCanvasElement, options: PointerDragControlsOptions): Controls;
+  mountTouchControls?(root: HTMLElement, callbacks: TouchControlCallbacks): MountedTouchControls;
 }
 
 export interface CreateMatchRuntimeOptions {
   readonly canvas: HTMLCanvasElement;
+  readonly controlRoot?: HTMLElement;
   readonly config: MatchRuntimeConfig;
   /** Both players' complete decks, already validated by `makePlayerLoadouts`. */
   readonly playerLoadoutIds: PlayerLoadouts;
@@ -118,6 +130,8 @@ const BROWSER_DEPENDENCIES: MatchRuntimeDependencies = {
   createAudio: () => createAudio(),
   createRenderer,
   attachControls: (options) => attachAimControls(window, options),
+  attachPointerDragControls,
+  mountTouchControls,
 };
 
 export function createMatchRuntime(options: CreateMatchRuntimeOptions): MatchRuntime {
@@ -126,6 +140,7 @@ export function createMatchRuntime(options: CreateMatchRuntimeOptions): MatchRun
     ...options.dependencies,
   };
   let disposed = false;
+  let paused = false;
   const state = dependencies.createWorld(options.config.seed, {
     playerLoadoutIds: options.playerLoadoutIds,
     worldId: options.config.worldId,
@@ -163,6 +178,32 @@ export function createMatchRuntime(options: CreateMatchRuntimeOptions): MatchRun
     void audio.unlock().catch(() => undefined);
   };
 
+  const acceptsHumanInput = (): boolean => state.phase === 'aim' &&
+    !(options.config.mode === 'cpu' && state.activePlayer === 1);
+
+  const setAngle = (value: number): void => {
+    if (disposed || paused || !acceptsHumanInput()) return;
+    unlockAudio();
+    adjustAngle(state, value - state.aim.angleDeg);
+  };
+  const setPower = (value: number): void => {
+    if (disposed || paused || !acceptsHumanInput()) return;
+    unlockAudio();
+    adjustPower(state, value - state.aim.power);
+  };
+  const chooseShell = (slot: number): void => {
+    if (disposed || paused || !acceptsHumanInput()) return;
+    unlockAudio();
+    selectShell(state, slot);
+  };
+  const fireOnce = (): void => {
+    if (disposed || paused || !acceptsHumanInput()) return;
+    unlockAudio();
+    const player = state.activePlayer;
+    const shellId = state.arsenals[player].selectedShellId;
+    if (fire(state)) spentShellIdsByPlayer[player]!.push(shellId);
+  };
+
   const controls = dependencies.attachControls({
     angleFineStep: CONSTANTS.elevation.fineStep,
     angleCoarseStep: CONSTANTS.elevation.coarseStep,
@@ -170,27 +211,79 @@ export function createMatchRuntime(options: CreateMatchRuntimeOptions): MatchRun
     powerCoarseStep: CONSTANTS.power.coarseStep,
     onAngle: (delta) => {
       if (disposed || paused) return;
-      unlockAudio();
-      adjustAngle(state, delta);
+      setAngle(state.aim.angleDeg + delta);
     },
     onPower: (delta) => {
       if (disposed || paused) return;
-      unlockAudio();
-      adjustPower(state, delta);
+      setPower(state.aim.power + delta);
     },
     onFire: () => {
       if (disposed || paused) return;
-      unlockAudio();
-      const player = state.activePlayer;
-      const shellId = state.arsenals[player].selectedShellId;
-      if (fire(state)) spentShellIdsByPlayer[player]!.push(shellId);
+      fireOnce();
     },
     onShell: (slot) => {
       if (disposed || paused) return;
-      unlockAudio();
-      selectShell(state, slot);
+      chooseShell(slot);
     },
   });
+
+  const touchControls = options.controlRoot && dependencies.mountTouchControls
+    ? dependencies.mountTouchControls(options.controlRoot, {
+      onAngle: setAngle,
+      onPower: setPower,
+      onShell: chooseShell,
+      onFire: fireOnce,
+    })
+    : null;
+  let dragOrigin: TouchAimPoint | null = null;
+  const pointerControls = options.controlRoot && dependencies.attachPointerDragControls
+    ? dependencies.attachPointerDragControls(options.canvas, {
+      toField: (x, y) => renderer.screenToField(x, y),
+      onStart(point) {
+        if (disposed || paused || state.phase !== 'aim' || (options.config.mode === 'cpu' && state.activePlayer === 1)) return false;
+        const tank = state.tanks[state.activePlayer];
+        if (Math.hypot(point.x - tank.x, point.y - tank.y) > 60) return false;
+        dragOrigin = { x: tank.x, y: tank.y };
+        return true;
+      },
+      onMove(point) {
+        if (!dragOrigin || state.phase !== 'aim') return;
+        const tank = state.tanks[state.activePlayer];
+        const aim = mapTouchAim(
+          dragOrigin,
+          point,
+          tank.direction,
+          { min: CONSTANTS.power.min, max: CONSTANTS.power.max },
+          300,
+        );
+        setAngle(aim.angleDeg);
+        setPower(aim.power);
+      },
+      onEnd() { dragOrigin = null; },
+    })
+    : null;
+
+  const renderTouchControls = (): void => {
+    if (!touchControls) return;
+    const canAim = !paused && state.phase === 'aim' && !(options.config.mode === 'cpu' && state.activePlayer === 1);
+    const arsenal = state.arsenals[state.activePlayer];
+    const touchState: TouchControlState = {
+      angleDeg: state.aim.angleDeg,
+      power: state.aim.power,
+      canAim,
+      canFire: canAim,
+      shells: arsenal.slots.map(({ shell }, index) => ({
+        slot: index + 1,
+        id: shell.id,
+        name: shell.name,
+        icon: shell.icon,
+        selected: shell.id === arsenal.selectedShellId,
+        disabled: arsenal.ammo[shell.id] === 0,
+      })),
+    };
+    touchControls.render(touchState);
+  };
+  renderTouchControls();
 
   const inspection = { state, clock };
   const inspectionTarget = globalThis as unknown as Record<string, unknown>;
@@ -199,7 +292,6 @@ export function createMatchRuntime(options: CreateMatchRuntimeOptions): MatchRun
   let last = dependencies.now();
   let completionReported = false;
   let frameHandle: number | null = null;
-  let paused = false;
 
   const cancelPendingFrame = (): void => {
     if (frameHandle === null) return;
@@ -288,6 +380,7 @@ export function createMatchRuntime(options: CreateMatchRuntimeOptions): MatchRun
     }
 
     renderer.draw(state, { stepsThisFrame: steps, alpha: alpha(clock) });
+    renderTouchControls();
     if (events.length === 0) effects.advanceFrame();
     reportCompletion();
     if (!disposed && !paused) frameHandle = dependencies.requestFrame(frame);
@@ -302,6 +395,7 @@ export function createMatchRuntime(options: CreateMatchRuntimeOptions): MatchRun
       paused = nextPaused;
       if (paused) {
         cancelPendingFrame();
+        renderTouchControls();
         return;
       }
       // Rebase the frame clock: the paused wall-clock interval is not simulation time.
@@ -315,6 +409,8 @@ export function createMatchRuntime(options: CreateMatchRuntimeOptions): MatchRun
       disposed = true;
       cancelPendingFrame();
       controls.dispose();
+      pointerControls?.dispose();
+      touchControls?.dispose();
       reducedMotion.dispose();
       if (import.meta.env.DEV && inspectionTarget['__tankDuel'] === inspection) {
         delete inspectionTarget['__tankDuel'];

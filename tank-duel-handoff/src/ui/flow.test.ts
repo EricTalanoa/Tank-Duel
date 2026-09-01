@@ -10,7 +10,7 @@ function createRoundOverState(config: MatchConfig = createDefaultConfig()): AppF
 }
 
 describe('app flow', () => {
-  it('starts at TITLE with enabled, spec-backed CPU mode and random as a map tile', () => {
+  it('starts at TITLE with enabled CPU mode and the active map rotation', () => {
     const state = createFlow(createDefaultConfig());
 
     expect(state.screen).toBe('TITLE');
@@ -22,8 +22,7 @@ describe('app flow', () => {
       enabled: true,
       cpuTierIds: ['recruit', 'gunner', 'veteran'],
     });
-    expect(state.mapOptions).toContain('random');
-    expect(state.mapOptions.filter((id) => id === 'random')).toHaveLength(1);
+    expect(state.mapOptions).toEqual(['terra', 'rust', 'selene', 'ferrum']);
   });
 
   it('reaches ROUND_INTRO in exactly two quick-start actions', () => {

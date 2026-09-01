@@ -104,7 +104,9 @@ const SHIPPED_GENERATOR_IDS = new Set<string>(SHIPPED_GENERATORS);
 const MATCH_ROUND_SET = new Set<number>(MATCH_ROUND_OPTIONS);
 const MATCH_WIND_SET = new Set<string>(MATCH_WIND_OPTIONS);
 const MATCH_TURN_TIMER_SET = new Set<string>(MATCH_TURN_TIMER_OPTIONS);
-const MATCH_WORLD_SET = new Set<string>(MATCH_WORLD_OPTIONS);
+// Rotation and validity are intentionally separate: hidden maps and existing saved links
+// remain playable even when they are not offered by Quick Start.
+const MATCH_WORLD_SET = new Set<string>([...SHIPPED_WORLD_IDS, 'random']);
 const CPU_TIER_SET = new Set<string>(CPU_TIER_IDS);
 const SHELLS_BY_ID = new Map<string, Shell>(SHELLS.map((shell) => [shell.id, shell]));
 
@@ -114,7 +116,7 @@ export function createDefaultConfig(): MatchConfig {
     path: 'quick',
     mode: 'local',
     cpuTierId: CREATE_DEFAULT_CPU_TIER_ID,
-    selectedWorldId: MATCH_WORLD_OPTIONS.at(-1) ?? 'random',
+    selectedWorldId: MATCH_WORLD_OPTIONS.at(-1) ?? SHIPPED_WORLDS[0]!.id,
     selectedGeneratorId: null,
     seed: 0,
     rounds: MATCH_ROUND_OPTIONS[1] ?? MATCH_ROUND_OPTIONS[0] ?? 3,

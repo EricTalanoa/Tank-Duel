@@ -11,6 +11,7 @@ import {
   MATCH_ROUND_OPTIONS,
   MATCH_SCREEN_IDS,
   MATCH_TURN_TIMER_OPTIONS,
+  MATCH_WORLD_OPTIONS,
   MATCH_WIND_OPTIONS,
   createDefaultConfig,
   resolveMatchConfig,
@@ -39,7 +40,7 @@ describe('match config', () => {
       path: 'quick',
       mode: 'local',
       cpuTierId: CREATE_DEFAULT_CPU_TIER_ID,
-      selectedWorldId: 'random',
+      selectedWorldId: 'ferrum',
       selectedGeneratorId: null,
       rounds: MATCH_ROUND_OPTIONS[1],
       wind: MATCH_WIND_OPTIONS.at(-1),
@@ -61,6 +62,10 @@ describe('match config', () => {
     expect(config.enabledShellIds).toEqual(PLAYABLE_SHELL_IDS);
     expect(PLAYABLE_SHELL_IDS.every((id) => config.shells[id]?.enabled)).toBe(true);
     expect(config.shells.anvil?.enabled).toBe(false);
+  });
+
+  it('offers only the active quick-start map rotation', () => {
+    expect(MATCH_WORLD_OPTIONS).toEqual(['terra', 'rust', 'selene', 'ferrum']);
   });
 
   it('rejects invalid shapes, missing or extra shell keys, malformed entries, and invalid ids', () => {
@@ -126,7 +131,7 @@ describe('match config', () => {
   });
 
   it('resolves random world selection to a shipped world and compatible generator', () => {
-    const resolved = resolveMatchConfig(createDefaultConfig(), createRng(7));
+    const resolved = resolveMatchConfig({ ...createDefaultConfig(), selectedWorldId: 'random' }, createRng(7));
 
     expect(SHIPPED_WORLDS.map((world) => world.id)).toContain(resolved.worldId);
     expect(resolved.selectedWorldId).toBe('random');

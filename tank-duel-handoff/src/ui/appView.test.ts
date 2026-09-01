@@ -42,10 +42,10 @@ describe('application DOM view', () => {
     // label alone — "01 Quick Start →" is not what a screen reader should announce.
     expect(root.all('button').map((button) => button.getAttribute('aria-label') ?? button.textContent)).toEqual([
       'Quick Start',
-      'Custom Game',
       'How to Play',
       'Settings',
     ]);
+    expect(root.all('button').some((button) => button.textContent.includes('Custom Game'))).toBe(false);
     expect(root.all('button')[0]?.textContent).toBe('01Quick Start→');
     expect(root.all('button').at(-1)?.disabled).toBe(true);
     expect(root.ownerDocument.activeElement?.tagName).toBe('H1');

@@ -9,6 +9,7 @@ import { mountLoadout } from './ui/loadout';
 import { mountOrientationGate } from './ui/orientationGate';
 import './style.css';
 import './ui/loadout.css';
+import './ui/touchControls.css';
 import './ui/orientationGate.css';
 
 const canvas = document.querySelector<HTMLCanvasElement>('#field');
@@ -35,18 +36,20 @@ const controller = createAppController({
     resizeSceneCanvas(canvas);
     return createHowtoScene(canvas, sceneOptions('howto'));
   },
-  mountLoadout: ({ onDeploy, enabledShellIds, initialPlayerLoadoutIds, mode, cpuTierId }) => mountLoadout(
+  mountLoadout: ({ onDeploy, onBack, enabledShellIds, initialPlayerLoadoutIds, mode, cpuTierId }) => mountLoadout(
     appSurface,
     {
       enabledShellIds,
       mode,
       cpuTierId,
       onDeploy,
+      onBack,
       ...(initialPlayerLoadoutIds === undefined ? {} : { initialPlayerLoadoutIds }),
     },
   ),
   createMatchRuntime: ({ config, playerLoadoutIds, onComplete }) => createMatchRuntime({
     canvas,
+    controlRoot: appSurface,
     hudChrome: { showTelemetry: devTelemetryEnabled() },
     config: {
       seed: config.seed,

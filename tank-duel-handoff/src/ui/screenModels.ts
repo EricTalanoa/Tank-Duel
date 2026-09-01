@@ -232,7 +232,6 @@ export function buildTitleScreenModel(): TitleScreenModel {
     blurb: TITLE_BLURB,
     buttons: [
       actionButton('Quick Start', { type: 'quickStart' }),
-      actionButton('Custom Game', { type: 'openCustom' }),
       actionButton('How to Play', { type: 'openHowTo' }),
     ],
     corner: readTitleCorner(),

@@ -1,0 +1,63 @@
+.touch-controls {
+  position: fixed;
+  z-index: 4;
+  inset: auto 0 0;
+  display: grid;
+  grid-template-columns: 330px 220px minmax(0, 1fr) 96px;
+  align-items: end;
+  gap: 10px;
+  padding: 12px max(14px, env(safe-area-inset-right)) max(12px, env(safe-area-inset-bottom)) max(14px, env(safe-area-inset-left));
+  pointer-events: none;
+  font-family: Archivo, system-ui, sans-serif;
+}
+
+.touch-controls button,
+.touch-controls input { pointer-events: auto; touch-action: manipulation; }
+
+.touch-aim-controls {
+  grid-column: 1;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  padding: 10px;
+  background: rgb(10 13 18 / 88%);
+  border: 1px solid rgb(201 168 124 / 24%);
+  backdrop-filter: blur(8px);
+}
+
+.touch-aim-group { display: grid; grid-template-columns: 1fr auto; gap: 8px; color: #c9a87c; font: 700 11px/1.2 'JetBrains Mono', monospace; text-transform: uppercase; }
+.touch-aim-group label { display: grid; gap: 6px; }
+.touch-aim-group input { inline-size: 100%; min-block-size: 44px; margin: 0; accent-color: #ff8c42; }
+.touch-step-buttons { display: flex; gap: 4px; }
+.touch-step-buttons button,
+.touch-shell,
+.touch-fire { min-inline-size: 44px; min-block-size: 44px; border: 1px solid rgb(201 168 124 / 30%); background: rgb(15 20 28 / 92%); color: #f6eadc; }
+.touch-step-buttons button { padding: 0 12px; font-size: 24px; }
+
+.touch-deck { grid-column: 3; display: grid; justify-content: center; gap: 7px; padding: 9px 8px 11px; border: 1px solid rgb(201 168 124 / 24%); background: rgb(10 13 18 / 90%); }
+.touch-deck-label { color: #c9a87c; font: 700 10px/1 'JetBrains Mono', monospace; letter-spacing: 0.24em; text-align: center; }
+.touch-shells { display: flex; justify-content: center; gap: 7px; }
+.touch-shell { position: relative; display: grid; grid-template-rows: 30px auto; place-items: center; gap: 5px; min-inline-size: 70px; min-block-size: 68px; padding: 8px 5px 6px; }
+.touch-shell .shell-icon { inline-size: 30px; block-size: 30px; }
+.touch-shell small { position: absolute; inset: 2px auto auto 4px; color: #8fa0b8; font: 9px 'JetBrains Mono', monospace; }
+.touch-shell-name { max-inline-size: 68px; overflow: hidden; color: #b9c4d2; font: 700 9px/1.1 'JetBrains Mono', monospace; text-align: center; text-overflow: ellipsis; white-space: nowrap; }
+.touch-shell.is-selected { border-color: #ff8c42; background: rgb(255 140 66 / 18%); color: #ffb17e; }
+.touch-shell.is-selected .touch-shell-name { color: #ffc39d; }
+.touch-shell:disabled { opacity: 0.4; }
+
+.touch-fire { grid-column: 4; min-inline-size: 96px; min-block-size: 64px; padding: 0 16px; border-color: #ff6b35; background: #ff6b35; color: #0e1219; font-size: 18px; font-weight: 800; letter-spacing: 0.14em; text-transform: uppercase; }
+.touch-fire:disabled { opacity: 0.42; }
+
+@media (hover: hover) and (pointer: fine) {
+  .touch-controls { opacity: 0.72; }
+  .touch-controls:hover,
+  .touch-controls:focus-within { opacity: 1; }
+}
+
+@media (max-height: 650px) {
+  .touch-controls { gap: 8px; padding-block-start: 7px; }
+  .touch-aim-controls { padding: 6px; }
+  .touch-aim-group { grid-template-columns: 1fr; }
+  .touch-step-buttons { display: none; }
+  .touch-fire { min-block-size: 52px; }
+}

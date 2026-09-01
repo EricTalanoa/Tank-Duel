@@ -39,14 +39,11 @@
       "step": "2 / 2",
       "options": [
         "terra",
-        "vesper",
         "rust",
         "selene",
-        "ferrum",
-        "hollow",
-        "random"
+        "ferrum"
       ],
-      "$note": "Random is a first-class tile in the grid, not a menu item."
+      "$note": "Vesper, Hollow, and Random remain shipped but are temporarily excluded from Quick Start."
     },
     {
       "id": "CUSTOM",

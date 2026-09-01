@@ -9,6 +9,13 @@ import {
 import { SHIPPED_WORLDS, worldById } from './worlds';
 
 describe('world shell reachability', () => {
+  it('ships only wide battlefields with distant spawns', () => {
+    for (const world of SHIPPED_WORLDS) {
+      expect(world.width).toBeGreaterThanOrEqual(1200);
+      expect(spawnGapForWorld(world)).toBeGreaterThanOrEqual(900);
+    }
+  });
+
   it.each(SHIPPED_WORLDS)('$name validates every flight-capable shell across its spawn gap', (world) => {
     const results = validateWorldShellRanges(world);
     expect(results.map((result) => result.shellId)).not.toContain('repair');

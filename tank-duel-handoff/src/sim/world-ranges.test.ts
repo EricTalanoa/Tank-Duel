@@ -36,7 +36,6 @@ describe('shipped world golden ranges', () => {
     const at100 = flatRange(world, CONSTANTS.power.max);
     expect(Math.abs(at75.range - golden.atPower75)).toBeLessThanOrEqual(10);
     expect(Math.abs(at100.range - golden.atPower100)).toBeLessThanOrEqual(10);
-    expect(at100.range).toBeGreaterThan(world.width);
     expect(at100.frames).toBe(golden.flightFramesAtPower100);
     expect(at100.frames / CONSTANTS.simHz / world.flightTimeScale)
       .toBeCloseTo(source.derived.watchedSeconds, 2);

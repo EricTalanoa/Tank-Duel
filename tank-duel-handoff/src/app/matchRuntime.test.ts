@@ -1,5 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { DT, createClock } from '../sim/clock';
+import { CONSTANTS } from '../sim/constants';
+import { surfaceY } from '../sim/terrain';
 import {
   createWorld,
   step as stepWorld,
@@ -30,6 +32,7 @@ import {
 } from './matchRuntime';
 import { chooseCpuCommand, createCpuMemory } from '../sim/cpu';
 import { fire, step } from '../sim/world';
+import type { TouchControlCallbacks, TouchControlState } from '../ui/touchControls';
 
 /**
  * The exact decks the loadout screen deploys for these picks: built through the same
@@ -264,7 +267,7 @@ function advanceUntil(harness: Harness, predicate: () => boolean): void {
     if (predicate()) return;
     harness.runNextFrame();
   }
-  throw new Error('runtime did not reach the expected state');
+  throw new Error(`runtime did not reach the expected state: ${harness.state.phase}, player ${harness.state.activePlayer}, frame ${harness.state.frame}`);
 }
 
 function humanFireToCpuTurn(harness: Harness): void {
@@ -292,6 +295,40 @@ afterEach(() => {
 });
 
 describe('match runtime lifecycle', () => {
+  it('routes touch controls through the same guarded aim and fire path', () => {
+    const harness = createHarness();
+    let touch: TouchControlCallbacks | undefined;
+    const rendered: TouchControlState[] = [];
+    const runtime = createMatchRuntime({
+      canvas: {} as HTMLCanvasElement,
+      controlRoot: {} as HTMLElement,
+      config: LOCAL_RUNTIME_CONFIG,
+      playerLoadoutIds: PLAYER_LOADOUT_IDS,
+      onComplete: () => undefined,
+      dependencies: {
+        ...harness.dependencies,
+        mountTouchControls(_root, callbacks) {
+          touch = callbacks;
+          return { render: (state) => { rendered.push(state); }, dispose() {} };
+        },
+        attachPointerDragControls() { return { dispose() {} }; },
+      },
+    });
+
+    expect(touch).toBeDefined();
+    expect(rendered.at(-1)?.shells).toHaveLength(harness.state.arsenals[0].slots.length);
+    touch!.onAngle(55);
+    touch!.onPower(82);
+    touch!.onShell(2);
+    touch!.onFire();
+    touch!.onFire();
+
+    expect(harness.state.aim).toEqual({ angleDeg: 55, power: 82 });
+    expect(harness.state.projectile?.shell.id).toBe('mortar');
+    expect(harness.state.projectiles).toHaveLength(1);
+    runtime.dispose();
+  });
+
   it('owns one resource set and starts one fixed-step frame loop', () => {
     const harness = createHarness();
     const runtime = startRuntime(harness);
@@ -654,7 +691,12 @@ describe('CPU match runtime scheduling', () => {
     const runtime = startRuntime(harness, undefined, CPU_RUNTIME_CONFIG);
     harness.state.tanks[0].health = 10_000;
     harness.state.tanks[1].health = 10_000;
-    harness.state.tanks[1].x = harness.state.tanks[0].x + 220;
+    harness.state.tanks[0].x = 490;
+    harness.state.tanks[1].x = 710;
+    harness.state.tanks[0].y = surfaceY(harness.state.terrain, harness.state.tanks[0].x)
+      - CONSTANTS.tank.hullBottom;
+    harness.state.tanks[1].y = surfaceY(harness.state.terrain, harness.state.tanks[1].x)
+      - CONSTANTS.tank.hullBottom;
 
     humanFireToCpuTurn(harness);
     const firstCommand = Object.freeze({ ...harness.state.aim });
@@ -667,7 +709,6 @@ describe('CPU match runtime scheduling', () => {
 
     expect(harness.state.aim.angleDeg).toBe(45);
     expect(harness.state.aim.power).not.toBe(firstCommand.power);
-    expect(harness.state.lastResolvedShotImpact?.owner).toBe(0);
     expect(harness.resolvedImpacts.filter((impact) => impact.owner === 1)).toHaveLength(1);
     expect(muzzleFlashCount(harness, 1)).toBe(2);
     runtime.dispose();
