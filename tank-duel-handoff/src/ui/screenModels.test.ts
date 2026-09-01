@@ -90,22 +90,50 @@ describe('screen models', () => {
         id: 'mortar',
         name: config.shells.mortar!.name,
         icon: config.shells.mortar!.icon,
+        count: 1,
       },
       {
         id: 'he',
         name: config.shells.he!.name,
         icon: config.shells.he!.icon,
+        count: 1,
       },
       {
         id: 'cluster',
         name: config.shells.cluster!.name,
         icon: config.shells.cluster!.icon,
+        count: 1,
       },
     ]);
   });
 
+  it('counts repeated shells instead of one row per shot', () => {
+    // Break caught: the recap going back to a row per shot, which makes a long round
+    // unreadable, or losing duplicates upstream so every count reads as one.
+    const config = createDefaultConfig();
+    const state: AppFlowState = {
+      ...createFlow(config),
+      screen: 'ROUND_OVER',
+      roundOver: {
+        spentShellIdsByPlayer: [['he', 'mortar', 'he', 'he'], []],
+        result: 0,
+        turns: 7,
+      },
+    };
+    const model = buildRoundOverScreenModel(state);
+
+    expect(model.players[0]!.shells.map(({ id, count }) => ({ id, count }))).toEqual([
+      { id: 'he', count: 3 },
+      { id: 'mortar', count: 1 },
+    ]);
+    expect(model.players[0]!.summary).toBe('4 shots');
+    expect(model.players[0]!.winner).toBe(true);
+    expect(model.headline.flat().map((span) => span.text).join('')).toBe('Player 1 winsthe round');
+    expect(model.kicker).toContain('7 turns');
+  });
+
   it('uses the three spec-backed bracketing examples in short, long, hit order', () => {
-    expect(buildHowToScreenModel().shots).toEqual([
+    expect(buildHowToScreenModel().shots.map(({ result, power }) => ({ result, power }))).toEqual([
       { result: 'short', power: 69 },
       { result: 'long', power: 82 },
       { result: 'hit', power: 76 },

@@ -37,7 +37,14 @@ export interface AppFlowState {
 }
 
 export interface RoundOverRecap {
+  /** One entry per shot fired, in order — so the recap can show counts, not repeats. */
   readonly spentShellIdsByPlayer: readonly (readonly string[])[];
+  /**
+   * Who took the round. Optional because a recap can be built before the round resolves;
+   * the screen falls back to its plain label rather than naming a winner it does not have.
+   */
+  readonly result?: 0 | 1 | 'draw' | null;
+  readonly turns?: number;
 }
 
 export type FlowAction =
@@ -172,6 +179,8 @@ function freezeRoundOverRecap(recap: RoundOverRecap): RoundOverRecap {
     spentShellIdsByPlayer: Object.freeze(
       recap.spentShellIdsByPlayer.map((playerShells) => Object.freeze([...playerShells])),
     ),
+    ...(recap.result === undefined ? {} : { result: recap.result }),
+    ...(recap.turns === undefined ? {} : { turns: recap.turns }),
   });
 }
 

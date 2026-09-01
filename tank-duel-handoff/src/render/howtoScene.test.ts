@@ -103,7 +103,8 @@ describe('HOWTO scene model', () => {
     const specShots = readHowtoShotsFromScreenSpec();
 
     expect(model.shots.map(({ result, power }) => ({ result, power }))).toEqual(specShots);
-    expect(buildHowToScreenModel().shots).toEqual(specShots);
+    expect(buildHowToScreenModel().shots.map(({ result, power }) => ({ result, power })))
+      .toEqual(specShots);
     const [short, long, hit] = model.shots;
     expect(short?.rangePx).toBeLessThan(hit?.rangePx ?? 0);
     expect(hit?.rangePx).toBeLessThan(long?.rangePx ?? 0);

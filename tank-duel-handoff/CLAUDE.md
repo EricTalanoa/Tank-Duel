@@ -44,7 +44,10 @@ networking all come free if `sim/` stays pure, and all become impossible if it d
    loadout cards, custom-game rows, deploy summary, round-over recap, tooltips — pairs the name
    with `assets/icons/<id>.svg`. They are `currentColor` stroke icons, so one file works
    selected, unselected and greyed out; there is never a reason to omit one. `shells.json`
-   carries the path in each shell's `icon` field.
+   carries the path in each shell's `icon` field. The files live in `public/assets/icons/`,
+   which is what makes that path a real URL in both dev and a production build; render them
+   as a masked span, never an `<img>` — an SVG loaded as an image gets no inheritable colour,
+   so `currentColor` resolves to black and the icon vanishes on a dark panel.
 
 ## Traps that already bit this project
 

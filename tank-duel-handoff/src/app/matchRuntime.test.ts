@@ -526,6 +526,8 @@ describe('match runtime lifecycle', () => {
 
     expect(recaps).toEqual([{
       spentShellIdsByPlayer: [['he'], []],
+      result: 0,
+      turns: harness.state.turn,
     }]);
     runtime.dispose();
   });

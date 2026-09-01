@@ -151,7 +151,9 @@ export function createMatchRuntime(options: CreateMatchRuntimeOptions): MatchRun
     state.world,
     options.hudChrome ?? {},
   );
-  const spentShellIdsByPlayer = [new Set<string>(), new Set<string>()] as const;
+  // One entry per shot, in order: the round-over recap counts shells, and a Set would
+  // silently collapse three mortars into one row.
+  const spentShellIdsByPlayer: readonly string[][] = [[], []];
   let cpuMemory: CpuMemory = createCpuMemory();
   let lastCpuCommand: CpuCommand | null = null;
   let lastCpuCommandWind: number | null = null;
@@ -181,7 +183,7 @@ export function createMatchRuntime(options: CreateMatchRuntimeOptions): MatchRun
       unlockAudio();
       const player = state.activePlayer;
       const shellId = state.arsenals[player].selectedShellId;
-      if (fire(state)) spentShellIdsByPlayer[player].add(shellId);
+      if (fire(state)) spentShellIdsByPlayer[player]!.push(shellId);
     },
     onShell: (slot) => {
       if (disposed || paused) return;
@@ -212,6 +214,8 @@ export function createMatchRuntime(options: CreateMatchRuntimeOptions): MatchRun
       spentShellIdsByPlayer: Object.freeze(
         spentShellIdsByPlayer.map((shellIds) => Object.freeze([...shellIds])),
       ),
+      result: state.roundResult,
+      turns: state.turn,
     });
     options.onComplete(recap);
   };
@@ -247,7 +251,7 @@ export function createMatchRuntime(options: CreateMatchRuntimeOptions): MatchRun
     adjustPower(state, command.power - state.aim.power);
     if (!selectShell(state, heSlot) || !fire(state)) return;
 
-    spentShellIdsByPlayer[1].add(HE_SHELL.id);
+    spentShellIdsByPlayer[1]!.push(HE_SHELL.id);
     lastCpuCommand = command;
     lastCpuCommandWind = state.wind;
   };
