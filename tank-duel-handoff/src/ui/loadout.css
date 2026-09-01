@@ -87,7 +87,7 @@
 
 .panel-budget { display: flex; align-items: center; gap: 10px; }
 .loadout-panel output { color: var(--sand); font-family: var(--mono); font-size: 12px; white-space: nowrap; }
-.cpu-loadout-summary output { color: var(--disabled); font-size: 10px; letter-spacing: 0.2em; }
+.cpu-loadout-summary output { color: var(--disabled); font-size: 10px; letter-spacing: 0.2em; text-transform: uppercase; }
 
 /* Ten pips: the budget is legible at a glance rather than as a fraction to parse. */
 .panel-pips { display: flex; gap: 3px; }

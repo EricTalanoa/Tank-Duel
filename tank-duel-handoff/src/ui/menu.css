@@ -89,7 +89,8 @@
   text-transform: uppercase;
 }
 
-.screen-title span { display: block; }
+/* Direct children only: an outcome line holds inline runs for the accent word. */
+.screen-title > span { display: block; }
 .app-screen[data-screen='CUSTOM'] .screen-title,
 .app-screen[data-screen='LOADOUT'] .screen-title { font-size: 48px; line-height: 0.94; }
 .app-screen[data-screen='ROUND_OVER'] .screen-title { font-size: 68px; line-height: 0.9; letter-spacing: -0.032em; }
@@ -164,10 +165,10 @@
 
 .title-column { display: flex; flex-direction: column; justify-content: flex-end; gap: 36px; grid-column: 1; }
 .title-intro { display: flex; flex-direction: column; gap: 14px; }
-.title-wordmark span { display: block; }
+.title-wordmark > span { display: block; }
 .title-wordmark { font-size: 104px; font-weight: 800; line-height: 0.86; letter-spacing: -0.035em; text-transform: uppercase; }
 .title-blurb { color: var(--muted); font-family: var(--mono); font-size: 12px; line-height: 1.8; text-transform: uppercase; }
-.title-blurb span { display: block; }
+.title-blurb > span { display: block; }
 
 .title-menu { display: flex; flex-direction: column; border-block-end: 1px solid var(--hairline); }
 
@@ -441,7 +442,7 @@
 .app-screen[data-screen='HOWTO'] { gap: 0; }
 .app-screen[data-screen='HOWTO'] .screen-header { max-inline-size: 640px; }
 .howto-lede { color: #b9c4d2; font-family: var(--mono); font-size: 13px; line-height: 1.9; }
-.howto-lede span { display: block; }
+.howto-lede > span { display: block; }
 .app-screen[data-screen='HOWTO'] .screen-footer { border: 0; padding: 0; align-items: flex-end; gap: 40px; }
 .howto-shots { display: flex; gap: 14px; margin: 0; padding: 0; list-style: none; }
 
@@ -480,7 +481,7 @@
 
 .player-recap .shell-summary li { grid-template-columns: 26px 1fr auto; padding-block: 12px; }
 .player-recap .shell-summary li span:nth-child(2) { font-size: 15px; }
-.app-screen[data-screen='ROUND_OVER'] .screen-footer { display: grid; grid-template-columns: 1fr auto auto; }
+.app-screen[data-screen='ROUND_OVER'] .screen-footer { display: grid; grid-template-columns: 1fr auto auto auto; gap: 12px; }
 
 /* ── Shell icons ───────────────────────────────────────────────────────────────── */
 

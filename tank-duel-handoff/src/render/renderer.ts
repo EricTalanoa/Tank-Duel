@@ -91,6 +91,8 @@ function persistentOverflowPx(state: GameState, effects?: EffectsEngine): number
 
 /** How far the world's own sky is darkened to make the letterbox read as a bezel. */
 const SURROUND_SHADE = 0.55;
+/** Keeps the crop caption clear of the canvas edge when the frame reaches it. */
+const CAPTION_INSET = 10;
 
 export function createRenderer(
   canvas: HTMLCanvasElement,
@@ -153,8 +155,8 @@ export function createRenderer(
     const outside = below + 10 <= height;
     ctx!.fillText(
       `VIEW ${Math.round(view.width)} × ${Math.round(view.height)}  ·  ${scale.toFixed(2)}×`,
-      offsetX + frameWidth - (outside ? 0 : 10),
-      outside ? below : offsetY + frameHeight - 16,
+      offsetX + frameWidth - CAPTION_INSET,
+      outside ? below : offsetY + frameHeight - 20,
     );
     ctx!.textAlign = 'left';
   }
