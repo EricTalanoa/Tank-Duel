@@ -1,6 +1,7 @@
 import { CONSTANTS } from '../sim/constants';
 import type { GameState, Tank } from '../sim/world';
 import { playerColor, tankTones } from './palette';
+import type { PlayerIndex } from '../sim/playerLoadouts';
 import { surfaceY } from '../sim/terrain';
 import { wrapX } from '../sim/wrap';
 
@@ -91,9 +92,35 @@ function drawTrails(ctx: CanvasRenderingContext2D, tank: Tank): void {
  * twice.
  */
 function drawTank(ctx: CanvasRenderingContext2D, state: GameState, tank: Tank): void {
+  drawTankSilhouette(ctx, {
+    x: tank.x,
+    y: tank.y,
+    direction: tank.direction,
+    player: tank.player,
+    angleDeg: tank.aim.angleDeg,
+    health: tank.health,
+    active: state.activePlayer === tank.player && state.phase === 'aim',
+  });
+}
+
+/** A tank drawn from a plain descriptor, so the title and how-to scenes draw the real one. */
+export interface TankSilhouette {
+  readonly x: number;
+  readonly y: number;
+  readonly direction: 1 | -1;
+  readonly player: PlayerIndex;
+  readonly angleDeg: number;
+  readonly health: number;
+  /** Draws the turn reticle. */
+  readonly active: boolean;
+  /** Omits the health rail, for scenes with no match state behind them. */
+  readonly hideHealth?: boolean;
+}
+
+export function drawTankSilhouette(ctx: CanvasRenderingContext2D, tank: TankSilhouette): void {
   const { base, dark, light } = tankTones(tank.player);
   const pivotY = tank.y + CONSTANTS.tank.turretPivotY;
-  const angle = (tank.aim.angleDeg * Math.PI) / 180;
+  const angle = (tank.angleDeg * Math.PI) / 180;
   const muzzleX = tank.x + Math.cos(angle) * CONSTANTS.tank.muzzleOffset * tank.direction;
   const muzzleY = pivotY - Math.sin(angle) * CONSTANTS.tank.muzzleOffset;
 
@@ -154,12 +181,12 @@ function drawTank(ctx: CanvasRenderingContext2D, state: GameState, tank: Tank): 
   );
 
   ctx.globalAlpha = 1;
-  drawHealthRail(ctx, tank, base);
-  if (state.activePlayer === tank.player && state.phase === 'aim') drawTurnBrackets(ctx, tank);
+  if (!tank.hideHealth) drawHealthRail(ctx, tank, base);
+  if (tank.active) drawTurnBrackets(ctx, tank);
 }
 
 /** Quarter ticks so a player reads "about half" without doing arithmetic. */
-function drawHealthRail(ctx: CanvasRenderingContext2D, tank: Tank, base: string): void {
+function drawHealthRail(ctx: CanvasRenderingContext2D, tank: TankSilhouette, base: string): void {
   const width = CONSTANTS.tank.hullHalfWidth * 2;
   const x = tank.x - CONSTANTS.tank.hullHalfWidth;
   const y = tank.y + CONSTANTS.tank.hullTop - 8;
@@ -177,7 +204,7 @@ function drawHealthRail(ctx: CanvasRenderingContext2D, tank: Tank, base: string)
 }
 
 /** A reticle rather than a selection box, so it does not compete with the hull outline. */
-function drawTurnBrackets(ctx: CanvasRenderingContext2D, tank: Tank): void {
+function drawTurnBrackets(ctx: CanvasRenderingContext2D, tank: TankSilhouette): void {
   const length = 5;
   const left = tank.x - 20;
   const right = tank.x + 20;

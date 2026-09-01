@@ -5,8 +5,9 @@ import { HE_SHELL } from '../sim/shells';
 import { TERRA } from '../sim/worlds';
 import { buildHowToScreenModel } from '../ui/screenModels';
 import type { MotionPolicy } from './motion';
-import { functionalAccent, PALETTE } from './palette';
+import { functionalAccent } from './palette';
 import type { DisposableScene, SceneAnimationOptions } from './titleScene';
+import { drawTankSilhouette } from './entities';
 
 export type HistoricalShotResult = 'short' | 'long' | 'hit';
 
@@ -144,65 +145,107 @@ export function updateHowtoSceneModel(
   };
 }
 
+/**
+ * Padding is asymmetric on purpose: the text block occupies the left of the screen, so the
+ * arcs start clear of it instead of running underneath.
+ */
+const HOWTO_PADDING = { left: 300, right: 120 } as const;
+const HOWTO_SKY = ['#0A0E15', '#20262F'] as const;
+const HOWTO_GROUND_CAP_PX = 4;
+
+export function howtoTrailAccent(shotIndex: number): string {
+  const world = HISTORICAL_TRAIL_WORLDS[shotIndex % (HISTORICAL_TRAIL_WORLDS.length + 1)];
+  return world ? functionalAccent(world) : HE_SHELL.accent;
+}
+
 export function drawHowtoScene(
   context: CanvasRenderingContext2D,
   model: HowtoSceneModel,
   frame: HowtoFrameState,
 ): number {
   const groundY = model.height * CONSTANTS.damage.minFractionAtEdge * 3;
-  const horizontalPadding = Math.min(CONSTANTS.spawnInsetPx, model.width * CONSTANTS.damage.minFractionAtEdge);
+  const padLeft = Math.min(HOWTO_PADDING.left, model.width * 0.3);
+  const padRight = Math.min(HOWTO_PADDING.right, model.width * 0.15);
   const maxRange = Math.max(...model.shots.map((shot) => shot.rangePx));
   const maxAltitude = Math.max(
     CONSTANTS.damage.edgePadding,
     ...model.shots.flatMap((shot) => shot.points.map((point) => -point.y)),
   );
-  const xScale = (model.width - horizontalPadding * 2) / maxRange;
+  const xScale = (model.width - padLeft - padRight) / maxRange;
   const yScale = groundY * (1 - CONSTANTS.damage.minFractionAtEdge) / maxAltitude;
 
   context.globalAlpha = 1;
-  context.fillStyle = TERRA.palette.sky[0] ?? PALETTE.skyTop;
+  const sky = context.createLinearGradient(0, 0, 0, groundY);
+  sky.addColorStop(0, HOWTO_SKY[0]);
+  sky.addColorStop(1, HOWTO_SKY[1]);
+  context.fillStyle = sky;
   context.fillRect(0, 0, model.width, model.height);
   context.fillStyle = TERRA.palette.ground;
   context.fillRect(0, groundY, model.width, model.height - groundY);
+  context.fillStyle = TERRA.palette.edge;
+  context.fillRect(0, groundY, model.width, HOWTO_GROUND_CAP_PX);
 
   let work = model.shots.length;
   model.shots.forEach((shot, shotIndex) => {
     const visible = frame.visiblePointCounts[shotIndex] ?? 0;
     if (visible === 0) return;
+    const accent = howtoTrailAccent(shotIndex);
+    const hit = shot.result === 'hit';
     context.save();
     context.globalAlpha = shotIndex === frame.activeShotIndex || frame.activeShotIndex === null
       ? 1
       : 1 - CONSTANTS.damage.minFractionAtEdge;
-    const world = HISTORICAL_TRAIL_WORLDS[shotIndex % (HISTORICAL_TRAIL_WORLDS.length + 1)];
-    context.strokeStyle = world ? functionalAccent(world) : HE_SHELL.accent;
+    context.strokeStyle = accent;
     context.lineWidth = EFFECTIVE_TRAIL_WIDTH;
+    context.lineCap = 'round';
+    // The hit is solid and the two misses are dotted: that contrast is the whole lesson.
+    context.setLineDash(hit ? [] : [2, 8]);
     context.beginPath();
     for (let pointIndex = 0; pointIndex < visible; pointIndex++) {
       const point = shot.points[pointIndex];
       if (!point) continue;
-      const x = horizontalPadding + point.x * xScale;
+      const x = padLeft + point.x * xScale;
       const y = groundY + point.y * yScale;
       if (pointIndex === 0) context.moveTo(x, y);
       else context.lineTo(x, y);
       work++;
     }
     context.stroke();
+    context.setLineDash([]);
+
+    // Where it landed, marked as a point: bracketing is read off impacts, not line ends.
+    const impactX = padLeft + shot.rangePx * xScale;
+    context.fillStyle = accent;
+    context.fillRect(impactX - 1, groundY - 12, 2, 12);
+    context.beginPath();
+    context.arc(impactX, groundY - 15, 3.5, 0, Math.PI * 2);
+    context.fill();
     context.restore();
   });
 
-  const targetX = horizontalPadding + model.targetRangePx * xScale;
-  context.fillStyle = HE_SHELL.accent;
-  context.beginPath();
-  context.arc(
-    targetX,
-    groundY,
-    CONSTANTS.tank.hullHalfWidth,
-    Math.PI,
-    Math.PI * 2,
-  );
-  context.fill();
+  const targetX = padLeft + model.targetRangePx * xScale;
+  context.save();
+  context.translate(padLeft, groundY - CONSTANTS.tank.hullBottom);
+  context.scale(HOWTO_TANK_SCALE, HOWTO_TANK_SCALE);
+  drawTankSilhouette(context, {
+    x: 0, y: 0, direction: 1, player: 0,
+    angleDeg: HE_SHELL.demoShot.elevation ?? CONSTANTS.elevation.maxDisplay / 2,
+    health: CONSTANTS.damage.startingHealth, active: true, hideHealth: true,
+  });
+  context.restore();
+  context.save();
+  context.translate(targetX, groundY - CONSTANTS.tank.hullBottom);
+  context.scale(HOWTO_TANK_SCALE, HOWTO_TANK_SCALE);
+  drawTankSilhouette(context, {
+    x: 0, y: 0, direction: -1, player: 1,
+    angleDeg: HE_SHELL.demoShot.elevation ?? CONSTANTS.elevation.maxDisplay / 2,
+    health: CONSTANTS.damage.startingHealth * 0.34, active: false, hideHealth: true,
+  });
+  context.restore();
   return work;
 }
+
+const HOWTO_TANK_SCALE = 1.5;
 
 const EFFECTIVE_TRAIL_WIDTH = Math.max(1, CONSTANTS.substeps / CONSTANTS.power.coarseStep);
 

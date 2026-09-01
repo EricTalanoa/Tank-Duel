@@ -1,8 +1,10 @@
 import rawScreens from '../../spec/screens.json';
 import { CONSTANTS } from '../sim/constants';
 import type { PausableDisposable } from '../app/controller';
-import type { Rng } from '../sim/rng';
+import { createRng, hashSeed, type Rng } from '../sim/rng';
 import { HE_SHELL } from '../sim/shells';
+import { generateHeightmap } from '../sim/generators';
+import { drawTankSilhouette } from './entities';
 import { TERRA } from '../sim/worlds';
 import { EFFECTS } from './effectConfig';
 import type { MotionPolicy } from './motion';
@@ -180,17 +182,39 @@ export function snapshotTitleScene(model: TitleSceneModel): TitleSceneSnapshot {
   };
 }
 
+/**
+ * Static backdrop, back to front: a sky gradient, three receding ridges, the foreground
+ * ground, the two duellists and one dotted arc between them, then a left vignette so the
+ * wordmark holds against the scene. The idle animation systems draw on top of this and are
+ * unchanged.
+ */
+const TITLE_SKY = ['#0A0E15', '#141C28', '#2A2A2C'] as const;
+const TITLE_RIDGES = [
+  { offset: 130, amplitude: 34, color: '#141A24', phase: 11 },
+  { offset: 74, amplitude: 30, color: '#182029', phase: 29 },
+  { offset: 24, amplitude: 22, color: '#1D262C', phase: 57 },
+] as const;
+const TITLE_GROUND = { fill: '#39412F', edge: '#4A5540', capWidth: 3, reliefPx: 90, liftPx: 30 } as const;
+const TITLE_TANKS = [
+  { xFraction: 760 / 1194, direction: 1 as const, player: 0 as const },
+  { xFraction: 1060 / 1194, direction: -1 as const, player: 1 as const },
+];
+const TITLE_TANK_SCALE = 1.7;
+const TITLE_ARC = { apexPx: 160, clearancePx: 26, dash: [2, 9], alpha: 0.55 } as const;
+const TITLE_VIGNETTE_PX = 620;
+
 export function drawTitleScene(
   context: CanvasRenderingContext2D,
   model: TitleSceneModel,
 ): TitleDrawWork {
   const horizon = model.height * CONSTANTS.damage.minFractionAtEdge * 3;
-  const tankY = horizon - CONSTANTS.tank.hullBottom;
+  const surface = titleSurface(model, horizon);
+  // The idle systems anchor to the two tanks the backdrop draws, not to the spawn insets:
+  // decoration hanging in empty air reads as a bug.
+  const anchors = titleTankAnchors(model, surface, horizon);
+  const tankY = anchors[0]?.y ?? horizon - CONSTANTS.tank.hullBottom;
   context.globalAlpha = 1;
-  context.fillStyle = TERRA.palette.sky[0] ?? PALETTE.skyTop;
-  context.fillRect(0, 0, model.width, model.height);
-  context.fillStyle = TERRA.palette.ground;
-  context.fillRect(0, horizon, model.width, model.height - horizon);
+  drawTitleBackdrop(context, model, horizon, surface, anchors);
 
   drawSeedPool(context, model.pools.stars, model, (seed, index) => {
     context.globalAlpha = EFFECTS.reducedMotion.particleMultiplier
@@ -212,9 +236,10 @@ export function drawTitleScene(
 
   drawSeedPool(context, model.pools.beams, model, (_seed, index) => {
     const side = OPPOSING_SIDES[index] ?? 1;
-    const x = side < 0 ? CONSTANTS.spawnInsetPx : model.width - CONSTANTS.spawnInsetPx;
+    const anchor = anchors[index] ?? anchors[0];
+    const x = anchor?.x ?? model.width / 2;
     context.save();
-    context.translate(x, tankY + CONSTANTS.tank.turretPivotY);
+    context.translate(x, (anchor?.y ?? tankY) + CONSTANTS.tank.turretPivotY);
     context.rotate(side * model.activity.beamSweep * Math.PI * EFFECTS.reducedMotion.particleMultiplier);
     context.globalAlpha = EFFECTS.reducedMotion.particleMultiplier;
     context.fillStyle = PALETTE.horizonHaze;
@@ -229,9 +254,10 @@ export function drawTitleScene(
 
   drawSeedPool(context, model.pools.flags, model, (_seed, index) => {
     const side = OPPOSING_SIDES[index] ?? 1;
-    const x = side < 0 ? CONSTANTS.spawnInsetPx : model.width - CONSTANTS.spawnInsetPx;
+    const anchor = anchors[index] ?? anchors[0];
+    const x = anchor?.x ?? model.width / 2;
     context.save();
-    context.translate(x, tankY + CONSTANTS.tank.hullTop);
+    context.translate(x, (anchor?.y ?? tankY) + CONSTANTS.tank.hullTop);
     context.strokeStyle = PALETTE.telemetry;
     context.beginPath();
     context.moveTo(0, 0);
@@ -263,8 +289,9 @@ export function drawTitleScene(
   });
 
   drawSeedPool(context, model.pools.muzzleGlows, model, (_seed, index) => {
-    const side = OPPOSING_SIDES[index] ?? 1;
-    const x = side < 0 ? CONSTANTS.spawnInsetPx : model.width - CONSTANTS.spawnInsetPx;
+    const anchor = anchors[index] ?? anchors[0];
+    const side = anchor?.direction ?? 1;
+    const x = anchor?.x ?? model.width / 2;
     context.save();
     context.globalAlpha = EFFECTS.reducedMotion.particleMultiplier
       + model.activity.muzzlePulse * EFFECTS.reducedMotion.particleMultiplier;
@@ -272,7 +299,7 @@ export function drawTitleScene(
     context.beginPath();
     context.arc(
       x + side * CONSTANTS.tank.muzzleOffset,
-      tankY + CONSTANTS.tank.turretPivotY,
+      (anchor?.y ?? tankY) + CONSTANTS.tank.turretPivotY,
       EFFECTS.muzzleFlash.radiusPx,
       0,
       Math.PI * OPPOSING_SIDES.length,
@@ -288,8 +315,10 @@ export function drawTitleScene(
     const direction = Math.floor(model.elapsedMs / (CONSTANTS.settle.hardExitFrames * 1000 / CONSTANTS.simHz))
       % OPPOSING_SIDES.length;
     const fromLeft = direction === 0;
-    const startX = fromLeft ? CONSTANTS.spawnInsetPx : model.width - CONSTANTS.spawnInsetPx;
-    const endX = fromLeft ? model.width - CONSTANTS.spawnInsetPx : CONSTANTS.spawnInsetPx;
+    const left = anchors[0]?.x ?? CONSTANTS.spawnInsetPx;
+    const right = anchors[1]?.x ?? model.width - CONSTANTS.spawnInsetPx;
+    const startX = fromLeft ? left : right;
+    const endX = fromLeft ? right : left;
     const x = startX + (endX - startX) * progress;
     const y = tankY - Math.sin(progress * Math.PI) * horizon * CONSTANTS.damage.minFractionAtEdge;
     context.globalAlpha = 1 - progress;
@@ -326,6 +355,149 @@ export function titleScenePoolCounts(model: TitleSceneModel): TitleScenePoolCoun
     exchangedShots: model.pools.exchangedShots.length,
   };
 }
+
+function drawTitleBackdrop(
+  context: CanvasRenderingContext2D,
+  model: TitleSceneModel,
+  horizon: number,
+  surface: Float32Array,
+  placed: readonly TitleTankAnchor[],
+): void {
+  const sky = context.createLinearGradient(0, 0, 0, horizon);
+  TITLE_SKY.forEach((color, index) => {
+    sky.addColorStop(index === 1 ? 0.55 : index / (TITLE_SKY.length - 1), color);
+  });
+  context.fillStyle = sky;
+  context.fillRect(0, 0, model.width, model.height);
+
+  for (const ridge of TITLE_RIDGES) {
+    context.beginPath();
+    context.moveTo(0, model.height);
+    for (let x = 0; x <= model.width; x += 6) {
+      context.lineTo(x, ridgeY(ridge, horizon, x));
+    }
+    context.lineTo(model.width, model.height);
+    context.closePath();
+    context.fillStyle = ridge.color;
+    context.fill();
+  }
+
+  context.beginPath();
+  context.moveTo(0, model.height);
+  for (let x = 0; x < model.width; x++) context.lineTo(x, surface[x] ?? horizon);
+  context.lineTo(model.width, model.height);
+  context.closePath();
+  context.fillStyle = TITLE_GROUND.fill;
+  context.fill();
+
+  context.beginPath();
+  for (let x = 0; x < model.width; x++) {
+    const y = surface[x] ?? horizon;
+    if (x === 0) context.moveTo(x, y);
+    else context.lineTo(x, y);
+  }
+  context.strokeStyle = TITLE_GROUND.edge;
+  context.lineWidth = TITLE_GROUND.capWidth;
+  context.stroke();
+
+  for (const tank of placed) {
+    context.save();
+    context.translate(tank.x, tank.y);
+    context.scale(TITLE_TANK_SCALE, TITLE_TANK_SCALE);
+    drawTankSilhouette(context, {
+      x: 0,
+      y: 0,
+      direction: tank.direction,
+      player: tank.player,
+      angleDeg: HE_SHELL.demoShot.elevation ?? CONSTANTS.elevation.maxDisplay / 2,
+      health: CONSTANTS.damage.startingHealth,
+      active: false,
+      hideHealth: true,
+    });
+    context.restore();
+  }
+
+  const from = placed[0];
+  const to = placed[1];
+  if (from && to) {
+    context.save();
+    context.setLineDash([...TITLE_ARC.dash]);
+    context.strokeStyle = `rgba(255,140,66,${TITLE_ARC.alpha})`;
+    context.lineWidth = 2;
+    context.lineCap = 'round';
+    context.beginPath();
+    for (let t = 0; t <= 1.0001; t += 0.02) {
+      const x = from.x + (to.x - from.x) * t;
+      const y = from.y - TITLE_ARC.clearancePx - Math.sin(t * Math.PI) * TITLE_ARC.apexPx;
+      if (t === 0) context.moveTo(x, y);
+      else context.lineTo(x, y);
+    }
+    context.stroke();
+    context.setLineDash([]);
+    context.restore();
+  }
+
+  const vignetteWidth = Math.min(TITLE_VIGNETTE_PX, model.width);
+  const vignette = context.createLinearGradient(0, 0, vignetteWidth, 0);
+  vignette.addColorStop(0, 'rgba(10,13,18,0.94)');
+  vignette.addColorStop(1, 'rgba(10,13,18,0)');
+  context.fillStyle = vignette;
+  context.fillRect(0, 0, vignetteWidth, model.height);
+}
+
+export interface TitleTankAnchor {
+  readonly x: number;
+  readonly y: number;
+  readonly direction: 1 | -1;
+  readonly player: 0 | 1;
+}
+
+function titleTankAnchors(
+  model: TitleSceneModel,
+  surface: Float32Array,
+  horizon: number,
+): readonly TitleTankAnchor[] {
+  return TITLE_TANKS.map((tank) => {
+    const x = Math.round(model.width * tank.xFraction);
+    return {
+      x,
+      y: (surface[x] ?? horizon) - CONSTANTS.tank.hullBottom,
+      direction: tank.direction,
+      player: tank.player,
+    };
+  });
+}
+
+/** Two sines plus a deterministic wobble — a ridge, not a terrain the sim has to agree with. */
+function ridgeY(
+  ridge: typeof TITLE_RIDGES[number],
+  horizon: number,
+  x: number,
+): number {
+  return horizon - ridge.offset
+    + Math.sin(x * 0.004 + ridge.phase) * ridge.amplitude
+    + Math.sin(x * 0.013 + ridge.phase * 2) * ridge.amplitude * 0.4
+    + (seededUnit(ridge.phase / 100, x) - 0.5) * 3;
+}
+
+/** The foreground ground: a real `hills` heightmap, flattened into the band below horizon. */
+function titleSurface(model: TitleSceneModel, horizon: number): Float32Array {
+  const heights = generateHeightmap(
+    Math.max(1, Math.round(model.width)),
+    Math.max(1, Math.round(model.height)),
+    'hills',
+    createRng(TITLE_SURFACE_SEED),
+  );
+  const surface = new Float32Array(heights.length);
+  for (let x = 0; x < heights.length; x++) {
+    surface[x] = horizon
+      + ((heights[x] ?? 0) / model.height) * TITLE_GROUND.reliefPx
+      - TITLE_GROUND.liftPx;
+  }
+  return surface;
+}
+
+const TITLE_SURFACE_SEED = hashSeed('tank-duel:title-ground');
 
 function readTitleSystems(): readonly TitleSystem[] {
   const title = rawScreens.screens.find((screen) => screen.id === 'TITLE');
