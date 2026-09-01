@@ -114,7 +114,19 @@ export function reduceFlow(state: AppFlowState, action: FlowAction): AppFlowStat
     case 'openHowTo':
       return state.screen === 'TITLE' ? createState('HOWTO', state.config) : state;
     case 'back':
-      return state.screen === 'HOWTO' ? createState('TITLE', state.config) : state;
+      switch (state.screen) {
+        case 'MODE':
+        case 'MAP':
+        case 'CUSTOM':
+        case 'HOWTO':
+          return createState('TITLE', state.config);
+        case 'ROUND_INTRO':
+          return createState(state.config.path === 'custom' ? 'CUSTOM' : 'MAP', state.config);
+        case 'LOADOUT':
+          return createState('ROUND_INTRO', state.config);
+        default:
+          return state;
+      }
     case 'playFromHowTo':
       return state.screen === 'HOWTO' ? createState('MAP', withConfig(state.config, {
         path: 'quick',

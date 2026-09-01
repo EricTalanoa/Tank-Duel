@@ -6,6 +6,28 @@ import { createFlow, reduceFlow, type AppFlowState, type FlowAction } from './fl
 import { mountAppView } from './appView';
 
 describe('application DOM view', () => {
+  it('renders a working Back button on every DOM-rendered pre-match page after TITLE', () => {
+    const root = createRoot();
+    const onAction = vi.fn<(action: FlowAction) => void>();
+    const view = mountAppView(root as unknown as HTMLElement, { onAction });
+    const title = createFlow(createDefaultConfig());
+    const states = [
+      reduceFlow(title, { type: 'openMode' }),
+      reduceFlow(title, { type: 'quickStart' }),
+      reduceFlow(title, { type: 'openCustom' }),
+      reduceFlow(reduceFlow(title, { type: 'quickStart' }), { type: 'selectMap', worldId: 'terra' }),
+      reduceFlow(title, { type: 'openHowTo' }),
+    ];
+
+    for (const state of states) {
+      view.render(state);
+      const back = root.all('button').find((button) => button.getAttribute('aria-label') === 'Back');
+      expect(back, `${state.screen} is missing Back`).toBeDefined();
+      root.click(back!);
+      expect(onAction).toHaveBeenLastCalledWith({ type: 'back' });
+    }
+  });
+
   it('renders labelled semantic TITLE controls and dispatches one exact action after rerenders', () => {
     const root = createRoot();
     const onAction = vi.fn<(action: FlowAction) => void>();

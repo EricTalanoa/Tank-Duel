@@ -30,12 +30,10 @@ describe('title scene model', () => {
     expect(model.systems).toEqual([
       'embers',
       'drifting cloud bands',
-      'sweeping beams',
-      'waving flags',
       'twinkling stars',
-      'pulsing muzzle glow',
       'periodic exchange of fire',
     ]);
+    expect(titleScenePoolCounts(model)).not.toHaveProperty('beams');
   });
 
   it('produces deterministic state from injected seed and elapsed time', () => {
@@ -101,8 +99,6 @@ describe('title scene model', () => {
     expect(reducedCounts.embers).toBeLessThan(fullCounts.embers);
     expect(reducedCounts.stars).toBeLessThan(fullCounts.stars);
     expect(reducedSnapshot.activity.cloudDrift).toBe(0);
-    expect(reducedSnapshot.activity.beamSweep).toBe(0);
-    expect(reducedSnapshot.activity.flagWave).toBe(0);
     expect(reducedSnapshot.activity.exchangeProgress).toBeNull();
   });
 
@@ -222,36 +218,6 @@ describe('title scene model', () => {
 
     expect(model.systems.every((system) => drawWork.bySystem[system] > 0)).toBe(true);
     expect(updateWork + drawWork.total).toBeLessThanOrEqual(TITLE_FRAME_WORK_BUDGET);
-  });
-
-  it('keeps TITLE flags on their functional colors rather than gameplay identity colors', () => {
-    // Break caught: indexing playerColor for non-player title decoration.
-    const fills: string[] = [];
-    const context = {
-      globalAlpha: 1,
-      fillStyle: '',
-      strokeStyle: '',
-      lineWidth: 1,
-      createLinearGradient() { return { addColorStop() {} } as unknown as CanvasGradient; },
-      setLineDash() {}, scale() {}, ellipse() {},
-      lineCap: 'butt' as CanvasLineCap,
-      save() {}, restore() {}, fillRect() {}, beginPath() {}, closePath() {},
-      moveTo() {}, lineTo() {}, arc() {}, stroke() {}, translate() {}, rotate() {},
-      fill(this: { fillStyle: string }) { fills.push(this.fillStyle); },
-    } as unknown as CanvasRenderingContext2D;
-    const model = createTitleSceneModel(
-      CONSTANTS.defaultFieldWidth,
-      CONSTANTS.fieldHeight,
-      createRng(73),
-      motionPolicy(false),
-    );
-
-    drawTitleScene(context, model);
-
-    expect(fills).toEqual(expect.arrayContaining([
-      functionalAccent('rust'),
-      functionalAccent('hollow'),
-    ]));
   });
 
   it('exposes functional decorative accents from the world spec through the render contract', () => {

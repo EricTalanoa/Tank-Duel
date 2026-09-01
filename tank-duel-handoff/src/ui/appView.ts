@@ -178,7 +178,9 @@ function renderMode(document: Document, state: AppFlowState, bind: Binder): HTML
   for (const option of model.options) {
     body.append(modeCard(document, option, state.config.mode, model.cpuTiers, bind));
   }
-  surface.append(body, footer(document, 'Esc · Back', []));
+  surface.append(body, footer(document, 'Choose a mode', [
+    secondaryButton(document, { label: 'Back', action: { type: 'back' }, disabled: false }, bind),
+  ]));
   return surface;
 }
 
@@ -247,6 +249,7 @@ function renderMap(document: Document, state: AppFlowState, bind: Binder): HTMLE
   for (const tile of model.tiles) body.append(mapTile(document, tile, bind));
   surface.append(...cpuTierControls(document, state.config.mode, model.cpuTiers, bind), body);
   surface.append(footer(document, mapStatus(model.tiles), [
+    secondaryButton(document, { label: 'Back', action: { type: 'back' }, disabled: false }, bind),
     primaryButton(document, { label: 'Deploy', action: deployAction(model.tiles), disabled: false }, bind),
   ]));
   return surface;
@@ -367,6 +370,7 @@ function renderCustom(document: Document, state: AppFlowState, bind: Binder): HT
     ...cpuTierControls(document, state.config.mode, model.cpuTiers, bind),
     ammunition,
     footer(document, model.summary, [
+      secondaryButton(document, { label: 'Back', action: { type: 'back' }, disabled: false }, bind),
       primaryButton(document, { label: 'Start match', action: model.startAction, disabled: false }, bind),
     ]),
   );
@@ -392,7 +396,9 @@ function renderRoundIntro(document: Document, config: MatchConfig, bind: Binder)
     shellSummaryList(document, model.shells),
   );
 
-  surface.append(main, panel);
+  surface.append(main, panel, footer(document, 'Review match settings', [
+    secondaryButton(document, { label: 'Back', action: { type: 'back' }, disabled: false }, bind),
+  ]));
   return surface;
 }
 

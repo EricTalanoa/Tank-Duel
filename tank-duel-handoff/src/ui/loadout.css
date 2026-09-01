@@ -54,6 +54,9 @@
 /* `minmax(0, …)` on both tracks, so the read-only panel cannot blow the split out. */
 .loadout-panels.is-cpu { grid-template-columns: minmax(0, 1fr) minmax(0, 0.7fr); }
 
+.loadout-actions { display: flex; justify-content: flex-end; gap: 12px; }
+.loadout-actions .is-secondary { border-color: var(--hairline-strong); background: transparent; color: var(--dim); }
+
 .loadout-panel {
   box-sizing: border-box;
   display: flex;

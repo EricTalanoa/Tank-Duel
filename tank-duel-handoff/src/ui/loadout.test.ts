@@ -242,6 +242,22 @@ describe('loadout UI model', () => {
     expect(overlay.listenerCount('click')).toBe(0);
   });
 
+  it('disposes the loadout overlay before invoking Back', () => {
+    const root = createDomRoot();
+    let backedOut = false;
+    mountLoadout(root as unknown as HTMLElement, {
+      onDeploy: () => {},
+      onBack: () => { backedOut = true; },
+    });
+    const overlay = root.children[0]!;
+
+    overlay.click(overlay.first('[data-back]')!);
+
+    expect(backedOut).toBe(true);
+    expect(root.children).toHaveLength(0);
+    expect(overlay.listenerCount('click')).toBe(0);
+  });
+
   it('returns an idempotent owner that removes the overlay and its delegated listener', () => {
     const root = createDomRoot();
     let deployments = 0;

@@ -14,10 +14,7 @@
       "idleAnimation": [
         "embers",
         "drifting cloud bands",
-        "sweeping beams",
-        "waving flags",
         "twinkling stars",
-        "pulsing muzzle glow",
         "periodic exchange of fire"
       ],
       "$note": "No Exit (it is a web page). No Credits button (lives in Settings). No Leaderboards until a backend exists."

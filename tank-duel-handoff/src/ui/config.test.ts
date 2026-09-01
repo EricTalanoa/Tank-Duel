@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { CPU_TIERS } from '../sim/cpu';
 import { createRng } from '../sim/rng';
 import { HE_SHELL, SHELLS } from '../sim/shells';
+import { PLAYABLE_SHELL_IDS } from '../sim/weapons';
 import { SHIPPED_WORLDS, worldById } from '../sim/worlds';
 import * as configModule from './config';
 import {
@@ -57,8 +58,9 @@ describe('match config', () => {
       config.shells[shell.id]?.name === shell.name &&
       config.shells[shell.id]?.defaultAmmo === shell.ammo,
     )).toBe(true);
-    expect(config.shells.sand?.enabled).toBe(true);
-    expect(config.shells.skipper?.enabled).toBe(false);
+    expect(config.enabledShellIds).toEqual(PLAYABLE_SHELL_IDS);
+    expect(PLAYABLE_SHELL_IDS.every((id) => config.shells[id]?.enabled)).toBe(true);
+    expect(config.shells.anvil?.enabled).toBe(false);
   });
 
   it('rejects invalid shapes, missing or extra shell keys, malformed entries, and invalid ids', () => {

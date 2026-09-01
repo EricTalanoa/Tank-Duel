@@ -8,15 +8,12 @@ import { drawTankSilhouette } from './entities';
 import { TERRA } from '../sim/worlds';
 import { EFFECTS } from './effectConfig';
 import type { MotionPolicy } from './motion';
-import { functionalAccent, PALETTE } from './palette';
+import { PALETTE } from './palette';
 
 export type TitleSystem =
   | 'embers'
   | 'drifting cloud bands'
-  | 'sweeping beams'
-  | 'waving flags'
   | 'twinkling stars'
-  | 'pulsing muzzle glow'
   | 'periodic exchange of fire';
 
 export interface DisposableScene extends PausableDisposable {}
@@ -42,20 +39,14 @@ export interface TitleSceneModel {
 
 export interface TitleSceneActivity {
   readonly cloudDrift: number;
-  readonly beamSweep: number;
-  readonly flagWave: number;
   readonly starTwinkle: number;
-  readonly muzzlePulse: number;
   readonly exchangeProgress: number | null;
 }
 
 export interface TitleScenePools {
   readonly embers: readonly number[];
   readonly clouds: readonly number[];
-  readonly beams: readonly number[];
-  readonly flags: readonly number[];
   readonly stars: readonly number[];
-  readonly muzzleGlows: readonly number[];
   readonly exchangedShots: readonly number[];
 }
 
@@ -73,7 +64,6 @@ export interface TitleDrawWork {
 }
 
 const OPPOSING_SIDES = [-1, 1] as const;
-const TITLE_FLAG_WORLDS = ['rust', 'hollow'] as const;
 const MAX_TITLE_PARTICLES = EFFECTS.particles.baseCount;
 const MAX_TITLE_CLOUDS = TERRA.palette.sky.length;
 const TITLE_SYSTEMS = readTitleSystems();
@@ -155,10 +145,7 @@ export function createTitleSceneModel(
     pools: {
       embers: pool(atmosphericCount),
       clouds: pool(MAX_TITLE_CLOUDS),
-      beams: pool(OPPOSING_SIDES.length),
-      flags: pool(OPPOSING_SIDES.length),
       stars: pool(atmosphericCount),
-      muzzleGlows: pool(OPPOSING_SIDES.length),
       exchangedShots: pool(OPPOSING_SIDES.length - 1),
     },
     reducedMotion,
@@ -234,45 +221,6 @@ export function drawTitleScene(
     context.restore();
   });
 
-  drawSeedPool(context, model.pools.beams, model, (_seed, index) => {
-    const side = OPPOSING_SIDES[index] ?? 1;
-    const anchor = anchors[index] ?? anchors[0];
-    const x = anchor?.x ?? model.width / 2;
-    context.save();
-    context.translate(x, (anchor?.y ?? tankY) + CONSTANTS.tank.turretPivotY);
-    context.rotate(side * model.activity.beamSweep * Math.PI * EFFECTS.reducedMotion.particleMultiplier);
-    context.globalAlpha = EFFECTS.reducedMotion.particleMultiplier;
-    context.fillStyle = PALETTE.horizonHaze;
-    context.beginPath();
-    context.moveTo(0, 0);
-    context.lineTo(side * model.width, -horizon);
-    context.lineTo(side * model.width, -horizon + CONSTANTS.tank.muzzleOffset);
-    context.closePath();
-    context.fill();
-    context.restore();
-  });
-
-  drawSeedPool(context, model.pools.flags, model, (_seed, index) => {
-    const side = OPPOSING_SIDES[index] ?? 1;
-    const anchor = anchors[index] ?? anchors[0];
-    const x = anchor?.x ?? model.width / 2;
-    context.save();
-    context.translate(x, (anchor?.y ?? tankY) + CONSTANTS.tank.hullTop);
-    context.strokeStyle = PALETTE.telemetry;
-    context.beginPath();
-    context.moveTo(0, 0);
-    context.lineTo(0, CONSTANTS.tank.hullTop);
-    context.stroke();
-    context.fillStyle = functionalAccent(TITLE_FLAG_WORLDS[index] ?? TITLE_FLAG_WORLDS[0]);
-    context.beginPath();
-    context.moveTo(0, CONSTANTS.tank.hullTop);
-    context.lineTo(side * CONSTANTS.tank.muzzleOffset, CONSTANTS.tank.hullTop + model.activity.flagWave);
-    context.lineTo(0, CONSTANTS.tank.turretPivotY);
-    context.closePath();
-    context.fill();
-    context.restore();
-  });
-
   drawSeedPool(context, model.pools.embers, model, (seed, index) => {
     const travel = model.reducedMotion ? 0 : model.activity.cloudDrift * horizon;
     context.save();
@@ -285,26 +233,6 @@ export function drawTitleScene(
       EFFECTS.particles.sparkSize,
       EFFECTS.particles.sparkSize,
     );
-    context.restore();
-  });
-
-  drawSeedPool(context, model.pools.muzzleGlows, model, (_seed, index) => {
-    const anchor = anchors[index] ?? anchors[0];
-    const side = anchor?.direction ?? 1;
-    const x = anchor?.x ?? model.width / 2;
-    context.save();
-    context.globalAlpha = EFFECTS.reducedMotion.particleMultiplier
-      + model.activity.muzzlePulse * EFFECTS.reducedMotion.particleMultiplier;
-    context.fillStyle = HE_SHELL.accent;
-    context.beginPath();
-    context.arc(
-      x + side * CONSTANTS.tank.muzzleOffset,
-      (anchor?.y ?? tankY) + CONSTANTS.tank.turretPivotY,
-      EFFECTS.muzzleFlash.radiusPx,
-      0,
-      Math.PI * OPPOSING_SIDES.length,
-    );
-    context.fill();
     context.restore();
   });
 
@@ -332,10 +260,7 @@ export function drawTitleScene(
   const bySystem: Record<TitleSystem, number> = {
     embers: model.pools.embers.length,
     'drifting cloud bands': model.pools.clouds.length,
-    'sweeping beams': model.pools.beams.length,
-    'waving flags': model.pools.flags.length,
     'twinkling stars': model.pools.stars.length,
-    'pulsing muzzle glow': model.pools.muzzleGlows.length,
     'periodic exchange of fire': exchangeActive ? model.pools.exchangedShots.length : 0,
   };
   return {
@@ -348,10 +273,7 @@ export function titleScenePoolCounts(model: TitleSceneModel): TitleScenePoolCoun
   return {
     embers: model.pools.embers.length,
     clouds: model.pools.clouds.length,
-    beams: model.pools.beams.length,
-    flags: model.pools.flags.length,
     stars: model.pools.stars.length,
-    muzzleGlows: model.pools.muzzleGlows.length,
     exchangedShots: model.pools.exchangedShots.length,
   };
 }
@@ -511,10 +433,7 @@ function titleSceneActivity(elapsedMs: number, reducedMotion: boolean): TitleSce
   if (reducedMotion) {
     return {
       cloudDrift: 0,
-      beamSweep: 0,
-      flagWave: 0,
       starTwinkle: EFFECTS.reducedMotion.particleMultiplier,
-      muzzlePulse: EFFECTS.reducedMotion.particleMultiplier,
       exchangeProgress: null,
     };
   }
@@ -522,16 +441,7 @@ function titleSceneActivity(elapsedMs: number, reducedMotion: boolean): TitleSce
   const elapsedFrames = (elapsedMs * CONSTANTS.simHz) / 1000;
   return {
     cloudDrift: normalizedCycle(elapsedFrames, CONSTANTS.settle.hardExitFrames),
-    beamSweep: Math.sin(
-      normalizedCycle(elapsedFrames, CONSTANTS.settle.quietFrames * OPPOSING_SIDES.length)
-      * Math.PI * OPPOSING_SIDES.length,
-    ),
-    flagWave: Math.sin(
-      normalizedCycle(elapsedFrames, CONSTANTS.settle.quietFrames)
-      * Math.PI * OPPOSING_SIDES.length,
-    ),
     starTwinkle: normalizedPulse(elapsedFrames, EFFECTS.particles.lifetimeFramesMax),
-    muzzlePulse: normalizedPulse(elapsedFrames, EFFECTS.hitstop.directHitFrames),
     exchangeProgress: normalizedCycle(elapsedFrames, CONSTANTS.settle.hardExitFrames),
   };
 }

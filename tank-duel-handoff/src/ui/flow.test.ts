@@ -77,6 +77,24 @@ describe('app flow', () => {
     expect(play.config.mode).toBe('local');
   });
 
+  it('backs out through every pre-match screen without discarding configuration', () => {
+    const title = createFlow(createDefaultConfig());
+    const mode = reduceFlow(title, { type: 'openMode' });
+    const quickMap = reduceFlow(title, { type: 'quickStart' });
+    const custom = reduceFlow(title, { type: 'openCustom' });
+    const quickIntro = reduceFlow(quickMap, { type: 'selectMap', worldId: 'terra' });
+    const customIntro = reduceFlow(custom, { type: 'startCustom' });
+    const loadout = reduceFlow(quickIntro, { type: 'openLoadout' });
+
+    expect(reduceFlow(mode, { type: 'back' }).screen).toBe('TITLE');
+    expect(reduceFlow(quickMap, { type: 'back' }).screen).toBe('TITLE');
+    expect(reduceFlow(custom, { type: 'back' }).screen).toBe('TITLE');
+    expect(reduceFlow(quickIntro, { type: 'back' }).screen).toBe('MAP');
+    expect(reduceFlow(customIntro, { type: 'back' }).screen).toBe('CUSTOM');
+    expect(reduceFlow(loadout, { type: 'back' }).screen).toBe('ROUND_INTRO');
+    expect(reduceFlow(loadout, { type: 'back' }).config).toEqual(loadout.config);
+  });
+
   it('keeps Quick Start local while CPU selection persists through map, custom, round-over, and rematch', () => {
     const title = createFlow(createDefaultConfig());
     const quickMap = reduceFlow(title, { type: 'quickStart' });

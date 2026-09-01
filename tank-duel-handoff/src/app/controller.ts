@@ -28,6 +28,7 @@ export interface AppControllerLocation {
 
 export interface AppControllerLoadoutOptions {
   readonly onDeploy: (loadouts: PlayerLoadouts) => void;
+  readonly onBack: () => void;
   readonly enabledShellIds: readonly string[];
   readonly initialPlayerLoadoutIds?: PlayerLoadouts;
   readonly mode: MatchConfig['mode'];
@@ -146,6 +147,10 @@ export function createAppController(dependencies: AppControllerDependencies): Ap
             ? makePlayerLoadouts(loadouts[0], cpuPlayerLoadoutIds())
             : makePlayerLoadouts(loadouts[0], loadouts[1]);
           transition({ type: 'deployLoadout' });
+        },
+        onBack() {
+          if (disposed || state.screen !== 'LOADOUT' || generation !== loadoutGeneration) return;
+          transition({ type: 'back' });
         },
         ...(selectedPlayerLoadoutIds === null ? {} : {
           initialPlayerLoadoutIds: copyLoadouts(selectedPlayerLoadoutIds),

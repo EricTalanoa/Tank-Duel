@@ -146,6 +146,7 @@ export function createPlayerLoadoutEditorModel(
 
 export interface MountLoadoutOptions {
   readonly onDeploy: (loadouts: PlayerLoadouts) => void;
+  readonly onBack?: () => void;
   readonly enabledShellIds?: readonly string[];
   readonly initialPlayerLoadoutIds?: PlayerLoadouts;
   readonly mode?: MatchMode;
@@ -180,14 +181,19 @@ export function mountLoadout(root: HTMLElement, options: MountLoadoutOptions): M
     deploy.setAttribute('type', 'button');
     deploy.setAttribute('data-deploy', '');
     deploy.disabled = !model.canDeploy;
-    overlay.replaceChildren(renderHeader(document, cpu), panels, deploy);
+    const back = textElement(document, 'button', 'Back', 'deploy is-secondary') as HTMLButtonElement;
+    back.setAttribute('type', 'button');
+    back.setAttribute('data-back', '');
+    const actions = element(document, 'div', 'loadout-actions');
+    actions.append(back, deploy);
+    overlay.replaceChildren(renderHeader(document, cpu), panels, actions);
     focusHeading(overlay);
   };
 
 
   const onClick = (event: Event): void => {
     if (disposed) return;
-    const target = closestElement(event.target, '[data-shell], [data-deploy]');
+    const target = closestElement(event.target, '[data-shell], [data-deploy], [data-back]');
     if (!target || !overlay.contains(target) || (target as HTMLButtonElement).disabled) return;
     const shellId = target.getAttribute('data-shell');
     if (shellId) {
@@ -205,6 +211,11 @@ export function mountLoadout(root: HTMLElement, options: MountLoadoutOptions): M
       const deployment = model.deployment();
       dispose();
       options.onDeploy(deployment);
+      return;
+    }
+    if (target.hasAttribute('data-back')) {
+      dispose();
+      options.onBack?.();
     }
   };
 

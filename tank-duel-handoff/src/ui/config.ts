@@ -3,6 +3,7 @@ import { CONSTANTS } from '../sim/constants';
 import { CPU_TIERS, type CpuTierId } from '../sim/cpu';
 import { resolveGeneratorId, SHIPPED_GENERATORS, type GeneratorId } from '../sim/generators';
 import { HE_SHELL, SHELLS, type Shell } from '../sim/shells';
+import { PLAYABLE_SHELL_IDS } from '../sim/weapons';
 import { SHIPPED_WORLDS, worldById, type WorldId } from '../sim/worlds';
 import type { Rng } from '../sim/rng';
 
@@ -95,9 +96,7 @@ export const MATCH_TURN_TIMER_OPTIONS: readonly MatchTurnTimer[] = Object.freeze
 );
 
 export const DEFAULT_ENABLED_SHELL_IDS: readonly string[] = Object.freeze(
-  SHELLS
-    .filter((shell) => shell.slot <= CONSTANTS.loadout.slots + 1)
-    .map((shell) => shell.id),
+  [...PLAYABLE_SHELL_IDS],
 );
 
 const SHIPPED_WORLD_IDS = new Set<string>(SHIPPED_WORLDS.map((world) => world.id));
