@@ -62,10 +62,20 @@ function drawTrails(ctx: CanvasRenderingContext2D, tank: Tank): void {
     for (let point = 1; point < trail.length; point++) ctx.lineTo(trail[point]!.x, trail[point]!.y);
     ctx.globalAlpha = 0.25 + ((index + 1) / tank.trails.length) * 0.35;
     ctx.strokeStyle = playerColor(tank.player);
+    ctx.fillStyle = playerColor(tank.player);
     ctx.lineWidth = 2;
     ctx.lineCap = 'round';
     ctx.setLineDash([1, 7]);
     ctx.stroke();
+
+    // Mark where the shot landed. Bracketing is read off past impacts, and a dashed line
+    // end is much harder to place than a point.
+    const last = trail[trail.length - 1]!;
+    ctx.setLineDash([]);
+    ctx.globalAlpha = 0.5;
+    ctx.beginPath();
+    ctx.arc(last.x, last.y, 3, 0, Math.PI * 2);
+    ctx.fill();
   }
   ctx.globalAlpha = 1;
   ctx.setLineDash([]);

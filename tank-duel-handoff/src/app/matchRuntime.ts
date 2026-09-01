@@ -24,6 +24,7 @@ import { CONSTANTS } from '../sim/constants';
 import { HE_SHELL } from '../sim/shells';
 import type { PlayerLoadouts } from '../sim/playerLoadouts';
 import { createRenderer, type Renderer } from '../render/renderer';
+import type { HudChrome } from '../render/hud';
 import {
   attachAimControls,
   type AimControlsOptions,
@@ -77,6 +78,7 @@ export interface MatchRuntimeDependencies {
     terrain: GameState['terrain'],
     effects: EffectsEngine,
     world: GameState['world'],
+    chrome: HudChrome,
   ): Renderer;
   attachControls(options: AimControlsOptions): Controls;
 }
@@ -87,6 +89,8 @@ export interface CreateMatchRuntimeOptions {
   /** Both players' complete decks, already validated by `makePlayerLoadouts`. */
   readonly playerLoadoutIds: PlayerLoadouts;
   readonly onComplete: (recap: RoundOverRecap) => void;
+  /** HUD chrome the simulation does not own: rounds, turn timer, the dev telemetry flag. */
+  readonly hudChrome?: HudChrome;
   readonly dependencies?: Partial<MatchRuntimeDependencies>;
 }
 
@@ -140,7 +144,13 @@ export function createMatchRuntime(options: CreateMatchRuntimeOptions): MatchRun
   );
   effectsForMotionChange = effects;
   const audio = dependencies.createAudio();
-  const renderer = dependencies.createRenderer(options.canvas, state.terrain, effects, state.world);
+  const renderer = dependencies.createRenderer(
+    options.canvas,
+    state.terrain,
+    effects,
+    state.world,
+    options.hudChrome ?? {},
+  );
   const spentShellIdsByPlayer = [new Set<string>(), new Set<string>()] as const;
   let cpuMemory: CpuMemory = createCpuMemory();
   let lastCpuCommand: CpuCommand | null = null;

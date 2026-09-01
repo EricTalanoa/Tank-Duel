@@ -68,8 +68,52 @@ export function terrainBandsFor(world: WorldPhysics): TerrainBands {
   };
 }
 
+/**
+ * The two families the UI uses, with fallbacks so a failed webfont load degrades rather
+ * than breaks. JetBrains Mono is tabular by default, which is why the old TELEMETRY_FONT's
+ * intent - digits must not jitter as they change - survives every number moving to it.
+ */
+const MONO_STACK = "'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace";
+const DISPLAY_STACK = 'Archivo, system-ui, sans-serif';
+
+/** Every number, label and telemetry string. */
+export function monoFont(sizePx: number, weight = 400): string {
+  return `${weight} ${sizePx}px ${MONO_STACK}`;
+}
+
+/** Display and UI text. */
+export function displayFont(sizePx: number, weight = 400): string {
+  return `${weight} ${sizePx}px ${DISPLAY_STACK}`;
+}
+
 /** Monospace with tabular figures: telemetry digits must not jitter as they change. */
-export const TELEMETRY_FONT = '12px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace';
+export const TELEMETRY_FONT = monoFont(12);
+
+/**
+ * Chrome tones shared by the HUD and the menus. Sand rather than white for every hairline:
+ * it is what keeps a 1px rule legible on Ferrum's red sky and Selene's near-black one.
+ *
+ * One rule holds throughout: orange is never a surface. It appears as a 1px border, a 3px
+ * bar, a fill inside a meter, a small square, or text - never as a panel background.
+ */
+export const CHROME = {
+  paper: '#F6EADC',
+  sand: '#C9A87C',
+  muted: '#8FA0B8',
+  dim: '#7F8B9C',
+  action: '#FF8C42',
+  actionText: '#FFC39D',
+  panel: 'rgba(13,17,23,0.90)',
+  chip: 'rgba(11,15,21,0.92)',
+  chipSelected: 'rgba(31,23,17,0.95)',
+  meterBed: 'rgba(8,11,16,0.9)',
+  meterTick: 'rgba(8,11,16,0.8)',
+  hairline: 'rgba(201,168,124,0.22)',
+  hairlineStrong: 'rgba(201,168,124,0.3)',
+  hairlineChip: 'rgba(201,168,124,0.24)',
+  hairlineFaint: 'rgba(201,168,124,0.35)',
+  scrim: '8,11,16',
+} as const;
 
 /** Parses `#rrggbb` into 0-255 components. Throws on anything else, so a typo fails loudly. */
 export function parseHex(hex: string): readonly [number, number, number] {

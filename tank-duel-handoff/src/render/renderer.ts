@@ -7,8 +7,8 @@
  */
 import type { Terrain, DirtyRanges } from '../sim/terrain';
 import type { GameState } from '../sim/world';
-import { drawHud, type LoopTelemetry } from './hud';
-import { shade, terrainBandsFor } from './palette';
+import { drawHud, type HudChrome, type LoopTelemetry } from './hud';
+import { CHROME, monoFont, shade, terrainBandsFor } from './palette';
 import { createTerrainLayer } from './terrainLayer';
 import { drawFlightEntities, drawWorldEntities } from './entities';
 import type { EffectsEngine } from './effects';
@@ -97,6 +97,7 @@ export function createRenderer(
   terrain: Terrain,
   effects?: EffectsEngine,
   world: WorldPhysics = TERRA,
+  chrome: HudChrome = {},
 ): Renderer {
   const ctx = canvas.getContext('2d', { alpha: false });
   if (!ctx) throw new Error('Canvas 2D context unavailable');
@@ -128,6 +129,34 @@ export function createRenderer(
       canvas.height = height * dpr;
     }
     return { width, height, dpr };
+  }
+
+  /**
+   * When the view does not fill the canvas, frame the play area and print the crop. It
+   * turns the dead bars into an instrument bezel and makes the camera legible.
+   */
+  function drawLetterboxFrame(width: number, height: number): void {
+    const frameWidth = view.width * scale;
+    const frameHeight = view.height * scale;
+    if (frameWidth >= width - 1 && frameHeight >= height - 1) return;
+
+    ctx!.strokeStyle = CHROME.hairline;
+    ctx!.lineWidth = 1;
+    ctx!.strokeRect(offsetX + 0.5, offsetY + 0.5, frameWidth - 1, frameHeight - 1);
+
+    ctx!.font = monoFont(9);
+    ctx!.fillStyle = 'rgba(201,168,124,0.5)';
+    ctx!.textAlign = 'right';
+    ctx!.textBaseline = 'top';
+    // A horizontal letterbox leaves no room below the frame, so the caption moves inside.
+    const below = offsetY + frameHeight + 8;
+    const outside = below + 10 <= height;
+    ctx!.fillText(
+      `VIEW ${Math.round(view.width)} × ${Math.round(view.height)}  ·  ${scale.toFixed(2)}×`,
+      offsetX + frameWidth - (outside ? 0 : 10),
+      outside ? below : offsetY + frameHeight - 16,
+    );
+    ctx!.textAlign = 'left';
   }
 
   /** The world's own four sky stops, at the stop positions this scene has always used. */
@@ -190,11 +219,9 @@ export function createRenderer(
       ctx.restore();
       ctx.restore();
 
-      ctx.save();
-      ctx.translate(offsetX, offsetY);
-      ctx.scale(scale, scale);
-      drawHud(ctx, state, telemetry, icons, view);
-      ctx.restore();
+      drawLetterboxFrame(width, height);
+      // Outside the camera transform: the HUD is viewport-sized on every world.
+      drawHud(ctx, state, telemetry, icons, { width, height }, chrome);
     },
 
     terrainChanged(ranges) {

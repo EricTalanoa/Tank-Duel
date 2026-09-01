@@ -29,6 +29,9 @@ class RecordingContext {
 
   save(): void {}
   restore(): void {}
+  createLinearGradient(): CanvasGradient {
+    return { addColorStop(): void {} } as unknown as CanvasGradient;
+  }
   translate(): void {}
   scale(): void {}
   ellipse(): void { this.fills.push({ color: this.fillStyle, width: 0, height: 0 }); }
