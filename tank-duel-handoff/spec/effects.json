@@ -1,0 +1,35 @@
+{
+  "$comment": "Task 6 presentation tuning. Code imports these values; gameplay physics remain in constants.json.",
+  "hitstop": { "directHitFrames": 9 },
+  "collapse": { "maxPixelsPerFrame": 2 },
+  "reducedMotion": {
+    "particleMultiplier": 0.25,
+    "shake": false,
+    "hitstop": false,
+    "trajectories": true
+  },
+  "performance": { "frameBudgetMs": 16, "referenceShellId": "mortar" },
+  "particles": {
+    "baseCount": 24,
+    "perRadius": 1.4,
+    "maxCount": 96,
+    "lifetimeFramesMin": 18,
+    "lifetimeFramesMax": 42,
+    "speedMin": 1.2,
+    "speedMax": 5.4,
+    "gravityPerFrame": 0.08,
+    "sparkFraction": 0.4,
+    "sparkSize": 2,
+    "debrisSize": 3
+  },
+  "shake": { "durationFrames": 12, "amplitudePx": 7, "decay": 0.78 },
+  "muzzleFlash": { "durationFrames": 5, "radiusPx": 12 },
+  "audio": {
+    "masterGain": 0.22,
+    "fireFrequencyHz": 120,
+    "impactFrequencyHz": 58,
+    "directHitFrequencyHz": 42,
+    "attackSeconds": 0.005,
+    "releaseSeconds": 0.28
+  }
+}

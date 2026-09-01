@@ -1,0 +1,382 @@
+[
+  {
+    "id": "he",
+    "slot": 1,
+    "name": "HE Shell",
+    "tier": "core",
+    "ammo": "inf",
+    "cost": 0,
+    "mass": 1,
+    "drag": 1,
+    "blastRadius": 26,
+    "damage": 34,
+    "terrain": "carve",
+    "accent": "#FF6B35",
+    "icon": "assets/icons/he.svg",
+    "builtFor": "Every ranging shot, and any turn where nothing special is needed.",
+    "wastedOn": "Never truly wasted — but at low enemy health a bigger shell ends it a turn sooner.",
+    "implementationNote": "No hooks. If this shell needs special-casing anywhere, the abstraction is wrong.",
+    "demoShot": {
+      "elevation": 46,
+      "power": 76
+    }
+  },
+  {
+    "id": "mortar",
+    "slot": 2,
+    "name": "Heavy Mortar",
+    "tier": "std",
+    "ammo": 4,
+    "cost": 3,
+    "mass": 1.55,
+    "drag": 0.65,
+    "blastRadius": 44,
+    "damage": 52,
+    "terrain": "carve",
+    "accent": "#FF8C42",
+    "icon": "assets/icons/mortar.svg",
+    "builtFor": "The finishing blow. A 44 px radius does not need a direct hit.",
+    "wastedOn": "Any turn where the player has not re-solved for its mass. Same power flies far shorter.",
+    "implementationNote": "Assert max range exceeds the spawn gap on every world. This weapon regressed once at mass 2.00 and was silently unusable.",
+    "demoShot": {
+      "elevation": 46,
+      "power": 96
+    }
+  },
+  {
+    "id": "cluster",
+    "slot": 3,
+    "name": "Cluster Bomb",
+    "tier": "std",
+    "ammo": 3,
+    "cost": 2,
+    "mass": 1,
+    "drag": 1.15,
+    "blastRadius": 20,
+    "damage": 18,
+    "terrain": "carve",
+    "accent": "#FFD166",
+    "icon": "assets/icons/cluster.svg",
+    "builtFor": "A target on flat, open ground. Five submunitions across ~170 px means near-misses still connect.",
+    "wastedOn": "A target in a crater or behind a ridge — submunitions hit the rim and nothing reaches.",
+    "implementationNote": "Children inherit apexDone:true. Guard the apex trigger with a minimum altitude or a flat shot clusters at the muzzle.",
+    "hooks": {
+      "onApex": {
+        "split": 5,
+        "spreadVx": 0.9
+      }
+    },
+    "demoShot": {
+      "elevation": 50,
+      "power": 78
+    }
+  },
+  {
+    "id": "buster",
+    "slot": 4,
+    "name": "Bunker Buster",
+    "tier": "std",
+    "ammo": 3,
+    "cost": 2,
+    "mass": 1.45,
+    "drag": 0.8,
+    "blastRadius": 32,
+    "damage": 44,
+    "terrain": "carve",
+    "accent": "#C77DFF",
+    "icon": "assets/icons/buster.svg",
+    "builtFor": "A target behind sandbags or dug into a hillside. Burrows 36 px along its incoming vector.",
+    "wastedOn": "An exposed target — it buries itself under the tank and loses most of its splash to soil.",
+    "implementationNote": "Burrow must terminate at its distance limit or a map boundary. It can exit the far side of a thin wall — that is correct.",
+    "hooks": {
+      "onTerrainHit": {
+        "type": "burrow",
+        "distancePx": 36
+      }
+    },
+    "demoShot": {
+      "elevation": 46,
+      "power": 90
+    }
+  },
+  {
+    "id": "roller",
+    "slot": 5,
+    "name": "Roller",
+    "tier": "std",
+    "ammo": 3,
+    "cost": 2,
+    "mass": 1.1,
+    "drag": 0.85,
+    "blastRadius": 28,
+    "damage": 38,
+    "terrain": "carve",
+    "accent": "#7BD389",
+    "icon": "assets/icons/roller.svg",
+    "builtFor": "A target at the bottom of a slope. Aim at the hillside above them and let gravity aim for you.",
+    "wastedOn": "A target uphill or on a plateau — it stops and detonates harmlessly.",
+    "implementationNote": "Four independent terminators: fuse, climb limit, map edge, hull contact. Any one alone must be sufficient.",
+    "hooks": {
+      "onTerrainHit": {
+        "type": "roll",
+        "fuseFrames": 150,
+        "climbLimitPx": 5,
+        "speedPxPerFrame": 2.4
+      }
+    },
+    "demoShot": {
+      "elevation": 52,
+      "power": 82
+    }
+  },
+  {
+    "id": "sand",
+    "slot": 6,
+    "name": "Sandbags",
+    "tier": "std",
+    "ammo": 3,
+    "cost": 1,
+    "mass": 1.2,
+    "drag": 0.9,
+    "blastRadius": 34,
+    "damage": 0,
+    "terrain": "fill",
+    "accent": "#C9A87C",
+    "icon": "assets/icons/sand.svg",
+    "builtFor": "Denying a firing lane the opponent has already proved works. Costs a turn, buys a turn.",
+    "wastedOn": "Before the opponent has found the range — you are defending against a shot they cannot make yet.",
+    "implementationNote": "Fill must skip any pixel inside a hull box. Settle must dig upward before applying gravity or a buried tank soft-locks the turn.",
+    "hooks": {
+      "onDetonate": {
+        "type": "fill",
+        "$comment": "Never write inside any hull box, including the firer's."
+      }
+    },
+    "demoShot": {
+      "elevation": 62,
+      "power": 40
+    }
+  },
+  {
+    "id": "skipper",
+    "slot": 7,
+    "name": "Skipper",
+    "tier": "exo",
+    "ammo": 3,
+    "cost": 2,
+    "mass": 1,
+    "drag": 0.95,
+    "blastRadius": 22,
+    "damage": 26,
+    "terrain": "carve",
+    "accent": "#8FD6FF",
+    "icon": "assets/icons/skipper.svg",
+    "builtFor": "Reaching a target behind a low ridge, at a flat angle nothing else can manage.",
+    "wastedOn": "Broken ground — each skip is a chance to land in a hole and stop early.",
+    "implementationNote": "Needs a collision grace of ~14 substeps after each bounce or all three skips collapse onto one point.",
+    "hooks": {
+      "onTerrainHit": {
+        "type": "skip",
+        "maxBounces": 3,
+        "horizontalRetention": 0.82,
+        "relaunchAngleFactor": 0.52,
+        "$comment": "Scripted, NOT physical reflection. See docs/04-ammo.html page 04."
+      }
+    },
+    "demoShot": {
+      "elevation": 30,
+      "power": 62
+    }
+  },
+  {
+    "id": "airburst",
+    "slot": 8,
+    "name": "Airburst",
+    "tier": "exo",
+    "ammo": 2,
+    "cost": 3,
+    "mass": 1.1,
+    "drag": 1,
+    "blastRadius": 18,
+    "damage": 22,
+    "terrain": "carve",
+    "accent": "#FF9FD4",
+    "icon": "assets/icons/airburst.svg",
+    "builtFor": "A target in a crater or trench. Three bomblets fall straight down, ignoring the rim entirely.",
+    "wastedOn": "A target under an overhang or inside a tunnel — the bomblets hit the roof.",
+    "implementationNote": "The fuse must arm only after exceeding the trigger altitude once, or it detonates at the muzzle — the muzzle is already near the ground.",
+    "hooks": {
+      "onAltitude": {
+        "triggerAltitudePx": 90,
+        "bomblets": 3,
+        "spacingPx": 46,
+        "armAfterExceedingPx": 120
+      }
+    },
+    "demoShot": {
+      "elevation": 46,
+      "power": 86
+    }
+  },
+  {
+    "id": "drill",
+    "slot": 9,
+    "name": "Drill Charge",
+    "tier": "exo",
+    "ammo": 2,
+    "cost": 2,
+    "mass": 1.35,
+    "drag": 0.75,
+    "blastRadius": 30,
+    "damage": 30,
+    "terrain": "column",
+    "accent": "#B0A0FF",
+    "icon": "assets/icons/drill.svg",
+    "builtFor": "Terrain sculpting. Cuts a narrow 80 px shaft straight down — drop a tank off a plateau or open a firing lane.",
+    "wastedOn": "Direct damage. Thirty damage for two loadout points is poor value if you only wanted a hit.",
+    "implementationNote": "Column carve must clamp at the map floor and at both x edges. Terrain effect type is its own kind, not a big carve.",
+    "hooks": {
+      "onTerrainHit": {
+        "type": "drillColumn",
+        "depthPx": 80,
+        "widthPx": 22
+      }
+    },
+    "demoShot": {
+      "elevation": 46,
+      "power": 92
+    }
+  },
+  {
+    "id": "mirv",
+    "slot": 10,
+    "name": "MIRV",
+    "tier": "exo",
+    "ammo": 2,
+    "cost": 4,
+    "mass": 1,
+    "drag": 1.1,
+    "blastRadius": 16,
+    "damage": 12,
+    "terrain": "carve",
+    "accent": "#FFD9F0",
+    "icon": "assets/icons/mirv.svg",
+    "builtFor": "Wide open ground with no cover anywhere. Nine impacts across ~300 px is unavoidable.",
+    "wastedOn": "Anything with cover. Nine small blasts against a dug-in target is nine wasted blasts.",
+    "implementationNote": "Cap split depth at 2 with an explicit counter. Without the cap a bug turns one shell into an exponential fork bomb that hangs the frame.",
+    "hooks": {
+      "onApex": {
+        "split": 3,
+        "secondStageAfterFrames": 26,
+        "secondStageSplit": 3,
+        "maxDepth": 2,
+        "totalSubmunitions": 9
+      }
+    },
+    "demoShot": {
+      "elevation": 52,
+      "power": 80
+    }
+  },
+  {
+    "id": "napalm",
+    "slot": 11,
+    "name": "Napalm",
+    "tier": "exo",
+    "ammo": 2,
+    "cost": 3,
+    "mass": 1.05,
+    "drag": 1.05,
+    "blastRadius": 24,
+    "damage": 14,
+    "terrain": "scorch",
+    "accent": "#FF7043",
+    "icon": "assets/icons/napalm.svg",
+    "builtFor": "Area denial over time. Leaves a burning strip that damages anything standing in it for two rounds.",
+    "wastedOn": "A finishing blow — 14 impact damage is the lowest in the roster.",
+    "implementationNote": "Zone timers decrement in HANDOFF exactly once per round, not once per turn per player — the classic off-by-two.",
+    "hooks": {
+      "onDetonate": {
+        "type": "scorch",
+        "halfWidthPx": 70,
+        "damagePerRound": 10,
+        "rounds": 2
+      }
+    },
+    "demoShot": {
+      "elevation": 46,
+      "power": 78
+    }
+  },
+  {
+    "id": "anvil",
+    "slot": 12,
+    "name": "Anvil Round",
+    "tier": "exotic",
+    "ammo": 2,
+    "cost": 3,
+    "mass": 0.55,
+    "drag": 1,
+    "blastRadius": 14,
+    "damage": "computed",
+    "terrain": "column",
+    "accent": "#9FB3C8",
+    "icon": "assets/icons/anvil.svg",
+    "builtFor": "Any target behind terrain — it falls vertically, so nothing between you and them matters.",
+    "wastedOn": "Long range, where the elevation ceiling forces a low apex and damage drops toward 25.",
+    "implementationNote": "Mass MUST stay below ~0.8. At 1.00 apex-x is 600px and it cannot cross a 700px spawn gap.",
+    "hooks": {
+      "onApex": {
+        "type": "convert",
+        "zeroHorizontalVelocity": true,
+        "windImmuneAfterConvert": true,
+        "fallsUnderFullGravity": true,
+        "damageFormula": "round(sqrt(2 * baseGravity * apexHeightPx) * 3.0)",
+        "damageRange": [
+          25,
+          64
+        ],
+        "terrainEffect": {
+          "type": "column",
+          "widthPx": 22,
+          "depthPx": 34
+        }
+      }
+    },
+    "demoShot": {
+      "elevation": 50,
+      "power": 80.2
+    }
+  },
+  {
+    "id": "repair",
+    "slot": 13,
+    "name": "Repair Kit",
+    "tier": "util",
+    "ammo": 1,
+    "cost": 2,
+    "mass": 0,
+    "drag": 0,
+    "blastRadius": 0,
+    "damage": -30,
+    "terrain": "none",
+    "accent": "#4FC3D9",
+    "icon": "assets/icons/repair.svg",
+    "builtFor": "Below about 35 health, when surviving one more exchange wins the round.",
+    "wastedOn": "Early. Spending a turn not shooting while at full health hands the opponent free tempo.",
+    "implementationNote": "Never heal above 100. Enforce the consecutive-turn lock in HANDOFF, and grey the chip out so the rule is visible rather than surprising.",
+    "hooks": {
+      "onUse": {
+        "type": "heal",
+        "amount": 30,
+        "cooldownTurns": 1,
+        "cap": 100
+      }
+    },
+    "noFlight": true,
+    "demoShot": {
+      "elevation": null,
+      "power": null
+    }
+  }
+]

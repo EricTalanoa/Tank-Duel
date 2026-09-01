@@ -1,0 +1,608 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tank Duel — Worlds &amp; Terrain</title>
+<style>
+:root{
+  --void:#0E1219;--panel:#141A24;--panel2:#1B2330;--rule:#252F3D;--rule2:#323E4F;
+  --text:#C7D0DC;--dim:#6E7A8A;--bright:#E6ECF4;--hot:#FF6B35;--ok:#7BD389;--warn:#FFD166;
+  --mono:ui-monospace,"SF Mono","JetBrains Mono",Menlo,Consolas,monospace;
+  --sans:"Roboto Condensed","Arial Narrow",Inter,system-ui,sans-serif;
+  --nav:236px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--void);color:var(--text);font-family:var(--sans);font-size:15px;line-height:1.62;-webkit-font-smoothing:antialiased}
+nav{position:fixed;left:0;top:0;bottom:0;width:var(--nav);background:var(--panel);border-right:1px solid var(--rule);overflow-y:auto;padding:22px 0 40px;z-index:20}
+.brand{padding:0 20px 18px;border-bottom:1px solid var(--rule);margin-bottom:14px}
+.brand .t{font-size:16px;letter-spacing:.14em;text-transform:uppercase;font-weight:700;color:var(--bright)}
+.brand .s{font-family:var(--mono);font-size:10px;color:var(--dim);letter-spacing:.06em;margin-top:3px}
+nav a{display:grid;grid-template-columns:26px 1fr;gap:8px;align-items:baseline;padding:8px 20px;color:var(--dim);text-decoration:none;font-size:13.5px;line-height:1.35;border-left:2px solid transparent}
+nav a .i{font-family:var(--mono);font-size:10px;opacity:.65}
+nav a:hover{color:var(--text);background:#182030}
+nav a.on{color:var(--bright);border-left-color:var(--hot);background:#182030}
+nav a.on .i{color:var(--hot);opacity:1}
+.navgrp{padding:16px 20px 5px;font-family:var(--mono);font-size:9.5px;letter-spacing:.18em;text-transform:uppercase;color:#46505F}
+main{margin-left:var(--nav);padding:44px 40px 120px;max-width:1180px}
+.page{display:none;max-width:900px}
+.page.on{display:block;animation:fade .28s ease}
+@keyframes fade{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+.eyebrow{font-family:var(--mono);font-size:10px;letter-spacing:.2em;text-transform:uppercase;color:var(--hot);margin-bottom:9px}
+h1{font-size:34px;line-height:1.12;color:var(--bright);font-weight:700;margin-bottom:12px}
+h2{font-size:20px;color:var(--bright);font-weight:700;margin:38px 0 12px;padding-bottom:8px;border-bottom:1px solid var(--rule)}
+h3{font-size:14px;letter-spacing:.08em;text-transform:uppercase;color:var(--text);font-weight:700;margin:24px 0 8px}
+p{margin-bottom:13px;color:#B4BFCC}
+.lede{font-size:17px;color:var(--text);margin-bottom:26px}
+strong{color:var(--bright);font-weight:600}
+code{font-family:var(--mono);font-size:.87em;background:#0A0E15;border:1px solid var(--rule);border-radius:2px;padding:1px 5px;color:#9FB3C8}
+ul,ol{margin:0 0 14px 19px;color:#B4BFCC}li{margin-bottom:6px}
+a.inline{color:#4FC3D9;text-decoration:none;border-bottom:1px solid rgba(79,195,217,.35)}
+.note{border-left:2px solid var(--rule2);background:var(--panel);padding:13px 16px;margin:18px 0;font-size:14px}
+.note.hot{border-left-color:var(--hot)}.note.ok{border-left-color:var(--ok)}.note.warn{border-left-color:var(--warn)}
+.note .h{font-family:var(--mono);font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:var(--dim);margin-bottom:5px}
+.note.hot .h{color:var(--hot)}.note.ok .h{color:var(--ok)}.note.warn .h{color:var(--warn)}
+.note p:last-child{margin-bottom:0}
+table{width:100%;border-collapse:collapse;margin:16px 0;font-size:13.5px}
+th{text-align:left;font-family:var(--mono);font-size:9.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--dim);padding:7px 9px;border-bottom:1px solid var(--rule2);font-weight:400;white-space:nowrap}
+td{padding:8px 9px;border-bottom:1px solid var(--rule);vertical-align:top;color:#B4BFCC}
+td:first-child{color:var(--bright)}
+tr:last-child td{border-bottom:none}
+.num,.mono{font-family:var(--mono);font-variant-numeric:tabular-nums}
+.fig{background:var(--panel);border:1px solid var(--rule);border-radius:3px;padding:14px;margin:18px 0;line-height:0}
+.fig svg{width:100%;height:auto;display:block}
+.figcap{font-family:var(--mono);font-size:10.5px;color:var(--dim);letter-spacing:.04em;line-height:1.5;margin-top:11px}
+.legend{display:flex;gap:14px;flex-wrap:wrap;font-family:var(--mono);font-size:10.5px;color:var(--dim);margin-top:10px;line-height:1.6}
+.legend i{display:inline-block;width:14px;height:2px;vertical-align:middle;margin-right:5px}
+
+/* world cards */
+.world{background:var(--panel);border:1px solid var(--rule);border-radius:3px;margin:20px 0;overflow:hidden}
+.world header{display:flex;align-items:baseline;gap:11px;padding:12px 16px;border-bottom:1px solid var(--rule);background:var(--panel2)}
+.world .nm{font-size:17px;letter-spacing:.09em;text-transform:uppercase;font-weight:700}
+.world .kind{font-family:var(--mono);font-size:10.5px;color:var(--dim)}
+.world .g{margin-left:auto;font-family:var(--mono);font-size:12px;color:var(--dim)}
+.world .thumb{line-height:0;background:#0A0E15}
+.world .thumb svg{width:100%;height:auto;display:block}
+.stats{display:flex;flex-wrap:wrap;border-bottom:1px solid var(--rule)}
+.stats div{flex:1;min-width:88px;padding:9px 12px;border-right:1px solid var(--rule)}
+.stats div:last-child{border-right:none}
+.stats .k{font-family:var(--mono);font-size:9px;letter-spacing:.14em;text-transform:uppercase;color:var(--dim)}
+.stats .v{font-family:var(--mono);font-size:14px;margin-top:2px;color:var(--bright)}
+.world .body{padding:14px 16px;font-size:14px}
+.world .body p{margin-bottom:9px}.world .body p:last-child{margin-bottom:0}
+.tac{font-family:var(--mono);font-size:11.5px;padding:10px 16px;border-top:1px solid var(--rule);background:#10161F;color:#9FB3C8}
+.tac b{font-weight:400}
+
+/* map-select mockup */
+.mock{background:#0A0E15;border:1px solid var(--rule2);border-radius:4px;padding:20px;margin:18px 0}
+.mockbar{display:flex;align-items:baseline;gap:12px;margin-bottom:16px;padding-bottom:12px;border-bottom:1px solid var(--rule)}
+.mockbar .t{font-size:15px;letter-spacing:.16em;text-transform:uppercase;color:var(--bright);font-weight:700}
+.mockbar .s{font-family:var(--mono);font-size:10px;color:var(--dim);letter-spacing:.1em}
+.mockbar .r{margin-left:auto;font-family:var(--mono);font-size:10px;color:var(--dim)}
+.mgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:11px}
+.mcard{background:var(--panel);border:1px solid var(--rule);border-radius:3px;overflow:hidden;cursor:pointer;transition:border-color .15s,transform .15s}
+.mcard:hover{border-color:var(--rule2);transform:translateY(-2px)}
+.mcard.sel{border-color:currentColor}
+.mcard .pic{line-height:0}.mcard .pic svg{width:100%;height:auto;display:block}
+.mcard .meta{padding:9px 11px}
+.mcard .n{font-size:13px;letter-spacing:.1em;text-transform:uppercase;font-weight:700;line-height:1.2}
+.mcard .d{font-family:var(--mono);font-size:9.5px;color:var(--dim);margin-top:4px;letter-spacing:.03em}
+.mockfoot{display:flex;align-items:center;gap:14px;margin-top:16px;padding-top:14px;border-top:1px solid var(--rule)}
+.mockfoot .grp{font-family:var(--mono);font-size:10px;color:var(--dim)}
+.mockfoot .grp b{color:var(--text);font-weight:400}
+.mockfoot .go{margin-left:auto;background:var(--hot);color:#0E1219;border:none;font-family:var(--sans);font-weight:700;font-size:12.5px;letter-spacing:.18em;text-transform:uppercase;padding:11px 26px;border-radius:2px}
+.pill{display:inline-block;font-family:var(--mono);font-size:9.5px;padding:2px 7px;border:1px solid var(--rule2);border-radius:2px;color:var(--dim);margin-right:5px}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:13px;margin:16px 0}
+.tile{background:var(--panel);border:1px solid var(--rule);border-radius:3px;padding:13px 15px}
+.tile .k{font-family:var(--mono);font-size:9.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--dim);margin-bottom:5px}
+.tile .v{font-size:14px;color:#B4BFCC}
+.pager{display:flex;justify-content:space-between;gap:12px;margin-top:52px;padding-top:20px;border-top:1px solid var(--rule)}
+.pager a{color:var(--dim);text-decoration:none;font-size:13px;font-family:var(--mono)}
+.pager a:hover{color:var(--bright)}
+.check{list-style:none;margin-left:0}
+.check li{display:grid;grid-template-columns:16px 1fr;gap:9px;padding:7px 0;border-bottom:1px solid var(--rule);font-size:14px;margin:0}
+.check li::before{content:"";display:block;width:11px;height:11px;border:1px solid var(--rule2);border-radius:2px;margin-top:5px}
+@media(max-width:900px){:root{--nav:0px}nav{position:static;width:auto;height:auto;border-right:none;border-bottom:1px solid var(--rule)}main{padding:26px 18px 80px}.grid2,.mgrid{grid-template-columns:1fr}.stats div{min-width:50%}}
+@media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+</head>
+<body>
+<nav>
+  <div class="brand"><div class="t">Tank Duel</div><div class="s">Worlds &amp; terrain</div></div>
+  <div class="navgrp">The idea</div>
+  <a href="#p1" data-p="p1"><span class="i">01</span><span>Why gravity, honestly</span></a>
+  <a href="#p2" data-p="p2"><span class="i">02</span><span>The six worlds</span></a>
+  <div class="navgrp">Shape</div>
+  <a href="#p3" data-p="p3"><span class="i">03</span><span>Terrain generators</span></a>
+  <a href="#p4" data-p="p4"><span class="i">04</span><span>Map select screen</span></a>
+  <div class="navgrp">Building it</div>
+  <a href="#p5" data-p="p5"><span class="i">05</span><span>Engine changes</span></a>
+</nav>
+
+<main>
+
+<!-- 01 -->
+<section class="page" id="p1">
+  <div class="eyebrow">01 · The premise</div>
+  <h1>Different planets, honestly costed</h1>
+  <p class="lede">The twist is good and it works, but not the way it first sounds. Real planetary gravity applied literally destroys the game, and it's worth seeing exactly how before designing around it.</p>
+
+  <h2>What literal gravity does</h2>
+  <p>Take the tuned Earth constants and swap in real surface gravity ratios. Range at power 100, 45°, flat ground:</p>
+  <table>
+    <tr><th>Body</th><th>g vs Earth</th><th>Range @100</th><th>Flight time</th><th>Verdict</th></tr>
+    <tr><td>Jupiter</td><td class="num">2.53</td><td class="num">475 px</td><td class="num">0.7s</td><td>Playable, but the map must shrink to ~400 px</td></tr>
+    <tr><td>Venus</td><td class="num">0.905</td><td class="num">1324 px</td><td class="num">1.9s</td><td>Playable as-is</td></tr>
+    <tr><td>Mars</td><td class="num">0.379</td><td class="num">3145 px</td><td class="num">4.6s</td><td>Needs a 2600 px map and a camera</td></tr>
+    <tr><td>Mercury</td><td class="num">0.378</td><td class="num">3157 px</td><td class="num">4.6s</td><td>Same as Mars — indistinguishable in play</td></tr>
+    <tr><td>Io</td><td class="num">0.183</td><td class="num">6505 px</td><td class="num">9.6s</td><td>Ten seconds staring at a dot</td></tr>
+    <tr><td>The Moon</td><td class="num">0.165</td><td class="num">7218 px</td><td class="num">10.6s</td><td>Unplayable</td></tr>
+    <tr><td>Europa</td><td class="num">0.134</td><td class="num">8893 px</td><td class="num">13.1s</td><td>Unplayable</td></tr>
+    <tr><td>Ceres</td><td class="num">0.029</td><td class="num">41057 px</td><td class="num">60.5s</td><td>One minute per shot</td></tr>
+  </table>
+
+  <div class="note hot">
+    <div class="h">The constraint is flight time, not range</div>
+    <p>Range is fixable — make the map wider and add a camera. Flight time is not, because it's dead air the player watches. Terra sits at <strong>1.75s</strong>, which playtests as about right. The tolerable band is roughly <strong>1.0s to 2.2s</strong>. Anything past three seconds and players start talking over the shot instead of watching it.</p>
+    <p>Since <code>T = 2·v·sin(θ) / g</code>, halving gravity doubles flight time. That single relationship is what caps the design.</p>
+  </div>
+
+  <h2>The fix: three dials, not one</h2>
+  <p>Rather than picking gravity and accepting the consequences, each world sets three values together so that flight time lands back in the playable band:</p>
+  <div class="grid2">
+    <div class="tile"><div class="k">Gravity multiplier</div><div class="v">The tactical dial. Changes arc shape, and invalidates every power setting the player has memorised. This is the actual gameplay content.</div></div>
+    <div class="tile"><div class="k">Map width</div><div class="v">Scales roughly with <code>1/g</code> so that power 100 slightly overshoots the far edge. Keeps the power slider fully useful on every world.</div></div>
+    <div class="tile"><div class="k">Flight time scale</div><div class="v">The sim steps faster or slower during FLIGHT only. Low-gravity worlds run at 1.6–3× so a 5.8s arc is watched in under 2s.</div></div>
+    <div class="tile"><div class="k">Atmosphere (bonus)</div><div class="v">Wind range and true air drag. This is what makes two worlds with similar gravity feel completely different.</div></div>
+  </div>
+  <p>Time scaling is cheap and safe: run <code>N</code> sim steps per rendered frame instead of one. It's an integer count, so determinism survives intact and replays still work.</p>
+
+  <div class="note ok">
+    <div class="h">Why atmosphere earns its place</div>
+    <p>Gravity alone gives you one axis, and after three worlds it's just "the numbers are bigger". Air drag is a genuinely different feel: on a thick-atmosphere world shells <em>decelerate</em>, so range collapses, arcs go asymmetric — steep on the way down — and wind dominates gravity. Vesper below has almost Earth gravity and plays nothing like Terra.</p>
+  </div>
+
+  <h2>The same shot on every world</h2>
+  <p>45° elevation, power 75, no wind, flat ground. Same input, six worlds. This is the whole pitch in one image:</p>
+  <div class="fig"><div id="overlay"></div>
+    <div id="overlayLegend" class="legend"></div>
+    <div class="figcap">Absolute scale. The dashed vertical marks each world's own map width — note that Hollow's shot laps its map more than three times.</div>
+  </div>
+
+  <div class="pager"><span></span><a href="#p2">The six worlds →</a></div>
+</section>
+
+<!-- 02 -->
+<section class="page" id="p2">
+  <div class="eyebrow">02 · Roster</div>
+  <h1>The six worlds</h1>
+  <p class="lede">Each one is a different set of four numbers plus a terrain generator. Every terrain silhouette and range figure below is generated live from those numbers.</p>
+  <div id="worlds"></div>
+
+  <h2>Side by side</h2>
+  <div id="worldTable"></div>
+
+  <div class="note warn">
+    <div class="h">Balance consequence you have to accept</div>
+    <p>Changing gravity changes every weapon's effective range, and the mass multiplier compounds it. The Heavy Mortar at <code>mass 1.55</code> on Ferrum at <code>g 1.75</code> has an effective gravity of <strong>2.71×</strong> — its max range drops to about 250 px. On a 580 px map that means it cannot cross from spawn.</p>
+    <p>Fix it in one place: on world load, assert that every weapon's max range exceeds the spawn gap, and auto-drop mass for any weapon that fails. That check would have caught the original mortar bug too.</p>
+  </div>
+
+  <div class="pager"><a href="#p1">← Why gravity</a><a href="#p3">Terrain generators →</a></div>
+</section>
+
+<!-- 03 -->
+<section class="page" id="p3">
+  <div class="eyebrow">03 · Shape</div>
+  <h1>Terrain generators</h1>
+  <p class="lede">Physics is one axis, shape is the other. Six generators × six worlds is 36 combinations from about 90 lines of code, and they're independently selectable so a player can put canyon terrain on a low-gravity world.</p>
+  <div id="gens"></div>
+
+  <h2>Why this multiplies rather than adds</h2>
+  <p>A generator changes what the <em>tactics</em> are; a world changes what the <em>arithmetic</em> is. Canyon on Terra is a familiar lob into a pit. Canyon on Ferrum is a knife fight where the pit wall is unclimbable and the Bunker Buster becomes the only real weapon. Neither needed new code.</p>
+
+  <table>
+    <tr><th>Generator</th><th>Favours</th><th>Punishes</th><th>Watch for</th></tr>
+    <tr><td>Hills</td><td>Nothing in particular — the neutral baseline</td><td>Nothing</td><td>Occasionally generates a blocking central peak; validation must reject it</td></tr>
+    <tr><td>Canyon</td><td>High-arc shots, Airburst, Bunker Buster</td><td>Flat trajectories, Roller</td><td>Spawns must be on the rims, never in the pit</td></tr>
+    <tr><td>Craters</td><td>Roller (every crater is a slope), splash weapons</td><td>Direct fire — targets sit below the rim</td><td>Overlapping craters can isolate a tank on a pillar</td></tr>
+    <tr><td>Plates</td><td>Precise ranging — flat tops mean consistent impacts</td><td>Roller, which stops dead on every terrace</td><td>Vertical faces need the roller climb limit tested hard</td></tr>
+    <tr><td>Spires</td><td>Cluster and MIRV, which fall between the columns</td><td>Everything flat — most shots hit a spire</td><td>Thin columns are the tunnelling worst case; test at power 100</td></tr>
+    <tr><td>Ring</td><td>Wrapping shots, long-way-round attacks</td><td>Nothing — but it changes how aiming reads entirely</td><td>Seam continuity: <code>h[0]</code> must equal <code>h[W-1]</code> or shells jump</td></tr>
+  </table>
+
+  <div class="note ok">
+    <div class="h">Ring is the one worth building first</div>
+    <p>Wrapping is a small change — modulo the x coordinate in collision, rendering, and the camera — and it produces the most distinctive play in the set. On Hollow a power-100 shot laps the world three times, so you can hit someone by aiming <em>away</em> from them, and the correct answer to "they're dug in on my left" is sometimes to shoot right.</p>
+    <p>Constraint: the generator must be seamless. Building it from sinusoids with integer periods over the map width guarantees it — the version generated on this page closes to within 0.5 px.</p>
+  </div>
+
+  <div class="pager"><a href="#p2">← Worlds</a><a href="#p4">Map select →</a></div>
+</section>
+
+<!-- 04 -->
+<section class="page" id="p4">
+  <div class="eyebrow">04 · Interface</div>
+  <h1>Map select screen</h1>
+  <p class="lede">The screen sits between mode select and the round intro. Its job is to make the physics difference legible <em>before</em> the player commits, because a world that silently invalidates your power settings feels broken rather than fresh.</p>
+
+  <div class="mock">
+    <div class="mockbar">
+      <span class="t">Select world</span>
+      <span class="s">MATCH SETUP · 2 / 3</span>
+      <span class="r">BEST OF 3</span>
+    </div>
+    <div class="mgrid" id="mapcards"></div>
+    <div class="mockfoot">
+      <span class="grp">TERRAIN <b>Craters</b></span>
+      <span class="grp">SEED <b>1597</b></span>
+      <span class="grp">WIND <b>Full</b></span>
+      <button class="go">Deploy</button>
+    </div>
+  </div>
+
+  <h2>What the card has to communicate</h2>
+  <table>
+    <tr><th>Element</th><th>Carries</th><th>Why</th></tr>
+    <tr><td>Terrain silhouette</td><td>Generator shape and world palette</td><td>Recognition. After two matches players pick by silhouette, not name.</td></tr>
+    <tr><td>Gravity figure</td><td>The single number that changes their aim</td><td>It's the only stat that invalidates muscle memory. Lead with it.</td></tr>
+    <tr><td>Atmosphere tag</td><td>Vacuum / thin / thick</td><td>Predicts whether wind will matter more than gravity.</td></tr>
+    <tr><td>Map width bar</td><td>Relative engagement distance</td><td>Cheap to draw, instantly explains why power settings won't carry over.</td></tr>
+  </table>
+
+  <div class="note hot">
+    <div class="h">The thing that will annoy players</div>
+    <p>Switching worlds resets the range table they've internalised, which is the point — but it feels like the game broke unless you tell them. On the first round of any world other than Terra, show the ranging hint under the power readout: <em>"Power 75 travels ~1490 px here"</em>, using the world's own computed figure. One line, first round only, and it converts a moment of confusion into a moment of understanding.</p>
+  </div>
+
+  <h2>Selection rules</h2>
+  <ul>
+    <li>Terra is the default and the only world offered in a first-time player's first match.</li>
+    <li>World and terrain generator are chosen independently — never bundle them, or you lose the 36 combinations for no reason.</li>
+    <li><strong>Random</strong> is a first-class option and should be the most-used one. Put it in the grid, not in a menu.</li>
+    <li>In best-of-3 and best-of-5, offer <em>rotate worlds each round</em>. It's the best argument for the whole feature: the player who adapts fastest wins the match.</li>
+  </ul>
+
+  <div class="pager"><a href="#p3">← Generators</a><a href="#p5">Engine changes →</a></div>
+</section>
+
+<!-- 05 -->
+<section class="page" id="p5">
+  <div class="eyebrow">05 · Implementation</div>
+  <h1>What this costs to build</h1>
+  <p class="lede">Most of it is parameterisation you should do anyway. Two items are real work, and one of them is optional.</p>
+
+  <h2>Change list</h2>
+  <table>
+    <tr><th>Change</th><th>Where</th><th>Size</th><th>Notes</th></tr>
+    <tr><td>Constants become per-world</td><td><code>sim/world.ts</code></td><td>Small</td><td><code>GRAVITY</code>, <code>WIND_K</code>, wind range, air drag, map width move from module constants onto the world object. Do this even if you ship only Terra.</td></tr>
+    <tr><td>Air drag term</td><td><code>sim/ballistics.ts</code></td><td>Small</td><td>One line: <code>vx *= (1-drag); vy *= (1-drag)</code> per frame, after integration. Zero on most worlds.</td></tr>
+    <tr><td>Variable map width</td><td>terrain, render, camera</td><td>Medium</td><td>Every hardcoded 1000 becomes <code>world.width</code>. Grep for it now, before there are more.</td></tr>
+    <tr><td>Scrolling camera</td><td><code>render/camera.ts</code></td><td><strong>Large</strong></td><td>Required for anything wider than ~1300 px. Follows the shell in flight, frames both tanks in AIM. This is the real cost of the feature.</td></tr>
+    <tr><td>Flight time scale</td><td>main loop</td><td>Small</td><td><code>steps = world.timeScale</code> extra sim steps per frame during FLIGHT only. Integer, so determinism holds.</td></tr>
+    <tr><td>Horizontal wrap</td><td>terrain, ballistics, render</td><td>Medium</td><td>Modulo x in collision, carve, and draw. Optional — only Hollow needs it.</td></tr>
+    <tr><td>Generator registry</td><td><code>sim/terrain/gen/</code></td><td>Small</td><td>Six functions with one signature: <code>(seed, width, height) =&gt; Float32Array</code>.</td></tr>
+    <tr><td>Per-world validation</td><td>world load</td><td>Small</td><td>Assert every weapon can cross the spawn gap. Catches the mortar class of bug automatically.</td></tr>
+  </table>
+
+  <div class="note hot">
+    <div class="h">Sequencing advice</div>
+    <p>The camera is the gate. Until it exists you can only ship worlds at or below about 1300 px wide, which is <strong>Terra, Vesper and Ferrum</strong> — and those three already give you a full-gravity spread from 0.90 to 1.75 plus a thick-atmosphere world that plays completely differently.</p>
+    <p>Ship those three in phase 7 with no camera work at all. Build the camera afterwards, and Rust, Selene and Hollow become almost free.</p>
+  </div>
+
+  <h2>World definition shape</h2>
+  <p>Everything on this page comes from objects like this. Adding a seventh world should be data, not code.</p>
+  <div class="fig" style="line-height:1.6;padding:16px"><pre style="font-family:var(--mono);font-size:12px;color:#9FB3C8;overflow-x:auto;margin:0">{
+  id:        'vesper',
+  name:      'Vesper',
+  gravity:   0.90,     <span style="color:#6E7A8A">// × base 0.215</span>
+  airDrag:   0.012,    <span style="color:#6E7A8A">// velocity damping per frame, 0 = vacuum</span>
+  width:     620,
+  windRange: 60,
+  windMode:  'fixed',  <span style="color:#6E7A8A">// 'reroll' | 'fixed' | 'none'</span>
+  timeScale: 1,
+  wrap:      false,
+  gen:       'spires',
+  palette:   { sky:['#2A1420','#5C2438','#C46A52'], scrub:'#6B4238',
+               dirt:'#5A3128', rock:'#331C18' }
+}</pre></div>
+
+  <h2>Test checklist</h2>
+  <ul class="check">
+    <li>Every world's power-100 range at 45° exceeds its map width.</li>
+    <li>Every weapon's max range on every world exceeds that world's spawn gap.</li>
+    <li>Perceived flight time after time-scaling is between 1.0s and 2.2s on all worlds.</li>
+    <li>Ring generator seam: <code>|h[0] − h[width−1]| &lt; 1 px</code>.</li>
+    <li>On a wrapping world, a shell crossing the seam has a continuous trail and carves across the boundary correctly.</li>
+    <li>Time scaling changes only the step count, never the step size — identical inputs produce identical terrain at any scale.</li>
+    <li>No hardcoded <code>1000</code> or <code>560</code> remains outside the world definitions.</li>
+    <li>Switching worlds between rounds resets terrain, health and ammo, but not the player's chosen loadout.</li>
+  </ul>
+
+  <div class="pager"><a href="#p4">← Map select</a><span></span></div>
+</section>
+
+</main>
+
+<script>
+"use strict";
+const FH=560, G0=0.215, MUZZLE=0.160, SUB=8;
+
+function mulberry32(a){return function(){a|=0;a=(a+0x6D2B79F5)|0;let t=Math.imul(a^(a>>>15),1|a);
+  t=(t+Math.imul(t^(t>>>7),61|t))^t;return((t^(t>>>14))>>>0)/4294967296;};}
+function midpoint(rnd,W,H,lo,hi,rough){
+  const N=256,p=new Float32Array(N+1);
+  p[0]=H*(lo+rnd()*(hi-lo)); p[N]=H*(lo+rnd()*(hi-lo));
+  let st=N,d=H*rough;
+  while(st>1){const h=st>>1;for(let i=h;i<N;i+=st)p[i]=(p[i-h]+p[i+h])/2+(rnd()*2-1)*d;st=h;d*=0.55;}
+  const out=new Float32Array(W);
+  for(let x=0;x<W;x++){const t=x*N/W,i=Math.floor(t),f=t-i;out[x]=p[i]*(1-f)+p[Math.min(N,i+1)]*f;}
+  return out;
+}
+const GEN={
+  hills(seed,W,H){const r=mulberry32(seed),h=midpoint(r,W,H,.50,.66,.30);
+    for(let x=0;x<W;x++){h[x]+=Math.sin(x*.011)*8+Math.sin(x*.029+1.3)*4;h[x]=Math.max(H*.34,Math.min(H-50,h[x]));}return h;},
+  canyon(seed,W,H){const r=mulberry32(seed),h=midpoint(r,W,H,.42,.52,.14);
+    for(let x=0;x<W;x++){const t=(x/W-.5)*2,g=Math.exp(-(t*t)/0.028);
+      h[x]=h[x]+g*(H*.62-h[x]);h[x]=Math.max(H*.30,Math.min(H-8,h[x]));}return h;},
+  craters(seed,W,H){const r=mulberry32(seed),h=midpoint(r,W,H,.52,.60,.10),n=6+Math.floor(r()*5);
+    for(let k=0;k<n;k++){const cx=r()*W,rad=W*(.035+r()*.075),dep=rad*(.5+r()*.4);
+      for(let x=Math.max(0,cx-rad|0);x<Math.min(W,cx+rad|0);x++){const dx=(x-cx)/rad;
+        h[x]+=dep*Math.max(0,1-dx*dx)*.95; if(Math.abs(dx)>.86&&Math.abs(dx)<1) h[x]-=dep*.28;}}
+    for(let x=0;x<W;x++)h[x]=Math.max(H*.36,Math.min(H-40,h[x]));return h;},
+  plates(seed,W,H){const r=mulberry32(seed),base=midpoint(r,W,H,.48,.62,.26),step=H*.075,h=new Float32Array(W);
+    for(let x=0;x<W;x++)h[x]=Math.max(H*.36,Math.min(H-45,Math.round(base[x]/step)*step));return h;},
+  spires(seed,W,H){const r=mulberry32(seed),h=midpoint(r,W,H,.62,.72,.10),n=5+Math.floor(r()*4);
+    for(let k=0;k<n;k++){const cx=W*(.08+r()*.84),wid=W*(.018+r()*.028),ht=H*(.16+r()*.26);
+      for(let x=Math.max(0,cx-wid*2|0);x<Math.min(W,cx+wid*2|0);x++){const dx=(x-cx)/wid;h[x]-=ht*Math.exp(-dx*dx*1.6);}}
+    for(let x=0;x<W;x++)h[x]=Math.max(H*.16,Math.min(H-40,h[x]));return h;},
+  ring(seed,W,H){const r=mulberry32(seed),h=new Float32Array(W),nH=5,amp=[],ph=[],fr=[];
+    for(let k=0;k<nH;k++){fr.push(k+1);amp.push((H*.09)/(k*.6+1));ph.push(r()*Math.PI*2);}
+    for(let x=0;x<W;x++){let v=H*.56;for(let k=0;k<nH;k++)v+=Math.sin((x/W)*Math.PI*2*fr[k]+ph[k])*amp[k];
+      h[x]=Math.max(H*.34,Math.min(H-50,v));}return h;}
+};
+
+const WORLDS=[
+ {id:'terra',name:'Terra',kind:'Temperate baseline',g:1.00,drag:0,width:1000,wind:100,windMode:'reroll',
+  ts:1.0,wrap:false,gen:'hills',accent:'#7BD389',
+  sky:['#171E2B','#2B3A52','#6A6E7C','#C9A87C'],ground:'#4A5540',edge:'#5E6B52',
+  body:`The world every other world is measured against. Gravity 1.00, full &plusmn;100 wind rerolled each turn, 1000&nbsp;px across. Power 75 travels 670&nbsp;px, which is why real engagements sit at power 70&ndash;82.`,
+  tac:`Default world. First-time players see only this one.`},
+
+ {id:'vesper',name:'Vesper',kind:'Thick atmosphere',g:0.90,drag:0.012,width:620,wind:60,windMode:'fixed',
+  ts:1.0,wrap:false,gen:'spires',accent:'#FF8C6B',
+  sky:['#2A1420','#5C2438','#A8553C','#E0A070'],ground:'#6B4238',edge:'#7E5245',
+  body:`Almost Terran gravity and it plays nothing alike. Real air drag bleeds <code>1.2%</code> of velocity every frame, so shells decelerate: range collapses from 670 to 428&nbsp;px at power 75, and arcs land steeply because horizontal speed dies faster than vertical.
+  <p>Wind is weaker but <strong>fixed for the whole round</strong>. You solve it once and it stays solved, which makes Vesper the world where a good opening bracket wins the round.</p>`,
+  tac:`Everything is close. Power 100 barely crosses the map. Spires terrain plus short range makes cover king.`},
+
+ {id:'rust',name:'Rust',kind:'Thin atmosphere',g:0.62,drag:0,width:1620,wind:40,windMode:'reroll',
+  ts:1.6,wrap:false,gen:'canyon',accent:'#E8B33C',
+  sky:['#1C1614','#4A2E22','#8A5A3C','#D9A878'],ground:'#7A4A32',edge:'#8E5A3E',
+  body:`Long, lazy, precise. Gravity 0.62 stretches every arc &mdash; power 75 covers 1086&nbsp;px &mdash; and the thin atmosphere caps wind at &plusmn;40, so the dominant variable becomes pure ranging rather than compensation.
+  <p>Flight runs at 1.6&times; time scale, turning a 2.8-second real arc into a 1.8-second watched one.</p>`,
+  tac:`Requires a camera. Canyon terrain plus long arcs means high-angle lobs into the pit are the whole tactical language.`},
+
+ {id:'selene',name:'Selene',kind:'Vacuum',g:0.45,drag:0,width:2220,wind:0,windMode:'none',
+  ts:2.1,wrap:false,gen:'craters',accent:'#B8C4D4',
+  sky:['#05070C','#0C121C','#1A2230','#4A4E58'],ground:'#5A5E62',edge:'#6E7276',
+  body:`No air at all: wind is exactly zero, every turn, forever. Selene is the deterministic world &mdash; the same angle and power always produce the same impact, so a solved firing solution stays solved until someone reshapes the ground.
+  <p>That makes it the skill-test map and the right place for a ranked mode. It also makes it the most punishing, because there is no luck to hide behind.</p>`,
+  tac:`Pure ballistics. Craters terrain means the Roller is unusually strong &mdash; every crater wall is a ramp.`},
+
+ {id:'ferrum',name:'Ferrum',kind:'Crushing gravity',g:1.75,drag:0,width:580,wind:80,windMode:'reroll',
+  ts:1.0,wrap:false,gen:'plates',accent:'#FF5C5C',
+  sky:['#0A0A0E','#241A22','#4A2A2A','#7A4038'],ground:'#3E3A3E',edge:'#524C52',
+  body:`Everything is fast, flat and close. Gravity 1.75 crushes arcs down to 382&nbsp;px at power 75, so the map is only 580&nbsp;px wide and the two tanks are practically in each other's faces.
+  <p>Flight time drops to a single second &mdash; the punchiest world in the set, and the only one where shots feel like gunfire rather than artillery.</p>`,
+  tac:`Watch heavy weapons here: mortar mass 1.55 &times; gravity 1.75 = 2.71&times; effective, dropping its range to ~250 px. Needs a per-world mass override.`},
+
+ {id:'hollow',name:'Hollow',kind:'Micro-gravity, wraps',g:0.30,drag:0,width:1200,wind:20,windMode:'reroll',
+  ts:3.0,wrap:true,gen:'ring',accent:'#4FC3D9',
+  sky:['#02040A','#080E1A','#101A2A','#243040'],ground:'#3A4450',edge:'#4E5A68',
+  body:`A body small enough to shoot all the way around. Gravity 0.30 and a <strong>horizontally wrapping</strong> 1200&nbsp;px surface: a power-100 shot travels 3971&nbsp;px, which is more than three full laps.
+  <p>You can hit an opponent by aiming directly away from them. Cover is meaningless because there is no behind. Flight runs at 3&times; scale and the shell never leaves the screen &mdash; it just keeps coming round.</p>`,
+  tac:`The standout mechanic in the set, and cheaper to build than the camera. Ring generator must be seamless or shells jump at x=0.`}
+];
+
+/* ---------- ballistics with per-world params ---------- */
+function shotPath(world, power, ang, wind, maxPts){
+  const g=G0*world.g, a=ang*Math.PI/180, v=power*MUZZLE;
+  let x=0,y=0,vx=Math.cos(a)*v,vy=-Math.sin(a)*v;
+  const pts=[{x,y}];
+  for(let f=0;f<6000;f++){
+    for(let s=0;s<SUB;s++){ vy+=g/SUB; if(wind) vx+=wind*0.00038/SUB; x+=vx/SUB; y+=vy/SUB; }
+    if(world.drag){ vx*=(1-world.drag); vy*=(1-world.drag); }
+    pts.push({x,y});
+    if(y>=0&&f>2) break;
+    if(maxPts&&pts.length>maxPts) break;
+  }
+  return {pts, range:x, frames:pts.length};
+}
+const rangeAt=(w,p)=>Math.round(shotPath(w,p,45,0).range);
+const flightAt=(w,p)=>shotPath(w,p,45,0).frames;
+
+/* ---------- overlay comparison chart ---------- */
+function overlayChart(){
+  const SW=980, SH=420, PAD=44;
+  const shots=WORLDS.map(w=>({w, s:shotPath(w,75,45,0)}));
+  const maxX=Math.max(...shots.map(s=>s.s.range));
+  const maxY=Math.max(...shots.map(s=>Math.max(...s.s.pts.map(p=>-p.y))));
+  const sx=x=>PAD+(x/maxX)*(SW-PAD-14);
+  const sy=y=>SH-30-((-y)/maxY)*(SH-64);
+  let out=`<svg viewBox="0 0 ${SW} ${SH}" xmlns="http://www.w3.org/2000/svg" role="img"
+    aria-label="Trajectory of the same shot on six worlds">`;
+  // grid
+  for(let k=0;k<=4;k++){const gx=PAD+(k/4)*(SW-PAD-14);
+    out+=`<line x1="${gx}" y1="18" x2="${gx}" y2="${SH-30}" stroke="#1D2632" stroke-width="1"/>
+      <text x="${gx}" y="${SH-12}" fill="#46505F" font-family="ui-monospace,monospace" font-size="11"
+      text-anchor="middle">${Math.round(k/4*maxX)}</text>`;}
+  out+=`<line x1="${PAD}" y1="${SH-30}" x2="${SW-14}" y2="${SH-30}" stroke="#323E4F" stroke-width="1.5"/>`;
+  // map-width markers + arcs
+  shots.forEach(({w,s})=>{
+    if(w.width<=maxX){
+      out+=`<line x1="${sx(w.width)}" y1="26" x2="${sx(w.width)}" y2="${SH-30}"
+        stroke="${w.accent}" stroke-width="1" stroke-dasharray="3 5" opacity=".45"/>`;
+    }
+  });
+  shots.forEach(({w,s})=>{
+    const step=Math.max(1,Math.floor(s.pts.length/300));
+    const pts=s.pts.filter((_,i)=>i%step===0||i===s.pts.length-1)
+      .map(p=>sx(p.x).toFixed(1)+','+sy(p.y).toFixed(1)).join(' ');
+    out+=`<polyline points="${pts}" fill="none" stroke="${w.accent}" stroke-width="2.4"
+      stroke-linecap="round" stroke-linejoin="round"/>`;
+    const end=s.pts[s.pts.length-1];
+    out+=`<circle cx="${sx(end.x).toFixed(1)}" cy="${sy(0).toFixed(1)}" r="4" fill="${w.accent}"/>
+      <text x="${sx(end.x).toFixed(1)}" y="${sy(0)-11}" fill="${w.accent}"
+      font-family="ui-monospace,monospace" font-size="12" text-anchor="middle">${w.name}</text>`;
+  });
+  out+=`<text x="${PAD}" y="${SH-12}" fill="#46505F" font-family="ui-monospace,monospace" font-size="11">0 px</text>`;
+  return out+'</svg>';
+}
+
+/* ---------- terrain silhouette ---------- */
+function terrainSVG(w, seed, vw, vh, showTanks){
+  const W=560, H=FH;
+  const h=GEN[w.gen](seed,W,H);
+  const uid='sk'+(terrainSVG._n=(terrainSVG._n||0)+1);
+  let d=`M 0 ${H} L 0 ${h[0].toFixed(1)}`;
+  for(let x=0;x<W;x+=3) d+=` L ${x} ${h[x].toFixed(1)}`;
+  d+=` L ${W-1} ${h[W-1].toFixed(1)} L ${W} ${H} Z`;
+  let s=`<svg viewBox="0 0 ${W} ${vh||H}" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg"
+    role="img" aria-label="${w.name} terrain, ${w.gen} generator">
+    <defs><linearGradient id="${uid}" x1="0" y1="0" x2="0" y2="1">
+      ${w.sky.map((c,i)=>`<stop offset="${(i/(w.sky.length-1)).toFixed(2)}" stop-color="${c}"/>`).join('')}
+    </linearGradient></defs>
+    <rect width="${W}" height="${vh||H}" fill="url(#${uid})"/>
+    <path d="${d}" fill="${w.ground}"/><path d="${d}" fill="none" stroke="${w.edge}" stroke-width="3"/>`;
+  if(showTanks){
+    const gap=Math.round(W*0.70), x1=Math.round((W-gap)/2), x2=x1+gap;
+    [[x1,'#E8B33C',45],[x2,'#4FC3D9',135]].forEach(([tx,col,ang])=>{
+      const a=ang*Math.PI/180, ty=h[tx];
+      s+=`<g transform="translate(${tx},${ty.toFixed(1)})">
+        <rect x="-13" y="-6" width="26" height="6" rx="3" fill="#2A313C"/>
+        <rect x="-11" y="-13" width="22" height="8" rx="2" fill="${col}"/>
+        <line x1="0" y1="-14" x2="${(Math.cos(a)*22).toFixed(1)}" y2="${(-14-Math.sin(a)*22).toFixed(1)}"
+          stroke="${col}" stroke-width="3.5" stroke-linecap="round"/></g>`;
+    });
+    // representative arc between them
+    const sh=shotPath(w,75,45,0), scale=(gap)/Math.max(1,sh.range);
+    const pts=sh.pts.filter((_,i)=>i%2===0).map(p=>
+      (x1+p.x*scale).toFixed(1)+','+(h[x1]-14+p.y*scale*0.86).toFixed(1)).join(' ');
+    s+=`<polyline points="${pts}" fill="none" stroke="${w.accent}" stroke-width="2.4"
+      stroke-dasharray="4 6" opacity=".9" stroke-linecap="round"/>`;
+  }
+  return s+'</svg>';
+}
+
+/* ---------- renderers ---------- */
+function renderOverlay(){
+  document.getElementById('overlay').innerHTML=overlayChart();
+  document.getElementById('overlayLegend').innerHTML=WORLDS.map(w=>{
+    const r=rangeAt(w,75), t=(flightAt(w,75)/60);
+    return `<span><i style="background:${w.accent}"></i>${w.name} &middot; g&nbsp;${w.g.toFixed(2)} &middot; ${r}&nbsp;px &middot; ${t.toFixed(1)}s</span>`;
+  }).join('');
+}
+
+function renderWorlds(){
+  document.getElementById('worlds').innerHTML=WORLDS.map(w=>{
+    const r100=rangeAt(w,100), f100=flightAt(w,100)/60, perceived=f100/w.ts;
+    return `<article class="world">
+      <header>
+        <span class="nm" style="color:${w.accent}">${w.name}</span>
+        <span class="kind">${w.kind}</span>
+        <span class="g">g ${w.g.toFixed(2)} &middot; ${w.width} px${w.wrap?' &middot; WRAPS':''}</span>
+      </header>
+      <div class="thumb">${terrainSVG(w,1597,null,260,true)}</div>
+      <div class="stats">
+        <div><div class="k">Range @75</div><div class="v">${rangeAt(w,75)}</div></div>
+        <div><div class="k">Range @100</div><div class="v">${r100}</div></div>
+        <div><div class="k">Flight @100</div><div class="v">${f100.toFixed(2)}s</div></div>
+        <div><div class="k">Time scale</div><div class="v">${w.ts.toFixed(1)}&times;</div></div>
+        <div><div class="k">Watched</div><div class="v" style="color:${perceived>2.3?'var(--hot)':'var(--ok)'}">${perceived.toFixed(2)}s</div></div>
+        <div><div class="k">Wind</div><div class="v">${w.wind===0?'none':'\u00B1'+w.wind}</div></div>
+        <div><div class="k">Air drag</div><div class="v">${w.drag?w.drag.toFixed(3):'0'}</div></div>
+      </div>
+      <div class="body">${w.body}</div>
+      <div class="tac"><b>${w.tac}</b></div>
+    </article>`;
+  }).join('');
+}
+
+function renderWorldTable(){
+  const rows=WORLDS.map(w=>{
+    const f=flightAt(w,100)/60;
+    return `<tr><td style="color:${w.accent}">${w.name}</td>
+      <td class="num">${w.g.toFixed(2)}</td>
+      <td class="num">${w.drag?w.drag.toFixed(3):'—'}</td>
+      <td class="num">${w.width}</td>
+      <td class="num">${w.wind===0?'0':'\u00B1'+w.wind}</td>
+      <td class="num">${rangeAt(w,75)}</td>
+      <td class="num">${(f/w.ts).toFixed(2)}s</td>
+      <td>${w.gen}</td>
+      <td>${w.wrap?'yes':'—'}</td></tr>`;
+  }).join('');
+  document.getElementById('worldTable').innerHTML=`<table>
+    <tr><th>World</th><th>Gravity</th><th>Air drag</th><th>Map W</th><th>Wind</th>
+        <th>Range @75</th><th>Watched flight</th><th>Generator</th><th>Wraps</th></tr>${rows}</table>`;
+}
+
+function renderGens(){
+  const info={
+    hills:['Hills','Midpoint displacement with two sine overlays. Broad, rolling, no strong features.'],
+    canyon:['Canyon','A gaussian trench pulled through gentle terrain. Both spawns sit on the rims.'],
+    craters:['Craters','Six to ten overlapping circular depressions with raised rims. Every wall is a ramp.'],
+    plates:['Plates','Midpoint displacement quantised to discrete height steps. Flat tops, vertical faces.'],
+    spires:['Spires','A high floor with five to eight narrow gaussian columns punched upward.'],
+    ring:['Ring','Built from five sinusoids with integer periods, so the left and right edges join seamlessly.']
+  };
+  const base=WORLDS[0];
+  document.getElementById('gens').innerHTML=Object.keys(GEN).map((g,i)=>{
+    const w=Object.assign({},WORLDS[i%WORLDS.length],{gen:g});
+    const seam=(()=>{const h=GEN[g](1597,560,FH);return Math.abs(h[0]-h[559]).toFixed(1);})();
+    return `<article class="world">
+      <header><span class="nm" style="color:${w.accent}">${info[g][0]}</span>
+        <span class="kind">generator</span>
+        <span class="g">seam &Delta; ${seam} px</span></header>
+      <div class="thumb">${terrainSVG(w,1597,null,215,true)}</div>
+      <div class="body"><p>${info[g][1]}</p></div>
+    </article>`;
+  }).join('');
+}
+
+function renderMapCards(){
+  const cards=WORLDS.map((w,i)=>{
+    const maxW=Math.max(...WORLDS.map(x=>x.width));
+    const bar=Math.round((w.width/maxW)*100);
+    const atm=w.drag?'THICK':(w.wind===0?'VACUUM':(w.wind<=40?'THIN':'STANDARD'));
+    return `<div class="mcard ${i===3?'sel':''}" style="color:${w.accent}">
+      <div class="pic">${terrainSVG(w,882,null,150,false)}</div>
+      <div class="meta">
+        <div class="n" style="color:${w.accent}">${w.name}</div>
+        <div class="d">GRAVITY ${w.g.toFixed(2)} &middot; ${atm}${w.wrap?' &middot; WRAPS':''}</div>
+        <div style="height:3px;background:#0A0E15;border-radius:2px;margin-top:7px;overflow:hidden">
+          <div style="height:100%;width:${bar}%;background:${w.accent};opacity:.75"></div></div>
+      </div></div>`;
+  }).join('');
+  document.getElementById('mapcards').innerHTML=cards+
+    `<div class="mcard" style="color:#6E7A8A;display:flex;align-items:center;justify-content:center;min-height:150px">
+      <div style="text-align:center"><div class="n" style="color:#9FB3C8">Random</div>
+      <div class="d" style="margin-top:5px">ANY WORLD &middot; ANY TERRAIN</div></div></div>`;
+}
+
+/* ---------- routing ---------- */
+const pages=[...document.querySelectorAll('.page')], links=[...document.querySelectorAll('nav a')];
+function show(id){
+  if(!document.getElementById(id)) id='p1';
+  pages.forEach(p=>p.classList.toggle('on',p.id===id));
+  links.forEach(a=>a.classList.toggle('on',a.dataset.p===id));
+  window.scrollTo({top:0,behavior:'instant'});
+}
+addEventListener('hashchange',()=>show(location.hash.slice(1)||'p1'));
+
+renderOverlay(); renderWorlds(); renderWorldTable(); renderGens(); renderMapCards();
+show(location.hash.slice(1)||'p1');
+</script>
+</body>
+</html>

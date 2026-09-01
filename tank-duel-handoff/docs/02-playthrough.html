@@ -1,0 +1,995 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tank Duel — Playthrough &amp; Scenario Spec</title>
+<style>
+:root{
+  --void:#0E1219; --panel:#141A24; --panel2:#1B2330; --rule:#252F3D; --rule2:#323E4F;
+  --text:#C7D0DC; --dim:#6E7A8A; --bright:#E6ECF4;
+  --p1:#E8B33C; --p2:#4FC3D9; --hot:#FF6B35; --ok:#7BD389; --warn:#FFD166;
+  --mono:ui-monospace,"SF Mono","JetBrains Mono",Menlo,Consolas,monospace;
+  --sans:"Roboto Condensed","Arial Narrow",Inter,system-ui,sans-serif;
+  --nav:236px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{background:var(--void);color:var(--text);font-family:var(--sans);font-size:15px;line-height:1.62;-webkit-font-smoothing:antialiased}
+
+/* ---------- nav ---------- */
+nav{position:fixed;left:0;top:0;bottom:0;width:var(--nav);background:var(--panel);border-right:1px solid var(--rule);
+    overflow-y:auto;padding:22px 0 40px;z-index:20}
+.brand{padding:0 20px 18px;border-bottom:1px solid var(--rule);margin-bottom:14px}
+.brand .t{font-size:16px;letter-spacing:.14em;text-transform:uppercase;font-weight:700;color:var(--bright)}
+.brand .s{font-family:var(--mono);font-size:10px;color:var(--dim);letter-spacing:.06em;margin-top:3px}
+nav a{display:grid;grid-template-columns:26px 1fr;gap:8px;align-items:baseline;padding:8px 20px;
+      color:var(--dim);text-decoration:none;font-size:13.5px;line-height:1.35;border-left:2px solid transparent}
+nav a .i{font-family:var(--mono);font-size:10px;opacity:.65}
+nav a:hover{color:var(--text);background:#182030}
+nav a.on{color:var(--bright);border-left-color:var(--hot);background:#182030}
+nav a.on .i{color:var(--hot);opacity:1}
+.navgrp{padding:16px 20px 5px;font-family:var(--mono);font-size:9.5px;letter-spacing:.18em;text-transform:uppercase;color:#46505F}
+
+/* ---------- layout ---------- */
+main{margin-left:var(--nav);padding:44px 40px 120px;max-width:1180px}
+.page{display:none;max-width:880px}
+.page.on{display:block;animation:fade .28s ease}
+@keyframes fade{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+
+.eyebrow{font-family:var(--mono);font-size:10px;letter-spacing:.2em;text-transform:uppercase;color:var(--hot);margin-bottom:9px}
+h1{font-size:34px;line-height:1.12;letter-spacing:-.005em;color:var(--bright);font-weight:700;margin-bottom:12px}
+h2{font-size:20px;letter-spacing:.02em;color:var(--bright);font-weight:700;margin:38px 0 12px;padding-bottom:8px;border-bottom:1px solid var(--rule)}
+h3{font-size:15px;letter-spacing:.06em;text-transform:uppercase;color:var(--text);font-weight:700;margin:26px 0 9px}
+p{margin-bottom:13px;color:#B4BFCC}
+.lede{font-size:17px;color:var(--text);margin-bottom:26px}
+strong{color:var(--bright);font-weight:600}
+code{font-family:var(--mono);font-size:.87em;background:#0A0E15;border:1px solid var(--rule);border-radius:2px;padding:1px 5px;color:#9FB3C8}
+ul,ol{margin:0 0 14px 19px;color:#B4BFCC}
+li{margin-bottom:6px}
+a.inline{color:var(--p2);text-decoration:none;border-bottom:1px solid rgba(79,195,217,.35)}
+
+/* ---------- blocks ---------- */
+.note{border-left:2px solid var(--rule2);background:var(--panel);padding:13px 16px;margin:18px 0;font-size:14px}
+.note.hot{border-left-color:var(--hot)}
+.note.ok{border-left-color:var(--ok)}
+.note .h{font-family:var(--mono);font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:var(--dim);margin-bottom:5px}
+.note.hot .h{color:var(--hot)}
+.note.ok .h{color:var(--ok)}
+.note p:last-child{margin-bottom:0}
+
+table{width:100%;border-collapse:collapse;margin:16px 0;font-size:13.5px}
+th{text-align:left;font-family:var(--mono);font-size:9.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--dim);
+   padding:7px 10px;border-bottom:1px solid var(--rule2);font-weight:400;white-space:nowrap}
+td{padding:8px 10px;border-bottom:1px solid var(--rule);vertical-align:top;color:#B4BFCC}
+td:first-child{color:var(--bright)}
+tr:last-child td{border-bottom:none}
+.num,.mono{font-family:var(--mono);font-variant-numeric:tabular-nums}
+
+/* ---------- turn cards ---------- */
+.turn{background:var(--panel);border:1px solid var(--rule);border-radius:3px;margin:22px 0;overflow:hidden}
+.turn header{display:flex;align-items:center;gap:11px;padding:11px 15px;border-bottom:1px solid var(--rule);background:var(--panel2)}
+.turn .idx{font-family:var(--mono);font-size:11px;color:var(--dim);letter-spacing:.05em}
+.turn .who{font-size:13px;letter-spacing:.12em;text-transform:uppercase;font-weight:700}
+.turn .wep{font-family:var(--mono);font-size:11px;color:var(--dim);margin-left:auto}
+.turn .fig{line-height:0;background:#0A0E15}
+.turn .fig svg{width:100%;height:auto;display:block}
+.tele{display:flex;flex-wrap:wrap;gap:0;border-bottom:1px solid var(--rule)}
+.tele div{flex:1;min-width:78px;padding:9px 12px;border-right:1px solid var(--rule)}
+.tele div:last-child{border-right:none}
+.tele .k{font-family:var(--mono);font-size:9px;letter-spacing:.14em;text-transform:uppercase;color:var(--dim)}
+.tele .v{font-family:var(--mono);font-size:15px;margin-top:2px;color:var(--bright)}
+.turn .body{padding:14px 16px;font-size:14px}
+.turn .body p{margin-bottom:9px}.turn .body p:last-child{margin-bottom:0}
+.outcome{font-family:var(--mono);font-size:11px;letter-spacing:.05em;padding:9px 16px;border-top:1px solid var(--rule);background:#10161F}
+.hit{color:var(--hot)}.miss{color:var(--dim)}.good{color:var(--ok)}
+
+/* ---------- scenario / case ---------- */
+.case{border:1px solid var(--rule);border-radius:3px;margin:14px 0;background:var(--panel)}
+.case>.hd{padding:11px 15px;display:flex;gap:10px;align-items:baseline;cursor:pointer;user-select:none}
+.case>.hd .tag{font-family:var(--mono);font-size:9px;letter-spacing:.12em;text-transform:uppercase;padding:2px 6px;border-radius:2px;border:1px solid currentColor}
+.case>.hd .nm{font-size:14.5px;color:var(--bright);font-weight:600}
+.case>.hd .ch{margin-left:auto;font-family:var(--mono);font-size:11px;color:var(--dim);transition:transform .2s}
+.case.open>.hd .ch{transform:rotate(90deg)}
+.case>.bd{display:none;padding:0 15px 14px;font-size:14px;border-top:1px solid var(--rule);padding-top:12px}
+.case.open>.bd{display:block}
+.t-edge{color:var(--hot)} .t-fail{color:#FF5C5C} .t-ok{color:var(--ok)} .t-ux{color:var(--p2)}
+.expect{font-family:var(--mono);font-size:12px;background:#0A0E15;border:1px solid var(--rule);border-radius:2px;padding:9px 11px;margin-top:9px;color:#9FB3C8}
+.expect b{color:var(--ok);font-weight:400}
+
+/* ---------- misc ---------- */
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:13px;margin:16px 0}
+.tile{background:var(--panel);border:1px solid var(--rule);border-radius:3px;padding:13px 15px}
+.tile .k{font-family:var(--mono);font-size:9.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--dim);margin-bottom:5px}
+.tile .v{font-size:14px;color:#B4BFCC}
+.chip{display:inline-block;font-family:var(--mono);font-size:10.5px;padding:2px 7px;border:1px solid var(--rule2);border-radius:2px;color:var(--dim);margin:0 4px 4px 0}
+.check{list-style:none;margin-left:0}
+.check li{display:grid;grid-template-columns:16px 1fr;gap:9px;padding:7px 0;border-bottom:1px solid var(--rule);font-size:14px;margin:0}
+.check li::before{content:"";display:block;width:11px;height:11px;border:1px solid var(--rule2);border-radius:2px;margin-top:5px}
+.pager{display:flex;justify-content:space-between;gap:12px;margin-top:52px;padding-top:20px;border-top:1px solid var(--rule)}
+.pager a{color:var(--dim);text-decoration:none;font-size:13px;font-family:var(--mono)}
+.pager a:hover{color:var(--bright)}
+.legend{display:flex;gap:16px;flex-wrap:wrap;font-family:var(--mono);font-size:11px;color:var(--dim);margin:10px 0 0}
+.legend i{display:inline-block;width:16px;height:2px;vertical-align:middle;margin-right:6px}
+
+@media(max-width:900px){
+  :root{--nav:0px}
+  nav{position:static;width:auto;height:auto;border-right:none;border-bottom:1px solid var(--rule)}
+  nav a{padding:7px 16px}
+  main{padding:26px 18px 80px}
+  .grid2{grid-template-columns:1fr}
+}
+@media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="brand">
+    <div class="t">Tank Duel</div>
+    <div class="s">Playthrough &amp; scenario spec</div>
+  </div>
+  <div class="navgrp">The session</div>
+  <a href="#p1" data-p="p1"><span class="i">01</span><span>Overview &amp; cast</span></a>
+  <a href="#p2" data-p="p2"><span class="i">02</span><span>Cold start to first shot</span></a>
+  <a href="#p3" data-p="p3"><span class="i">03</span><span>Anatomy of a turn</span></a>
+  <div class="navgrp">The match</div>
+  <a href="#p4" data-p="p4"><span class="i">04</span><span>Annotated playthrough</span></a>
+  <a href="#p5" data-p="p5"><span class="i">05</span><span>Weapon scenarios</span></a>
+  <div class="navgrp">Everything else</div>
+  <a href="#p6" data-p="p6"><span class="i">06</span><span>Edge &amp; failure cases</span></a>
+  <a href="#p7" data-p="p7"><span class="i">07</span><span>Input &amp; accessibility</span></a>
+  <a href="#p8" data-p="p8"><span class="i">08</span><span>State machine</span></a>
+  <a href="#p9" data-p="p9"><span class="i">09</span><span>QA checklist</span></a>
+</nav>
+
+<main>
+
+<!-- ============ 01 ============ -->
+<section class="page" id="p1">
+  <div class="eyebrow">01 · Overview</div>
+  <h1>What a session actually looks like</h1>
+  <p class="lede">Every diagram on these pages is computed, not drawn. The trajectories come from the same integrator as the prototype — <code>GRAVITY 0.215</code>, <code>MUZZLE 0.160</code>, <code>WIND_K 0.00038</code>, 8 substeps — replayed live in your browser against a seeded terrain. If a shot looks wrong here, it will be wrong in the build.</p>
+
+  <div class="note hot">
+    <div class="h">Balance bug this exercise found</div>
+    <p>Scripting the match exposed a dead weapon. Heavy Mortar was specced at <code>mass 2.00</code>, which caps its range at <strong>~595 px</strong>. Spawns sit <strong>~700 px</strong> apart, so the mortar could never reach the enemy from the starting position — a limited-ammo weapon that is literally unusable until someone moves, and nobody moves. Corrected to <code>mass 1.55</code> (range ~794 px), which makes it a full-power-only weapon at spawn range. That's real tension instead of a dud.</p>
+  </div>
+  <div class="note ok">
+    <div class="h">And one emergent behaviour worth keeping</div>
+    <p>Scripting turn 8 revealed that a Sandbag wall blocks the player who built it just as thoroughly as the enemy. Cyan had to lob at 72&deg; and near-full power to shoot over its own mound, and a low shot rolled back into its own position. That's not a bug to fix &mdash; it's the cost that makes a zero-damage defensive shell a real decision. It is documented on <a class="inline" href="#p5">page 05</a> and asserted on <a class="inline" href="#p9">page 09</a>.</p>
+  </div>
+
+  <h2>The loop, in one breath</h2>
+  <p>Two tanks on a destructible hillside, out of each other's reach except by arc. You set elevation and power, pick a shell, and fire. Wind rerolls every turn so no solution repeats. You miss, you read your own dotted trail, you correct, you hit. The terrain you're shooting at is also the terrain you're standing on, which is the whole game.</p>
+
+  <div class="grid2">
+    <div class="tile"><div class="k">Match length</div><div class="v">8–16 shots per round. The reference match below runs 11.</div></div>
+    <div class="tile"><div class="k">Turn length</div><div class="v">5–20s of thinking, 0.7–1.9s of flight, ~0.5s of settle.</div></div>
+    <div class="tile"><div class="k">Failure mode</div><div class="v">Health 0, or knocked off the bottom of the map.</div></div>
+    <div class="tile"><div class="k">Skill expressed</div><div class="v">Bracketing, wind correction, reading slope, spending limited ammo.</div></div>
+  </div>
+
+  <h2>Cast</h2>
+  <table>
+    <tr><th>Name</th><th>Side</th><th>Colour</th><th>Role in this document</th></tr>
+    <tr><td>Brass</td><td>Left, x≈150, fires right</td><td class="mono" style="color:var(--p1)">#E8B33C</td><td>Player 1. Plays competently, makes one instructive mistake (turn 7).</td></tr>
+    <tr><td>Cyan</td><td>Right, x≈850, fires left</td><td class="mono" style="color:var(--p2)">#4FC3D9</td><td>Player 2. Plays defensively, loses to a self-inflicted shot and a mortar.</td></tr>
+  </table>
+
+  <h2>Reading the diagrams</h2>
+  <div class="legend">
+    <span><i style="background:var(--p1)"></i>Brass shot</span>
+    <span><i style="background:var(--p2)"></i>Cyan shot</span>
+    <span><i style="background:var(--dim);opacity:.5"></i>Earlier trail (ghost)</span>
+    <span><i style="background:var(--hot)"></i>Detonation</span>
+    <span><i style="background:var(--warn);height:0;border-top:2px dashed var(--warn)"></i>Underground / rolling path</span>
+  </div>
+  <p style="margin-top:12px">Terrain is drawn as the firing player saw it at the start of that turn. Craters from that shot appear as a dashed outline so you can see what changed.</p>
+
+  <div class="pager"><span></span><a href="#p2">Cold start →</a></div>
+</section>
+
+<!-- ============ 02 ============ -->
+<section class="page" id="p2">
+  <div class="eyebrow">02 · Session start</div>
+  <h1>Cold start to first shot</h1>
+  <p class="lede">Every screen state between opening the URL and the first shell leaving the barrel, including the ones that only happen when something is missing.</p>
+
+  <h2>Screen sequence</h2>
+  <table>
+    <tr><th>#</th><th>State</th><th>What's on screen</th><th>Exit</th></tr>
+    <tr><td>1</td><td>Boot</td><td>Blank field, terrain generating. Under 100 ms — no spinner, no logo, no splash.</td><td>Auto</td></tr>
+    <tr><td>2</td><td>Title</td><td>Title over a live, idle battlefield with wind moving. Two buttons: <em>Hotseat</em>, <em>vs. Computer</em>.</td><td>Player picks a mode</td></tr>
+    <tr><td>3</td><td>Match setup</td><td>Rounds (1/3/5), terrain theme, wind on/off, turn timer on/off, seed field.</td><td><em>Start</em></td></tr>
+    <tr><td>4</td><td>Round intro</td><td>Terrain revealed, tanks drop and settle, coin flip resolves, first wind rolls. ~1.2s, skippable.</td><td>Auto or any key</td></tr>
+    <tr><td>5</td><td>Aim</td><td>Full HUD live. Barrel at last-used elevation, power at last-used value.</td><td>Fire</td></tr>
+  </table>
+
+  <div class="note">
+    <div class="h">Deliberate omission</div>
+    <p>There is no tutorial and no tooltip layer. The elevation and power controls are the entire input surface, and the first miss teaches more than any overlay would. If playtesters can't fire a shot within 15 seconds of the aim screen appearing, fix the HUD, don't add a tutorial.</p>
+  </div>
+
+  <h2>Setup options and their consequences</h2>
+  <table>
+    <tr><th>Option</th><th>Values</th><th>Default</th><th>Why it exists</th></tr>
+    <tr><td>Rounds</td><td>1 / 3 / 5</td><td>3</td><td>One round is a coin flip — terrain advantage is real and doesn't average out until round 3.</td></tr>
+    <tr><td>Wind</td><td>Off / Light ±40 / Full ±100</td><td>Full</td><td>Off makes the game solvable in three shots. It exists only as an accessibility and teaching option.</td></tr>
+    <tr><td>Turn timer</td><td>Off / 30s / 15s</td><td>Off</td><td>On expiry, fires at current settings rather than skipping — skipping feels like a punishment, firing feels like a consequence.</td></tr>
+    <tr><td>Seed</td><td>Blank or 6 chars</td><td>Random</td><td>Rematches on identical terrain, and it makes bug reports reproducible. Cheap to build, worth it on day one.</td></tr>
+    <tr><td>Terrain</td><td>Hills / Canyon / Islands</td><td>Hills</td><td>Different generators, not different palettes. Islands makes falling off the map a real threat.</td></tr>
+  </table>
+
+  <h2>Start-up states that aren't the happy path</h2>
+  <div id="cases-boot"></div>
+
+  <div class="pager"><a href="#p1">← Overview</a><a href="#p3">Anatomy of a turn →</a></div>
+</section>
+
+<!-- ============ 03 ============ -->
+<section class="page" id="p3">
+  <div class="eyebrow">03 · The core loop</div>
+  <h1>Anatomy of a turn</h1>
+  <p class="lede">Five phases. Only one accepts input. Everything that can go wrong in this game goes wrong in the transitions between them.</p>
+
+  <h2>Phases</h2>
+  <table>
+    <tr><th>Phase</th><th>Duration</th><th>Input</th><th>Exits when</th></tr>
+    <tr><td>AIM</td><td>Unbounded (or timer)</td><td>All controls live</td><td>Player fires</td></tr>
+    <tr><td>FLIGHT</td><td>0.7–1.9s typical</td><td>None. Camera only.</td><td>No projectiles remain</td></tr>
+    <tr><td>RESOLVE</td><td>1 frame + 9 frame hitstop on direct hit</td><td>None</td><td>Immediately</td></tr>
+    <tr><td>SETTLE</td><td>0.4–1.5s</td><td>None</td><td>Nothing moving, 22 quiet frames, particles thinned out</td></tr>
+    <tr><td>HANDOFF</td><td>~0.3s</td><td>None</td><td>Wind rerolled, active player swapped</td></tr>
+  </table>
+
+  <div class="note hot">
+    <div class="h">The rule that prevents most bugs</div>
+    <p>Input is accepted in AIM and nowhere else, and <code>fire()</code> returns immediately unless <code>phase === 'aim'</code>. Every "I fired twice" and "the turn didn't switch" bug in this genre traces back to a control that stayed live during flight.</p>
+  </div>
+
+  <h2>What each control does</h2>
+  <table>
+    <tr><th>Control</th><th>Range</th><th>Step</th><th>Effect</th></tr>
+    <tr><td>Elevation</td><td>0–90° (displayed)</td><td>1°, or 5° with Shift</td><td>Internally 0–180°; Player 2's display is mirrored so both see 45° as "up and toward the enemy".</td></tr>
+    <tr><td>Power</td><td>10–100</td><td>1, or 5 with Shift</td><td><code>v = power × 0.160</code> px/frame. Range on flat ground is <code>v² / 0.215</code>.</td></tr>
+    <tr><td>Weapon</td><td>6 slots</td><td>Keys 1–6</td><td>Changes mass, drag, blast radius, damage, and terrain effect. Mass is the one that surprises people.</td></tr>
+    <tr><td>Fire</td><td>—</td><td>—</td><td>Consumes ammo, spawns the shell 24 px along the muzzle, starts a new ghost trail.</td></tr>
+  </table>
+
+  <h2>Reference range table</h2>
+  <p>Measured on flat ground at 45° with no wind, HE Shell. This is the table a player builds in their head over their first three matches.</p>
+  <table>
+    <tr><th>Power</th><th>30</th><th>40</th><th>50</th><th>60</th><th>70</th><th>80</th><th>85+</th></tr>
+    <tr><td>Range</td><td class="num">151</td><td class="num">236</td><td class="num">344</td><td class="num">476</td><td class="num">632</td><td class="num">810</td><td class="miss">off map</td></tr>
+    <tr><td>Flight</td><td class="num">0.7s</td><td class="num">0.8s</td><td class="num">1.0s</td><td class="num">1.1s</td><td class="num">1.3s</td><td class="num">1.5s</td><td>—</td></tr>
+  </table>
+  <p>Spawns sit 620–840 px apart, so real engagements live at <strong>power 70–82</strong>. Full wind shifts impact by <strong>±115 px</strong>, which costs roughly 7 power or 2° to correct.</p>
+
+  <h2>The settle phase, in detail</h2>
+  <p>This is the phase people forget to build, and it's where the game's best moments come from. In order, every frame:</p>
+  <ol>
+    <li>Any tank whose centre is inside solid terrain climbs upward until clear. A tank must <em>never</em> be entombed.</li>
+    <li>Any tank not touching ground accelerates downward at 0.42 px/frame², capped at 8.</li>
+    <li>On landing, if the drop exceeded 40 px, apply <code>(drop − 40) × 0.5</code> damage.</li>
+    <li>Any tank past the bottom of the map is destroyed outright.</li>
+    <li>When nothing has moved for 22 frames and fewer than 22 particles remain, hand off.</li>
+  </ol>
+  <div class="note ok">
+    <div class="h">Why the order matters</div>
+    <p>Dig-out before gravity. Reverse them and a tank buried by Sandbags will try to fall through solid ground forever, and the settle phase never exits — a soft lock that only reproduces when someone uses a defensive weapon aggressively.</p>
+  </div>
+
+  <div class="pager"><a href="#p2">← Cold start</a><a href="#p4">Annotated playthrough →</a></div>
+</section>
+
+<!-- ============ 04 ============ -->
+<section class="page" id="p4">
+  <div class="eyebrow">04 · Reference match</div>
+  <h1>Annotated playthrough</h1>
+  <p class="lede">One complete round, terrain seed <span class="mono">1597</span>, eleven turns, played out shot by shot. Every arc below was simulated in your browser when this page loaded. Brass wins at 58 health.</p>
+
+  <div id="match"></div>
+
+  <h2>What the match demonstrates</h2>
+  <table>
+    <tr><th>Turn</th><th>Concept</th></tr>
+    <tr><td class="num">1–2</td><td>Ranging. Neither player has information; both shots exist to draw a line.</td></tr>
+    <tr><td class="num">3</td><td>Bracketing. Split the difference between a short and a long, and you're on target.</td></tr>
+    <tr><td class="num">4–5</td><td>Cover and counter-cover. A zero-damage weapon buys exactly one turn.</td></tr>
+    <tr><td class="num">6</td><td>Area denial. Cluster punishes open ground.</td></tr>
+    <tr><td class="num">7</td><td>Mass affects range. The most common new-player mistake, made legible.</td></tr>
+    <tr><td class="num">8</td><td>Terrain reading beats aiming precision &mdash; and your own cover blocks you too.</td></tr>
+    <tr><td class="num">9</td><td>Wind correction under the strongest wind of the match.</td></tr>
+    <tr><td class="num">10</td><td>Self-damage. Allowed, never blocked, occasionally fatal.</td></tr>
+    <tr><td class="num">11</td><td>Spending the last big shell at the right moment.</td></tr>
+  </table>
+
+  <div class="pager"><a href="#p3">← Anatomy of a turn</a><a href="#p5">Weapon scenarios →</a></div>
+</section>
+
+<!-- ============ 05 ============ -->
+<section class="page" id="p5">
+  <div class="eyebrow">05 · Weapons</div>
+  <h1>Weapon scenarios</h1>
+  <p class="lede">For each shell: the situation it's built for, the situation where it's a wasted turn, and the edge cases the code has to survive.</p>
+  <div class="note">
+    <div class="h">Balance rule</div>
+    <p>Every limited weapon must be <em>situationally</em> better than the HE Shell, never flatly better. If a weapon is just "HE but more", it isn't a decision — it's a resource drain.</p>
+  </div>
+  <div id="cases-wep"></div>
+
+  <h2>Ammo economy</h2>
+  <table>
+    <tr><th>Weapon</th><th>Ammo</th><th>Mass</th><th>Drag</th><th>Blast</th><th>Damage</th><th>Max range @45°</th></tr>
+    <tr><td>HE Shell</td><td>∞</td><td class="num">1.00</td><td class="num">1.00</td><td class="num">26</td><td class="num">34</td><td class="num">~1190</td></tr>
+    <tr><td>Heavy Mortar</td><td class="num">4</td><td class="num">1.55</td><td class="num">0.65</td><td class="num">44</td><td class="num">52</td><td class="num">~794</td></tr>
+    <tr><td>Cluster Bomb</td><td class="num">3</td><td class="num">1.00</td><td class="num">1.15</td><td class="num">20 ×5</td><td class="num">18 ea</td><td class="num">~1190</td></tr>
+    <tr><td>Bunker Buster</td><td class="num">3</td><td class="num">1.45</td><td class="num">0.80</td><td class="num">32</td><td class="num">44</td><td class="num">~850</td></tr>
+    <tr><td>Sandbags</td><td class="num">3</td><td class="num">1.20</td><td class="num">0.90</td><td class="num">34</td><td class="num">0</td><td class="num">~990</td></tr>
+    <tr><td>Roller</td><td class="num">3</td><td class="num">1.10</td><td class="num">0.85</td><td class="num">28</td><td class="num">38</td><td class="num">~1080</td></tr>
+  </table>
+  <p>HE is unlimited on purpose: a player who spends every special shell must still be able to play, and there must never be a state where nobody can act.</p>
+
+  <div class="pager"><a href="#p4">← Playthrough</a><a href="#p6">Edge &amp; failure cases →</a></div>
+</section>
+
+<!-- ============ 06 ============ -->
+<section class="page" id="p6">
+  <div class="eyebrow">06 · Robustness</div>
+  <h1>Edge &amp; failure cases</h1>
+  <p class="lede">The full list of things that will happen in real play, sorted by how badly they break the game when unhandled. Each one names the expected behaviour, which is what you assert against.</p>
+  <div id="cases-edge"></div>
+
+  <div class="pager"><a href="#p5">← Weapon scenarios</a><a href="#p7">Input &amp; accessibility →</a></div>
+</section>
+
+<!-- ============ 07 ============ -->
+<section class="page" id="p7">
+  <div class="eyebrow">07 · Interface</div>
+  <h1>Input &amp; accessibility</h1>
+  <p class="lede">Three input methods, five phases, and the states where a control must be visibly dead rather than silently ignored.</p>
+
+  <h2>Input matrix</h2>
+  <table>
+    <tr><th>Action</th><th>Keyboard</th><th>Mouse</th><th>Touch</th><th>Live in</th></tr>
+    <tr><td>Elevation</td><td>← → (Shift = 5°)</td><td>Slider, ± buttons, drag on field</td><td>Slider, ± buttons, drag</td><td>AIM</td></tr>
+    <tr><td>Power</td><td>↑ ↓ (Shift = 5)</td><td>Slider, ± buttons, drag distance</td><td>Slider, ± buttons</td><td>AIM</td></tr>
+    <tr><td>Weapon</td><td>1–6, or Q/E to cycle</td><td>Click chip</td><td>Tap chip</td><td>AIM</td></tr>
+    <tr><td>Fire</td><td>Space or Enter</td><td>Fire button</td><td>Fire button</td><td>AIM</td></tr>
+    <tr><td>Skip flight</td><td>Esc</td><td>Click field</td><td>Tap field</td><td>FLIGHT</td></tr>
+    <tr><td>New match</td><td>R</td><td>Button</td><td>Button</td><td>OVER</td></tr>
+  </table>
+
+  <div class="note hot">
+    <div class="h">Drag-to-aim conflict</div>
+    <p>Dragging on the field sets elevation <em>and</em> power at once from the vector to the cursor. That's the fastest way to get roughly on target and the worst way to make a 2-power correction. Both must stay live simultaneously: drag to get close, arrow keys to fine-tune. Never let a drag reset a keyboard adjustment, and never let the sliders fight the drag — one shared source of truth, three ways to write to it.</p>
+  </div>
+
+  <h2>Accessibility requirements</h2>
+  <table>
+    <tr><th>Requirement</th><th>Implementation</th></tr>
+    <tr><td>Playable keyboard-only</td><td>Already true. Every action has a key. Focus ring must be visible on all controls.</td></tr>
+    <tr><td>Colour is never the only signal</td><td>Brass and Cyan differ in luminance as well as hue, and the active player is marked by a border, a brightness change, and the deck accent — not colour alone.</td></tr>
+    <tr><td>Reduced motion</td><td><code>prefers-reduced-motion</code> disables screen shake and hitstop, and cuts particle counts by 75%. Trajectories still animate — that's information, not decoration.</td></tr>
+    <tr><td>Wind off</td><td>A setup option, not a difficulty setting. Some players cannot track a second variable, and the game is still good without it.</td></tr>
+    <tr><td>Touch targets</td><td>44 px minimum on the ± steppers and weapon chips. The current prototype's 26 px steppers fail this and need fixing before mobile.</td></tr>
+    <tr><td>Telemetry is text</td><td>Angle, power, wind, and health are real DOM text with tabular figures, not canvas-drawn. Screen readers get them free, and they stay crisp at any zoom.</td></tr>
+    <tr><td>No timing pressure by default</td><td>Turn timer defaults off.</td></tr>
+  </table>
+
+  <h2>Responsive behaviour</h2>
+  <ul>
+    <li><strong>Above 900 px:</strong> full layout, field at native 1000×560.</li>
+    <li><strong>600–900 px:</strong> field scales down, weapon chips wrap to two rows of three, wind gauge moves under the sliders.</li>
+    <li><strong>Below 600 px:</strong> field keeps its aspect ratio and the control deck becomes the majority of the screen. Elevation and power stack. Drag-to-aim becomes the primary input because the sliders get short.</li>
+    <li><strong>Resize mid-flight:</strong> the simulation is resolution-independent — it runs at 1000×560 regardless. Only the CSS size of the canvas changes. Never re-derive sim units from client rect.</li>
+  </ul>
+
+  <div class="pager"><a href="#p6">← Edge cases</a><a href="#p8">State machine →</a></div>
+</section>
+
+<!-- ============ 08 ============ -->
+<section class="page" id="p8">
+  <div class="eyebrow">08 · Formal model</div>
+  <h1>State machine</h1>
+  <p class="lede">Nine states. Any behaviour not expressible as a transition here is a bug in the design, not the code.</p>
+  <div id="fsm"></div>
+
+  <h2>Transition table</h2>
+  <table>
+    <tr><th>From</th><th>Event</th><th>To</th><th>Side effects</th></tr>
+    <tr><td>BOOT</td><td>assets ready</td><td>TITLE</td><td>Generate idle terrain</td></tr>
+    <tr><td>TITLE</td><td>mode chosen</td><td>SETUP</td><td>—</td></tr>
+    <tr><td>SETUP</td><td>start</td><td>ROUND_INTRO</td><td>Seed RNG, generate terrain, place tanks</td></tr>
+    <tr><td>ROUND_INTRO</td><td>animation done / skip</td><td>AIM</td><td>Coin flip, roll wind</td></tr>
+    <tr><td>AIM</td><td>fire</td><td>FLIGHT</td><td>Decrement ammo, spawn shell, start ghost trail, recoil</td></tr>
+    <tr><td>AIM</td><td>timer expiry</td><td>FLIGHT</td><td>Same, at current settings</td></tr>
+    <tr><td>FLIGHT</td><td>no projectiles remain</td><td>RESOLVE</td><td>—</td></tr>
+    <tr><td>FLIGHT</td><td>shell leaves map</td><td>RESOLVE</td><td>No detonation, edge marker shown</td></tr>
+    <tr><td>RESOLVE</td><td>always</td><td>SETTLE</td><td>Carve or fill, apply damage, spawn FX, hitstop if direct</td></tr>
+    <tr><td>SETTLE</td><td>stable and someone at 0 hp</td><td>ROUND_OVER</td><td>Award round</td></tr>
+    <tr><td>SETTLE</td><td>stable, both alive</td><td>HANDOFF</td><td>Apply fall damage</td></tr>
+    <tr><td>HANDOFF</td><td>always</td><td>AIM</td><td>Swap player, reroll wind, increment turn</td></tr>
+    <tr><td>ROUND_OVER</td><td>rounds remain</td><td>ROUND_INTRO</td><td>New terrain, reset health and ammo</td></tr>
+    <tr><td>ROUND_OVER</td><td>match decided</td><td>MATCH_OVER</td><td>Show result</td></tr>
+    <tr><td>MATCH_OVER</td><td>rematch</td><td>SETUP</td><td>Carry settings, new seed</td></tr>
+  </table>
+
+  <div class="note hot">
+    <div class="h">Two transitions that don't exist, on purpose</div>
+    <p>There is no FLIGHT → AIM (you cannot cancel a shot once fired) and no SETTLE → AIM that skips HANDOFF (which is where fall damage and the win check live). Both are tempting shortcuts when you're chasing a responsiveness complaint, and both quietly break the win condition.</p>
+  </div>
+
+  <div class="pager"><a href="#p7">← Input</a><a href="#p9">QA checklist →</a></div>
+</section>
+
+<!-- ============ 09 ============ -->
+<section class="page" id="p9">
+  <div class="eyebrow">09 · Verification</div>
+  <h1>QA checklist</h1>
+  <p class="lede">Every item is an assertion derived from a scenario on the previous pages. Most can run headless against <code>sim/</code> with no browser — which is the point of keeping simulation and rendering apart.</p>
+
+  <h3>Ballistics</h3>
+  <ul class="check">
+    <li>HE at 45°, power 70, no wind, flat ground lands within 5 px of 632.</li>
+    <li>Wind +100 shifts a power-70 impact by +115 px ±10.</li>
+    <li>Max range occurs at 45°; 30° and 60° produce shorter, near-equal ranges.</li>
+    <li>No shell passes through terrain thinner than 4 px at power 100.</li>
+    <li>Heavy Mortar at power 100 reaches at least 750 px — it must be able to cross a spawn gap.</li>
+    <li>Two identical seeds plus identical inputs produce byte-identical final terrain.</li>
+    <li>No call to <code>Math.random</code> exists anywhere under <code>sim/</code>.</li>
+  </ul>
+
+  <h3>Terrain</h3>
+  <ul class="check">
+    <li>Carving at a map edge does not read or write outside the mask.</li>
+    <li>Sandbags never set a solid pixel inside a tank's hull box.</li>
+    <li>Terrain collision is never owner-aware: a shell fired by the player who built a wall collides with it identically.</li>
+    <li>A tank whose centre is inside terrain climbs out within one settle frame.</li>
+    <li>Repainting after a crater touches only the dirty column range.</li>
+    <li>Destroying all terrain under a tank drops it to the floor, not through it.</li>
+  </ul>
+
+  <h3>Turn flow</h3>
+  <ul class="check">
+    <li>Calling fire during FLIGHT, SETTLE, or ROUND_OVER is a no-op.</li>
+    <li>Holding Space for 3 seconds fires exactly one shell.</li>
+    <li>Settle always terminates — assert an exit within 600 frames from any state.</li>
+    <li>Turn counter increments once per full round, not once per shot.</li>
+    <li>Wind rerolls exactly once per handoff.</li>
+  </ul>
+
+  <h3>Damage &amp; win conditions</h3>
+  <ul class="check">
+    <li>Blast damage falls off to exactly 25% at the edge of the radius, never to 0.</li>
+    <li>Self-damage applies at full value — no owner exemption anywhere in the damage path.</li>
+    <li>A fall of exactly 40 px does 0 damage; 41 px does 0.5.</li>
+    <li>A tank passing the bottom of the map is destroyed regardless of remaining health.</li>
+    <li>A double KO resolves to a draw, and the draw path is reachable in a test.</li>
+    <li>Health never renders negative.</li>
+  </ul>
+
+  <h3>Interface</h3>
+  <ul class="check">
+    <li>Every control is reachable and operable by keyboard alone, with a visible focus ring.</li>
+    <li>Player 2's displayed elevation mirrors correctly: internal 135° shows as 45°.</li>
+    <li>Dragging on the field then pressing ← adjusts from the dragged value, not from a stale one.</li>
+    <li>Resizing the window mid-flight does not alter the trajectory.</li>
+    <li>Alt-tabbing for 30 seconds does not fast-forward the simulation on return.</li>
+    <li><code>prefers-reduced-motion</code> removes shake and hitstop but keeps trajectory animation.</li>
+    <li>Touch targets on steppers and chips are at least 44 px.</li>
+  </ul>
+
+  <div class="note ok">
+    <div class="h">Start here</div>
+    <p>The seven ballistics assertions are worth writing before phase 3 of the build. They're pure functions over a seeded terrain, they run in milliseconds, and the wind bug that this document caught would have been caught by assertion two.</p>
+  </div>
+
+  <div class="pager"><a href="#p8">← State machine</a><span></span></div>
+</section>
+
+</main>
+
+<script>
+"use strict";
+/* ===================== sim core (identical to the prototype's) ===================== */
+const FW=1000, FH=560, GRAVITY=0.215, MUZZLE=0.160, WIND_K=0.00038, SUB=8;
+
+function mulberry32(a){return function(){a|=0;a=(a+0x6D2B79F5)|0;let t=Math.imul(a^(a>>>15),1|a);
+  t=(t+Math.imul(t^(t>>>7),61|t))^t;return((t^(t>>>14))>>>0)/4294967296;};}
+
+function genHeights(seed){
+  const rnd=mulberry32(seed), N=256, pts=new Float32Array(N+1);
+  pts[0]=FH*(0.50+rnd()*0.16); pts[N]=FH*(0.50+rnd()*0.16);
+  let step=N, disp=FH*0.30;
+  while(step>1){const half=step>>1;
+    for(let i=half;i<N;i+=step) pts[i]=(pts[i-half]+pts[i+half])/2+(rnd()*2-1)*disp;
+    step=half; disp*=0.55;}
+  const h=new Float32Array(FW);
+  for(let x=0;x<FW;x++){const t=x*N/FW,i=Math.floor(t),f=t-i;
+    let v=pts[i]*(1-f)+pts[Math.min(N,i+1)]*f;
+    v+=Math.sin(x*0.011)*8+Math.sin(x*0.029+1.3)*4;
+    h[x]=Math.max(FH*0.34,Math.min(FH-50,v));}
+  return h;
+}
+const WEP={
+  he:     {name:'HE Shell',     mass:1.00,drag:1.00,r:26,dmg:34,kind:'carve'},
+  mortar: {name:'Heavy Mortar', mass:1.55,drag:0.65,r:44,dmg:52,kind:'carve'},
+  cluster:{name:'Cluster Bomb', mass:1.00,drag:1.15,r:20,dmg:18,kind:'carve',apex:5},
+  buster: {name:'Bunker Buster',mass:1.45,drag:0.80,r:32,dmg:44,kind:'carve',dig:36},
+  sand:   {name:'Sandbags',     mass:1.20,drag:0.90,r:34,dmg:0, kind:'fill'},
+  roller: {name:'Roller',       mass:1.10,drag:0.85,r:28,dmg:38,kind:'carve',roll:true}
+};
+const hAt=(h,x)=> x<0?h[0] : x>=FW?h[FW-1] : h[x|0];
+
+function flightV(h,x,y,vx,vy,wind,w){
+  const path=[{x,y}];
+  for(let f=0;f<900;f++){
+    for(let s=0;s<SUB;s++){
+      vy+=GRAVITY*w.mass/SUB; vx+=wind*WIND_K*w.drag/SUB;
+      x+=vx/SUB; y+=vy/SUB;
+      if(x<-140||x>FW+140||y>FH+200){path.push({x,y});return{path,impact:null,off:true};}
+      if(y>=hAt(h,x)){path.push({x,y});return{path,impact:{x,y},off:false};}
+    }
+    path.push({x,y});
+  }
+  return{path,impact:null,off:true};
+}
+function flight(h,ox,oy,angDeg,power,wind,w){
+  const a=angDeg*Math.PI/180, v=power*MUZZLE;
+  return flightV(h,ox,oy,Math.cos(a)*v,-Math.sin(a)*v,wind,w);
+}
+function applyCrater(h,cx,cy,r){
+  for(let x=Math.max(0,(cx-r)|0);x<Math.min(FW,(cx+r)|0);x++){
+    const dx=x-cx,d=Math.sqrt(Math.max(0,r*r-dx*dx)); h[x]=Math.max(h[x],cy+d*0.85);}
+}
+function applyFill(h,cx,cy,r){
+  for(let x=Math.max(0,(cx-r)|0);x<Math.min(FW,(cx+r)|0);x++){
+    const dx=x-cx,d=Math.sqrt(Math.max(0,r*r-dx*dx)); h[x]=Math.min(h[x],cy-d*0.9);}
+}
+function damageAt(t,ix,iy,w){
+  const d=Math.hypot(t.x-ix,(t.y-9)-iy);
+  return d>=w.r+12?0:Math.round(w.dmg*Math.max(0.25,1-d/(w.r+12)));
+}
+function rollFrom(h,sx,tanks){
+  const pts=[{x:sx,y:hAt(h,sx)}];
+  let x=sx, dir=hAt(h,sx+8)>hAt(h,sx-8)?1:-1;
+  for(let i=0;i<260;i++){
+    const nx=x+dir*2;
+    if(nx<4||nx>FW-4) break;
+    if(hAt(h,nx)<hAt(h,x)-5) break;
+    x=nx; pts.push({x,y:hAt(h,x)});
+    if(tanks.some(t=>Math.abs(t.x-x)<15)) break;
+    if(Math.abs(hAt(h,x+6)-hAt(h,x-6))<0.6&&i>30) break;
+  }
+  return pts;
+}
+
+/* ===================== SVG field renderer ===================== */
+const C={p1:'#E8B33C',p2:'#4FC3D9',hot:'#FF6B35',warn:'#FFD166',dim:'#6E7A8A'};
+
+function terrainPath(h){
+  let d='M -20 '+FH+' L -20 '+h[0].toFixed(1);
+  for(let x=0;x<FW;x+=4) d+=' L '+x+' '+h[x].toFixed(1);
+  d+=' L '+(FW-1)+' '+h[FW-1].toFixed(1)+' L '+(FW+20)+' '+h[FW-1].toFixed(1)+' L '+(FW+20)+' '+FH+' Z';
+  return d;
+}
+function poly(pts){return pts.map(p=>p.x.toFixed(1)+','+p.y.toFixed(1)).join(' ');}
+
+function tankSVG(t){
+  const a=t.angle*Math.PI/180;
+  const bx=Math.cos(a)*26, by=-Math.sin(a)*26;
+  return `<g transform="translate(${t.x.toFixed(1)},${t.y.toFixed(1)})">
+    <rect x="-15" y="-7" width="30" height="7" rx="3" fill="#2A313C"/>
+    <rect x="-13" y="-15" width="26" height="9" rx="2.5" fill="${t.color}"/>
+    <path d="M -6 -16 A 6 6 0 0 1 6 -16 Z" fill="${t.color}"/>
+    <line x1="0" y1="-16" x2="${bx.toFixed(1)}" y2="${(-16+by).toFixed(1)}" stroke="${t.color}" stroke-width="4" stroke-linecap="round"/>
+  </g>`;
+}
+
+function fieldSVG(o){
+  const uid='g'+(fieldSVG._n=(fieldSVG._n||0)+1);
+  let s=`<svg viewBox="0 0 ${FW} ${FH}" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="${o.alt||'Battlefield diagram'}">
+  <defs><linearGradient id="${uid}" x1="0" y1="0" x2="0" y2="1">
+    <stop offset="0" stop-color="#171E2B"/><stop offset=".45" stop-color="#2B3A52"/>
+    <stop offset=".8" stop-color="#6A6E7C"/><stop offset="1" stop-color="#C9A87C"/>
+  </linearGradient></defs>
+  <rect width="${FW}" height="${FH}" fill="url(#${uid})"/>`;
+
+  // terrain
+  s+=`<path d="${terrainPath(o.heights)}" fill="#4A5540"/>`;
+  s+=`<path d="${terrainPath(o.heights)}" fill="none" stroke="#5E6B52" stroke-width="2.5"/>`;
+
+  // crater / fill outline preview
+  if(o.change){
+    const ch=o.change;
+    s+=`<circle cx="${ch.x.toFixed(1)}" cy="${ch.y.toFixed(1)}" r="${ch.r}" fill="none"
+         stroke="${ch.kind==='fill'?C.warn:C.hot}" stroke-width="2" stroke-dasharray="5 5" opacity=".85"/>`;
+  }
+
+  // ghost trails
+  (o.ghosts||[]).forEach(g=>{
+    s+=`<polyline points="${poly(g.pts)}" fill="none" stroke="${g.color}" stroke-width="2"
+         stroke-dasharray="2 7" stroke-linecap="round" opacity=".26"/>`;
+  });
+
+  // underground / rolling paths
+  (o.under||[]).forEach(u=>{
+    s+=`<polyline points="${poly(u.pts)}" fill="none" stroke="${C.warn}" stroke-width="2.5"
+         stroke-dasharray="6 5" stroke-linecap="round"/>`;
+  });
+
+  // main arcs
+  (o.arcs||[]).forEach(ar=>{
+    s+=`<polyline points="${poly(ar.pts)}" fill="none" stroke="${ar.color}" stroke-width="${ar.w||2.6}"
+         stroke-linecap="round" stroke-linejoin="round" opacity="${ar.o||1}"/>`;
+  });
+
+  // tanks
+  (o.tanks||[]).forEach(t=>{s+=tankSVG(t);});
+
+  // detonations
+  (o.blasts||[]).forEach(b=>{
+    s+=`<circle cx="${b.x.toFixed(1)}" cy="${b.y.toFixed(1)}" r="${(b.r*0.55).toFixed(1)}" fill="${C.hot}" opacity=".22"/>
+        <circle cx="${b.x.toFixed(1)}" cy="${b.y.toFixed(1)}" r="5.5" fill="${C.hot}"/>`;
+  });
+
+  // labels
+  (o.labels||[]).forEach(l=>{
+    const anch=l.anchor||'middle';
+    s+=`<text x="${l.x}" y="${l.y}" fill="${l.color||'#C7D0DC'}" font-family="ui-monospace,Menlo,monospace"
+         font-size="17" text-anchor="${anch}" opacity=".92">${l.t}</text>`;
+  });
+
+  // wind gauge
+  if(o.wind!==undefined){
+    const cx=FW/2, cy=40, mag=Math.abs(o.wind), dir=Math.sign(o.wind)||1, wlen=14+(mag/100)*80;
+    const col=mag>55?C.hot:'rgba(199,208,220,.8)';
+    s+=`<text x="${cx}" y="${cy-14}" fill="rgba(199,208,220,.55)" font-family="ui-monospace,Menlo,monospace"
+         font-size="13" text-anchor="middle" letter-spacing="3">WIND ${o.wind>0?'+':''}${o.wind}</text>
+        <line x1="${cx-dir*wlen/2}" y1="${cy}" x2="${cx+dir*wlen/2}" y2="${cy}" stroke="${col}" stroke-width="2.5" stroke-linecap="round"/>
+        <polygon points="${cx+dir*wlen/2},${cy} ${cx+dir*(wlen/2-9)},${cy-5.5} ${cx+dir*(wlen/2-9)},${cy+5.5}" fill="${col}"/>`;
+  }
+  return s+'</svg>';
+}
+
+/* ===================== the reference match ===================== */
+const SEED=1597;
+const TURNS=[
+ {p:0,w:'he',     a:45, pow:68,   wind:30,
+  title:'Ranging shot',
+  body:`Brass has no information at all. Default 45&deg; elevation, power eyeballed at 68, wind ignored. The shell drops 110&nbsp;px short on the near slope of the ridge.<p>Nothing was hit and nothing was meant to be. The payload of this turn is the dotted line now sitting on screen &mdash; that trail is the only aiming instrument in the game.</p>`,
+  outcome:'miss', outText:'Impact x=740 &middot; 110 px short &middot; no damage'},
+
+ {p:1,w:'he',     a:45, pow:78,   wind:-20,
+  title:'Overcorrection',
+  body:`Cyan answers with more power than the situation needs and sails 110&nbsp;px <em>past</em> Brass, off the left shoulder of the hill. Symmetrical mistake, opposite direction.<p>Both players now hold one bracket line each. From here the game is arithmetic.</p>`,
+  outcome:'miss', outText:'Impact x=40 &middot; 110 px long &middot; no damage'},
+
+ {p:0,w:'he',     a:47, pow:75.8, wind:8,
+  title:'Bracketing pays off',
+  body:`Brass splits the difference between its own short and Cyan's long: +2&deg; elevation, +8 power. The shell lands almost on the hull.<p>Twenty-five damage matters, but the range being solved matters more. Every Brass shot from here is a small correction rather than a guess &mdash; which is exactly why the ghost trails have to persist.</p>`,
+  outcome:'hit', outText:'Impact x=851 &middot; near-direct &middot; Cyan &minus;25 &rarr; 75 hp'},
+
+ {p:1,w:'sand',   a:66, pow:22.8, wind:5,
+  title:'Building instead of shooting',
+  body:`Cyan stops trading and spends a turn on defence. Sandbags at 66&deg; and power 22.8 raise a mound at x&nbsp;&asymp;&nbsp;792, directly in the lane Brass just proved works.<p>A zero-damage weapon spent to deny a firing line. The dashed circle is terrain being <em>added</em>. Remember this mound &mdash; it comes back to bite Cyan on turn 8.</p>`,
+  outcome:'miss', outText:'Impact x=792 &middot; terrain added, r=34 &middot; no damage'},
+
+ {p:0,w:'buster', a:45, pow:91.7, wind:-40,
+  title:'Answering cover',
+  body:`Brass switches to the Bunker Buster. It strikes the new mound at x=814, burrows 36&nbsp;px through it &mdash; the dashed segment &mdash; and detonates at 840, on Cyan's side of the wall.<p>The wall bought Cyan exactly one turn. That is the correct price for a defensive shell: real, but not decisive.</p>`,
+  outcome:'hit', outText:'Surface 814 &rarr; detonation 840 &middot; Cyan &minus;32 &rarr; 43 hp'},
+
+ {p:1,w:'cluster',a:50, pow:71.1, wind:15,
+  title:'Area denial',
+  body:`Cyan's Cluster Bomb splits into five at apex. The spread covers roughly 170&nbsp;px around Brass and the nearest submunition lands at x=142, twelve pixels from the hull.<p>Cluster is weak against a dug-in target and strong against open ground. Brass is standing on open ground and pays 17 for it.</p>`,
+  outcome:'hit', outText:'5-way split &middot; nearest 142 &middot; Brass &minus;17 &rarr; 83 hp'},
+
+ {p:0,w:'mortar', a:45, pow:74,   wind:95,
+  title:'The mass mistake',
+  body:`Brass reaches for the Heavy Mortar and reuses the power that has been working all match. Mortar mass is 1.55, so the same setting flies <strong>355&nbsp;px short</strong> and lands in the middle of the valley.<p>This is the most common new-player mistake in the genre, and it should be readable from the arc alone with no text explaining it. A turn and one of four limited shells, gone.</p>`,
+  outcome:'miss', outText:'Impact x=495 &middot; 355 px short &middot; shell wasted'},
+
+ {p:1,w:'roller', a:72, pow:99.6, wind:0,
+  title:'Cyan\'s own wall gets in the way',
+  body:`Cyan wants the Roller on the slope above Brass, but the sandbag mound from turn 4 now blocks every low-angle shot &mdash; at 42&deg; the shell hits Cyan's own wall at x=795 and rolls back into Cyan. The only way out is a steep 72&deg; lob at nearly full power.<p>It clears the wall, lands at x=203 and travels 40&nbsp;px downhill into Brass's hull. Terrain reading substituted for aiming precision, and defensive terrain proved symmetrical.</p>`,
+  outcome:'hit', outText:'Landed 203, rolled to 163 &middot; Brass &minus;25 &rarr; 58 hp'},
+
+ {p:0,w:'he',     a:46, pow:71.6, wind:95,
+  title:'Wind correction',
+  body:`Wind swings to +95, the strongest of the match &mdash; worth roughly 110&nbsp;px of drift. Brass corrects and puts the shell 19&nbsp;px past the hull, catching Cyan with the outer half of the blast.<p>Compare this arc with turn 3's: same weapon, four power apart, visibly different shape. That difference is the entire reason wind exists.</p>`,
+  outcome:'hit', outText:'Impact x=869 &middot; splash &middot; Cyan &minus;16 &rarr; 27 hp'},
+
+ {p:1,w:'he',     a:78, pow:19,   wind:0,
+  title:'Self-inflicted',
+  body:`Cyan panics at 27 health and fires steep and soft &mdash; 78&deg; at power 19. The shell comes down on the lip of Cyan's own crater and splashes straight back.<p>Self-damage is intentional and must never be blocked. A player who fires into terrain they built gets hit by the same rules as everyone else.</p>`,
+  outcome:'hit', outText:'Impact x=822 &middot; self-splash &middot; Cyan &minus;9 &rarr; 18 hp'},
+
+ {p:0,w:'mortar', a:45, pow:94.4, wind:10,
+  title:'Spending the last big shell',
+  body:`Brass returns to the Heavy Mortar, this time at power 94.4 &mdash; near the top of its range, which is exactly where it has to be at spawn distance.<p>The 44&nbsp;px blast radius does not need a direct hit. Splash finishes it, and the turn-7 mistake is retroactively worth it as tuition.</p>`,
+  outcome:'good', outText:'Impact x=868 &middot; Cyan &minus;30 &rarr; 0 hp &middot; BRASS WINS at 58 hp'}
+];
+
+function buildMatch(){
+  const h=genHeights(SEED);
+  const tanks=[
+    {x:150,y:h[150],dir:1, color:C.p1,name:'Brass',hp:100,angle:45},
+    {x:850,y:h[850],dir:-1,color:C.p2,name:'Cyan', hp:100,angle:135}
+  ];
+  const ghosts=[[],[]];
+  const out=[];
+
+  TURNS.forEach((T,i)=>{
+    const t=tanks[T.p], w=WEP[T.w];
+    const ang = t.dir>0 ? T.a : 180-T.a;
+    t.angle=ang;
+    const a=ang*Math.PI/180;
+    const ox=t.x+Math.cos(a)*24, oy=t.y-16-Math.sin(a)*24;
+    const snap=Float32Array.from(h);           // terrain as the player saw it
+
+    const f=flight(h,ox,oy,ang,T.pow,T.wind,w);
+    const arcs=[{pts:f.path,color:t.color}];
+    const under=[], blasts=[];
+    let imp=f.impact;
+
+    if(w.apex && imp){
+      // split at apex into 5
+      let bi=0; for(let k=1;k<f.path.length;k++) if(f.path[k].y<f.path[bi].y) bi=k;
+      const ap=f.path[bi], prev=f.path[Math.max(0,bi-1)];
+      arcs[0]={pts:f.path.slice(0,bi+1),color:t.color};
+      const bvx=(ap.x-prev.x), bvy=(ap.y-prev.y);
+      let bestImp=null, bestD=1e9;
+      for(let k=0;k<5;k++){
+        const spread=(k-2)*0.9;
+        const c=flightV(h,ap.x,ap.y,bvx+spread,bvy-0.6+Math.abs(spread)*0.12,T.wind,w);
+        arcs.push({pts:c.path,color:t.color,w:1.7,o:.72});
+        if(c.impact){
+          blasts.push({x:c.impact.x,y:c.impact.y,r:w.r});
+          const foe=tanks[1-T.p], d=Math.abs(c.impact.x-foe.x);
+          if(d<bestD){bestD=d;bestImp=c.impact;}
+        }
+      }
+      imp=bestImp||imp;
+    } else if(w.dig && imp){
+      const L=f.path.length, A=f.path[L-1], B=f.path[L-2]||A;
+      const len=Math.hypot(A.x-B.x,A.y-B.y)||1;
+      const end={x:A.x+(A.x-B.x)/len*w.dig, y:A.y+(A.y-B.y)/len*w.dig};
+      under.push({pts:[A,end]});
+      imp=end; blasts.push({x:end.x,y:end.y,r:w.r});
+    } else if(w.roll && imp){
+      const pts=rollFrom(h,imp.x,tanks);
+      under.push({pts});
+      imp={x:pts[pts.length-1].x,y:pts[pts.length-1].y};
+      blasts.push({x:imp.x,y:imp.y,r:w.r});
+    } else if(imp){
+      blasts.push({x:imp.x,y:imp.y,r:w.r});
+    }
+
+    const snapTanks=tanks.map(tk=>({x:tk.x,y:tk.y,color:tk.color,angle:tk.angle}));
+    const svg=fieldSVG({
+      heights:snap, tanks:snapTanks, arcs,
+      ghosts:ghosts[T.p].slice(-2).map(p=>({pts:p,color:t.color})),
+      under, blasts, wind:T.wind,
+      change: imp?{x:imp.x,y:imp.y,r:w.r,kind:w.kind}:null,
+      alt:`Turn ${i+1}: ${tanks[T.p].name} fires ${w.name} at ${T.a} degrees, power ${T.pow}, wind ${T.wind}`
+    });
+
+    // advance world state — every detonation applies damage and reshapes terrain
+    ghosts[T.p].push(f.path);
+    const dets = blasts.length ? blasts : (imp?[{x:imp.x,y:imp.y}]:[]);
+    dets.forEach(b=>{
+      tanks.forEach(tk=>{ tk.hp=Math.max(0,tk.hp-damageAt(tk,b.x,b.y,w)); });
+      if(w.kind==='carve') applyCrater(h,b.x,b.y,w.r); else applyFill(h,b.x,b.y,w.r);
+    });
+    if(dets.length) tanks.forEach(tk=>{ tk.y=hAt(h,tk.x); });
+    out.push({T,i,svg,w,hp:tanks.map(t=>t.hp)});
+  });
+  return out;
+}
+
+function renderMatch(){
+  const host=document.getElementById('match');
+  host.innerHTML=buildMatch().map(({T,i,svg,w,hp})=>{
+    const nm = T.p===0?'Brass':'Cyan', col = T.p===0?'var(--p1)':'var(--p2)';
+    return `<article class="turn">
+      <header>
+        <span class="idx">TURN ${String(i+1).padStart(2,'0')}</span>
+        <span class="who" style="color:${col}">${nm}</span>
+        <span style="color:var(--bright);font-size:14px">${T.title}</span>
+        <span class="wep">${w.name}</span>
+      </header>
+      <div class="tele">
+        <div><div class="k">Elev</div><div class="v">${T.a}&deg;</div></div>
+        <div><div class="k">Power</div><div class="v">${T.pow}</div></div>
+        <div><div class="k">Wind</div><div class="v" style="${Math.abs(T.wind)>55?'color:var(--hot)':''}">${T.wind>0?'+':''}${T.wind}</div></div>
+        <div><div class="k">Brass</div><div class="v" style="color:var(--p1)">${hp[0]}</div></div>
+        <div><div class="k">Cyan</div><div class="v" style="color:var(--p2)">${hp[1]}</div></div>
+      </div>
+      <div class="fig">${svg}</div>
+      <div class="body">${T.body}</div>
+      <div class="outcome ${T.outcome}">${T.outText}</div>
+    </article>`;
+  }).join('');
+}
+
+/* ===================== collapsible case lists ===================== */
+function renderCases(hostId,list){
+  document.getElementById(hostId).innerHTML=list.map(c=>`
+    <div class="case">
+      <div class="hd"><span class="tag t-${c.tag}">${c.tagLabel}</span>
+        <span class="nm">${c.name}</span><span class="ch">&rsaquo;</span></div>
+      <div class="bd">${c.body}${c.expect?`<div class="expect"><b>Expected:</b> ${c.expect}</div>`:''}</div>
+    </div>`).join('');
+}
+
+const BOOT=[
+ {tag:'ux',tagLabel:'State',name:'Terrain generates unplayable',
+  body:'Midpoint displacement can produce a spawn on a narrow spire, or two spawns separated by a wall neither can clear at power 100.',
+  expect:'Validate before showing the terrain: both spawns flat within 16 px over a 50 px window, and a 45&deg; HE solution must exist from each side. Reject and regenerate, up to 20 attempts, then fall back to a known-good seed.'},
+ {tag:'edge',tagLabel:'Edge',name:'Player enters an invalid seed',
+  body:'Seed field accepts anything the player types.',
+  expect:'Hash any string to a 32-bit integer rather than rejecting it. Every input is a valid seed. No error state needed.'},
+ {tag:'ux',tagLabel:'State',name:'Player reloads mid-match',
+  body:'No persistence in the base build.',
+  expect:'Match is lost, returns to Title. Do not add save-state until online play &mdash; a hotseat match is 4 minutes and the complexity is not worth it.'},
+ {tag:'fail',tagLabel:'Failure',name:'Canvas context unavailable',
+  body:'Very old browser or hardware acceleration disabled entirely.',
+  expect:'Show a single plain-text line explaining the requirement. Do not attempt a DOM-based fallback renderer.'},
+ {tag:'ok',tagLabel:'Handled',name:'Window is tiny at launch',
+  body:'Phone in portrait, or a narrow split-screen window.',
+  expect:'Field keeps its 1000&times;560 aspect and scales; control deck takes the rest. Simulation units never derive from screen size.'}
+];
+
+const WEPCASES=[
+ {tag:'ok',tagLabel:'HE Shell',name:'Unlimited baseline &mdash; the ranging instrument',
+  body:`<p><strong>Built for:</strong> every ranging shot and every situation where nothing special is required. Mass 1.00 means its range table is the one players memorise, and every other weapon is understood as a deviation from it.</p>
+  <p><strong>Wasted when:</strong> the target is behind fresh cover, or already at low health where a bigger shell would end it.</p>
+  <p><strong>Edge cases:</strong> fired at 90&deg; it lands on the firer's own hull &mdash; allowed, damaging, and occasionally the correct play to reshape terrain under yourself. At power 10 the shell must still clear the muzzle without spawning inside the hull box.</p>`,
+  expect:'Never runs out. There is no game state where a player cannot act.'},
+ {tag:'edge',tagLabel:'Mortar',name:'Heavy Mortar &mdash; range-limited by design',
+  body:`<p><strong>Built for:</strong> the finishing blow. 52 damage and a 44 px radius means it does not need a direct hit.</p>
+  <p><strong>Wasted when:</strong> the player reuses an HE power setting. At mass 1.55 the same power travels roughly 60% as far &mdash; the mistake shown on turn 7 of the playthrough.</p>
+  <p><strong>Edge cases:</strong> at spawn distance it only reaches above power ~92, so its usable band is narrow on purpose. Watch this if you ever widen the map: max range is <code>v&sup2; / (0.215 &times; 1.55)</code> and it has to stay above the spawn gap.</p>`,
+  expect:'Max range at power 100 is at least 750 px. Assert this in a unit test &mdash; it regressed once already.'},
+ {tag:'ok',tagLabel:'Cluster',name:'Cluster Bomb &mdash; punishes open ground',
+  body:`<p><strong>Built for:</strong> a target on a flat, exposed shelf. Five submunitions across ~140 px means near-misses still connect.</p>
+  <p><strong>Wasted when:</strong> the target sits in a crater or behind a ridge &mdash; submunitions hit the rim and the target takes nothing.</p>
+  <p><strong>Edge cases:</strong> apex detection is <code>vy &ge; 0</code>, so a shot fired nearly horizontally splits almost immediately, effectively at the muzzle. Guard with a minimum altitude so a flat shot doesn't cluster-bomb the firer. If apex is never reached before impact, it detonates as a single 18-damage shell.</p>`,
+  expect:'Split occurs exactly once. Submunitions never re-split.'},
+ {tag:'ok',tagLabel:'Buster',name:'Bunker Buster &mdash; beats cover',
+  body:`<p><strong>Built for:</strong> a target behind sandbags or dug into a hillside. Burrows 36 px along its incoming vector before detonating.</p>
+  <p><strong>Wasted when:</strong> fired at an exposed target &mdash; it buries itself below the tank and loses most of its splash to the ground.</p>
+  <p><strong>Edge cases:</strong> burrowing can exit the far side of a thin wall (correct, detonates in open air), leave the bottom of the map (detonate at the boundary), or tunnel toward the firer if it strikes a near-vertical face. All three must terminate.</p>`,
+  expect:'Burrow always terminates within 36 px of travel or at a map boundary, whichever comes first.'},
+ {tag:'edge',tagLabel:'Sandbags',name:'Sandbags &mdash; zero damage, real tempo',
+  body:`<p><strong>Built for:</strong> denying a firing lane the opponent has already proved works. Costs a turn, buys a turn.</p>
+  <p><strong>Wasted when:</strong> used before the opponent has found the range &mdash; you are defending against a shot they cannot yet make.</p>
+  <p><strong>Edge cases:</strong> two dangerous ones. Fired at your own position or the enemy's it can bury a tank &mdash; neither may suffocate, so fill must skip any pixel inside a hull box and settle must dig upward before applying gravity. And the wall is <em>symmetrical</em>: it blocks the builder's outgoing shots too. In the reference match this cost Cyan real tempo on turn 8, where every shot below 60&deg; struck its own mound and the Roller rolled straight back into it.</p>
+  <p>That symmetry is the feature. If cover only blocked the enemy, Sandbags would be a strictly-better shell with no cost, and the balance rule above would be violated.</p>`,
+  expect:'No tank is ever fully enclosed. A buried tank climbs out within one settle frame. Fill is never owner-aware &mdash; the same terrain blocks both players.'},
+ {tag:'ok',tagLabel:'Roller',name:'Roller &mdash; rewards reading the map',
+  body:`<p><strong>Built for:</strong> a target at the bottom of a slope. Aim at the hillside above them, let gravity finish the aiming.</p>
+  <p><strong>Wasted when:</strong> the target is uphill or on a flat plateau &mdash; it stops and detonates harmlessly.</p>
+  <p><strong>Edge cases:</strong> must stop and detonate if it cannot climb more than 5 px, if the fuse expires at 150 frames, if it reaches a map edge, or if it contacts any hull &mdash; including the firer's own.</p>`,
+  expect:'Rolling always terminates. Assert an exit within 260 steps from any landing point.'}
+];
+
+const EDGE=[
+ {tag:'fail',tagLabel:'Soft lock',name:'Settle phase never exits',
+  body:'A tank buried in terrain tries to fall through solid ground. Gravity and dig-out fight each other and the "nothing moved" condition is never satisfied. Input stays dead and the match is over in the worst way.',
+  expect:'Dig-out runs before gravity, every frame. Add a hard escape: force handoff after 600 settle frames and log it.'},
+ {tag:'fail',tagLabel:'Soft lock',name:'Roller never stops',
+  body:'A perfectly flat plateau, or a shallow basin where the roller oscillates between two slopes.',
+  expect:'Three independent terminators: fuse (150 frames), climb limit (5 px), and flatness check. Any one of them alone must be sufficient.'},
+ {tag:'edge',tagLabel:'Edge',name:'Shell leaves the map with no feedback',
+  body:'At power 90+ and 45&deg;, shells exit the right edge and simply vanish. The turn passes with nothing on screen, which reads as a bug rather than a miss. This currently happens in the prototype.',
+  expect:'Show a chevron at the edge where it exited, held for ~400 ms, then hand off. The trail should remain, clipped, so the player can see how far off they were.'},
+ {tag:'edge',tagLabel:'Edge',name:'Direct hit versus splash on the same pixel',
+  body:'A shell that clips a hull triggers a direct hit; one pixel lower it hits terrain and does splash. The damage difference is small but hitstop and screen shake differ, so it feels inconsistent.',
+  expect:'Both paths call the same damage function. Direct hit only adds hitstop &mdash; it must not add damage, or the two-pixel difference becomes a large damage swing.'},
+ {tag:'edge',tagLabel:'Edge',name:'Both tanks destroyed by one explosion',
+  body:'A large mortar between two tanks at low health, or terrain collapse dropping both off the map.',
+  expect:'Declare a draw. Round is replayed, health and ammo reset, no point awarded. Pick this now &mdash; deciding it during a bug report guarantees the wrong answer.'},
+ {tag:'edge',tagLabel:'Edge',name:'Tank knocked off the bottom of the map',
+  body:'Enough terrain destroyed beneath a tank that it falls past the floor. Most likely on the Islands generator.',
+  expect:'Destroyed outright regardless of health. This is a legitimate win condition and should read clearly &mdash; a distinct death animation and a different result line.'},
+ {tag:'edge',tagLabel:'Edge',name:'Your own cover blocks your own shots',
+  body:'A player builds a Sandbag wall, then finds that every low-elevation shot they fire strikes the inside of it. Discovered while scripting the reference match &mdash; Cyan had to lob at 72&deg; and near-full power to clear a mound it built itself, and a Roller fired at 42&deg; rebounded into its own position.',
+  expect:'Correct behaviour, not a bug. Terrain is never owner-aware. But the interface must make the cause obvious: when a shell detonates within ~60 px of the firer and the firer built terrain in that spot, the impact marker should be unmistakable so it reads as "I hit my own wall" rather than "the shot vanished".'},
+ {tag:'edge',tagLabel:'Edge',name:'Fall damage from your own crater',
+  body:'A player digs under their own tank, either accidentally at high elevation or deliberately to change their firing angle.',
+  expect:'Full fall damage applies. Digging in is a real tactic with a real cost. Never exempt the owner.'},
+ {tag:'edge',tagLabel:'Edge',name:'Firing straight up',
+  body:'90&deg; elevation at any power. The shell returns to roughly the firing position.',
+  expect:'Lands on or near the firer and does full self-damage. Legal, occasionally useful for reshaping your own ground, mostly a mistake.'},
+ {tag:'fail',tagLabel:'Timing',name:'Tab hidden during flight',
+  body:'requestAnimationFrame stops, then the accumulator receives a several-second delta on return and fast-forwards the entire flight in one frame.',
+  expect:'Clamp the accumulator to 250 ms per frame. The simulation slows rather than skipping &mdash; correctness over real-time fidelity.'},
+ {tag:'fail',tagLabel:'Input',name:'Fire held down',
+  body:'Space held, or the button double-tapped on a laggy frame.',
+  expect:'fire() returns immediately unless phase is AIM. Exactly one shell, always. Test by holding for 3 seconds.'},
+ {tag:'edge',tagLabel:'Input',name:'Drag-aim fights the sliders',
+  body:'Player drags to aim, then nudges with an arrow key, then touches a slider. Three writers, one value.',
+  expect:'One source of truth on the tank. Every input writes to it and every display reads from it. No control caches its own copy.'},
+ {tag:'edge',tagLabel:'Edge',name:'All limited ammo spent',
+  body:'A player burns all 16 special shells.',
+  expect:'HE remains unlimited. Spent weapons grey out and become unselectable, and the selection falls back to HE automatically rather than leaving a dead slot selected.'},
+ {tag:'edge',tagLabel:'Edge',name:'Terrain fully cleared under a tank',
+  body:'Repeated bombardment removes every solid pixel in a column.',
+  expect:'The map floor counts as solid. The tank lands on it and survives, taking fall damage. No infinite fall.'},
+ {tag:'ux',tagLabel:'Polish',name:'Wind reads as random punishment',
+  body:'A ±100 swing between turns can undo a perfect solution, which feels arbitrary rather than tactical if the player cannot see it coming.',
+  expect:'Show the new wind during handoff, before the player starts adjusting &mdash; not after. Consider limiting turn-to-turn change to ±60 so corrections stay incremental. Test both and pick by feel.'},
+ {tag:'ux',tagLabel:'Polish',name:'Match drags past 20 shots',
+  body:'Two cautious players trading misses. Enjoyable at 10 shots, tedious at 25.',
+  expect:'If playtests run long, escalate rather than nerf: increase blast radius by 10% every turn after 15. Never shrink the map &mdash; that invalidates the range table players have built in their heads.'}
+];
+
+/* ===================== FSM diagram ===================== */
+function fsmSVG(){
+  const N=[
+    {id:'BOOT',x:70,y:40},{id:'TITLE',x:70,y:110},{id:'SETUP',x:70,y:180},
+    {id:'ROUND_INTRO',x:70,y:250},
+    {id:'AIM',x:300,y:250},{id:'FLIGHT',x:470,y:250},{id:'RESOLVE',x:630,y:250},
+    {id:'SETTLE',x:630,y:330},{id:'HANDOFF',x:400,y:330},
+    {id:'ROUND_OVER',x:630,y:410},{id:'MATCH_OVER',x:380,y:410}
+  ];
+  const E=[
+    ['BOOT','TITLE'],['TITLE','SETUP'],['SETUP','ROUND_INTRO'],['ROUND_INTRO','AIM'],
+    ['AIM','FLIGHT'],['FLIGHT','RESOLVE'],['RESOLVE','SETTLE'],['SETTLE','HANDOFF'],
+    ['HANDOFF','AIM'],['SETTLE','ROUND_OVER'],['ROUND_OVER','MATCH_OVER'],['ROUND_OVER','ROUND_INTRO']
+  ];
+  const pos={}; N.forEach(n=>pos[n.id]=n);
+  const wide=id=>Math.max(64, id.length*8.4+22);
+  let s=`<svg viewBox="0 0 780 460" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="State machine diagram">
+    <defs><marker id="ah" markerWidth="9" markerHeight="9" refX="8" refY="3.2" orient="auto">
+      <path d="M0,0 L8,3.2 L0,6.4 Z" fill="#46505F"/></marker></defs>`;
+  E.forEach(([a,b])=>{
+    const A=pos[a],B=pos[b], aw=wide(a)/2, bw=wide(b)/2;
+    let x1=A.x+aw, y1=A.y+15, x2=B.x-bw, y2=B.y+15, d;
+    if(Math.abs(A.y-B.y)>4 && Math.abs(A.x-B.x)<40){ x1=A.x+aw*0; y1=A.y+30; x2=B.x; y2=B.y; d=`M ${A.x} ${A.y+30} L ${B.x} ${B.y}`; }
+    else if(A.x>B.x){ d=`M ${A.x-aw} ${A.y+15} L ${B.x+bw} ${B.y+15}`; }
+    else { d=`M ${x1} ${y1} L ${x2} ${y2}`; }
+    s+=`<path d="${d}" stroke="#46505F" stroke-width="1.4" fill="none" marker-end="url(#ah)"/>`;
+  });
+  N.forEach(n=>{
+    const w=wide(n.id);
+    const active=['AIM','FLIGHT','RESOLVE','SETTLE','HANDOFF'].includes(n.id);
+    s+=`<rect x="${n.x-w/2}" y="${n.y}" width="${w}" height="30" rx="2"
+        fill="${active?'#1B2330':'#141A24'}" stroke="${n.id==='AIM'?'#FF6B35':'#252F3D'}" stroke-width="${n.id==='AIM'?1.8:1}"/>
+      <text x="${n.x}" y="${n.y+19.5}" text-anchor="middle" font-family="ui-monospace,Menlo,monospace"
+        font-size="10.5" fill="${n.id==='AIM'?'#FF6B35':'#C7D0DC'}" letter-spacing="1">${n.id}</text>`;
+  });
+  s+=`<text x="300" y="222" text-anchor="middle" font-family="ui-monospace,Menlo,monospace" font-size="10"
+       fill="#6E7A8A" letter-spacing="1.5">ONLY STATE ACCEPTING INPUT</text>`;
+  return s+'</svg>';
+}
+
+/* ===================== routing ===================== */
+const pages=[...document.querySelectorAll('.page')];
+const links=[...document.querySelectorAll('nav a')];
+function show(id){
+  if(!document.getElementById(id)) id='p1';
+  pages.forEach(p=>p.classList.toggle('on',p.id===id));
+  links.forEach(a=>a.classList.toggle('on',a.dataset.p===id));
+  window.scrollTo({top:0,behavior:'instant'});
+}
+addEventListener('hashchange',()=>show(location.hash.slice(1)||'p1'));
+
+document.addEventListener('click',e=>{
+  const hd=e.target.closest('.case .hd');
+  if(hd) hd.parentElement.classList.toggle('open');
+});
+
+renderMatch();
+renderCases('cases-boot',BOOT);
+renderCases('cases-wep',WEPCASES);
+renderCases('cases-edge',EDGE);
+document.getElementById('fsm').innerHTML=`<div class="tile" style="padding:16px;line-height:0">${fsmSVG()}</div>`;
+show(location.hash.slice(1)||'p1');
+</script>
+</body>
+</html>

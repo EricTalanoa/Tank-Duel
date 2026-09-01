@@ -1,0 +1,917 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tank Duel — Ammunition</title>
+<style>
+:root{
+  --void:#0E1219;--panel:#141A24;--panel2:#1B2330;--rule:#252F3D;--rule2:#323E4F;
+  --text:#C7D0DC;--dim:#6E7A8A;--bright:#E6ECF4;--hot:#FF6B35;--ok:#7BD389;--warn:#FFD166;
+  --p1:#E8B33C;--p2:#4FC3D9;
+  --mono:ui-monospace,"SF Mono","JetBrains Mono",Menlo,Consolas,monospace;
+  --sans:"Roboto Condensed","Arial Narrow",Inter,system-ui,sans-serif;
+  --nav:236px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--void);color:var(--text);font-family:var(--sans);font-size:15px;line-height:1.62;-webkit-font-smoothing:antialiased}
+nav{position:fixed;left:0;top:0;bottom:0;width:var(--nav);background:var(--panel);border-right:1px solid var(--rule);overflow-y:auto;padding:22px 0 40px;z-index:20}
+.brand{padding:0 20px 18px;border-bottom:1px solid var(--rule);margin-bottom:14px}
+.brand .t{font-size:16px;letter-spacing:.14em;text-transform:uppercase;font-weight:700;color:var(--bright)}
+.brand .s{font-family:var(--mono);font-size:10px;color:var(--dim);letter-spacing:.06em;margin-top:3px}
+nav a{display:grid;grid-template-columns:26px 1fr;gap:8px;align-items:baseline;padding:8px 20px;color:var(--dim);text-decoration:none;font-size:13.5px;line-height:1.35;border-left:2px solid transparent}
+nav a .i{font-family:var(--mono);font-size:10px;opacity:.65}
+nav a:hover{color:var(--text);background:#182030}
+nav a.on{color:var(--bright);border-left-color:var(--hot);background:#182030}
+nav a.on .i{color:var(--hot);opacity:1}
+.navgrp{padding:16px 20px 5px;font-family:var(--mono);font-size:9.5px;letter-spacing:.18em;text-transform:uppercase;color:#46505F}
+main{margin-left:var(--nav);padding:44px 40px 120px;max-width:1180px}
+.page{display:none;max-width:900px}
+.page.on{display:block;animation:fade .28s ease}
+@keyframes fade{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+.eyebrow{font-family:var(--mono);font-size:10px;letter-spacing:.2em;text-transform:uppercase;color:var(--hot);margin-bottom:9px}
+h1{font-size:34px;line-height:1.12;color:var(--bright);font-weight:700;margin-bottom:12px}
+h2{font-size:20px;color:var(--bright);font-weight:700;margin:38px 0 12px;padding-bottom:8px;border-bottom:1px solid var(--rule)}
+h3{font-size:14px;letter-spacing:.08em;text-transform:uppercase;color:var(--text);font-weight:700;margin:24px 0 8px}
+p{margin-bottom:13px;color:#B4BFCC}
+.lede{font-size:17px;color:var(--text);margin-bottom:26px}
+strong{color:var(--bright);font-weight:600}
+code{font-family:var(--mono);font-size:.87em;background:#0A0E15;border:1px solid var(--rule);border-radius:2px;padding:1px 5px;color:#9FB3C8}
+ul,ol{margin:0 0 14px 19px;color:#B4BFCC}li{margin-bottom:6px}
+.note{border-left:2px solid var(--rule2);background:var(--panel);padding:13px 16px;margin:18px 0;font-size:14px}
+.note.hot{border-left-color:var(--hot)}.note.ok{border-left-color:var(--ok)}.note.warn{border-left-color:var(--warn)}
+.note .h{font-family:var(--mono);font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:var(--dim);margin-bottom:5px}
+.note.hot .h{color:var(--hot)}.note.ok .h{color:var(--ok)}.note.warn .h{color:var(--warn)}
+.note p:last-child{margin-bottom:0}
+table{width:100%;border-collapse:collapse;margin:16px 0;font-size:13.5px}
+th{text-align:left;font-family:var(--mono);font-size:9.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--dim);padding:7px 8px;border-bottom:1px solid var(--rule2);font-weight:400;white-space:nowrap}
+td{padding:8px 8px;border-bottom:1px solid var(--rule);vertical-align:top;color:#B4BFCC}
+td:first-child{color:var(--bright)}
+tr:last-child td{border-bottom:none}
+.num,.mono{font-family:var(--mono);font-variant-numeric:tabular-nums}
+.fig{background:var(--panel);border:1px solid var(--rule);border-radius:3px;padding:14px;margin:18px 0;line-height:0}
+.fig svg{width:100%;height:auto;display:block}
+.figcap{font-family:var(--mono);font-size:10.5px;color:var(--dim);letter-spacing:.04em;line-height:1.5;margin-top:11px}
+
+/* shell cards */
+.shell{background:var(--panel);border:1px solid var(--rule);border-radius:3px;margin:20px 0;overflow:hidden}
+.shell header{display:flex;align-items:baseline;gap:10px;padding:12px 16px;border-bottom:1px solid var(--rule);background:var(--panel2)}
+.shell .slot{font-family:var(--mono);font-size:11px;color:var(--dim)}
+.shell .nm{font-size:16px;letter-spacing:.08em;text-transform:uppercase;font-weight:700}
+.shell .tier{font-family:var(--mono);font-size:9px;letter-spacing:.12em;text-transform:uppercase;padding:2px 6px;border:1px solid currentColor;border-radius:2px}
+.shell .cost{margin-left:auto;font-family:var(--mono);font-size:11px;color:var(--dim)}
+.shell .pic{line-height:0;background:#0A0E15}
+.shell .pic svg{width:100%;height:auto;display:block}
+.stats{display:flex;flex-wrap:wrap;border-bottom:1px solid var(--rule)}
+.stats div{flex:1;min-width:72px;padding:8px 11px;border-right:1px solid var(--rule)}
+.stats div:last-child{border-right:none}
+.stats .k{font-family:var(--mono);font-size:9px;letter-spacing:.13em;text-transform:uppercase;color:var(--dim)}
+.stats .v{font-family:var(--mono);font-size:14px;margin-top:2px;color:var(--bright)}
+.shell .body{padding:14px 16px;font-size:14px}
+.shell .body p{margin-bottom:9px}.shell .body p:last-child{margin-bottom:0}
+.shell .body .lbl{font-family:var(--mono);font-size:10px;letter-spacing:.13em;text-transform:uppercase;color:var(--dim);margin-right:6px}
+.shell .impl{font-family:var(--mono);font-size:11.5px;padding:10px 16px;border-top:1px solid var(--rule);background:#10161F;color:#9FB3C8}
+
+/* HUD + loadout mockups */
+.mock{background:#0A0E15;border:1px solid var(--rule2);border-radius:4px;padding:18px;margin:18px 0}
+.mockbar{display:flex;align-items:baseline;gap:12px;margin-bottom:14px;padding-bottom:11px;border-bottom:1px solid var(--rule)}
+.mockbar .t{font-size:14px;letter-spacing:.16em;text-transform:uppercase;color:var(--bright);font-weight:700}
+.mockbar .s{font-family:var(--mono);font-size:10px;color:var(--dim);letter-spacing:.1em}
+.mockbar .r{margin-left:auto;font-family:var(--mono);font-size:10px;color:var(--dim)}
+.chips{display:grid;grid-template-columns:repeat(6,1fr);gap:6px}
+.chip{background:var(--panel2);border:1px solid var(--rule);border-radius:2px;padding:7px 7px;text-align:left}
+.chip.sel{border-color:currentColor;background:#222C3B}
+.chip.out{opacity:.28}
+.chip .k{font-family:var(--mono);font-size:9px;color:var(--dim)}
+.chip .n{font-size:11px;line-height:1.2;margin:2px 0 3px;letter-spacing:.02em;color:var(--text)}
+.chip.sel .n{color:inherit}
+.chip .a{font-family:var(--mono);font-size:9px;color:var(--dim)}
+.chip.sel .a{color:inherit}
+.deckrow{display:grid;grid-template-columns:1fr 1fr auto auto;gap:12px;align-items:end;margin-top:12px;padding-top:12px;border-top:1px solid var(--rule)}
+.fld .top{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:4px}
+.fld .kk{font-family:var(--mono);font-size:9px;letter-spacing:.14em;text-transform:uppercase;color:var(--dim)}
+.fld .vv{font-family:var(--mono);font-size:18px;color:var(--bright)}
+.trk{height:4px;background:#05080D;border-radius:2px;position:relative}
+.trk i{position:absolute;top:-7px;width:10px;height:18px;border-radius:2px;background:currentColor}
+.windb{text-align:center;min-width:90px}
+.windb .vv{font-family:var(--mono);font-size:18px;margin-top:2px}
+.firebtn{background:var(--hot);color:#0E1219;border:none;font-family:var(--sans);font-weight:700;font-size:13px;letter-spacing:.18em;text-transform:uppercase;padding:0 24px;height:42px;border-radius:2px}
+.lgrid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+.lcard{background:var(--panel);border:1px solid var(--rule);border-radius:3px;padding:10px 11px;position:relative}
+.lcard.on{border-color:currentColor;background:#1B2330}
+.lcard .n{font-size:12.5px;letter-spacing:.04em;line-height:1.25;font-weight:600}
+.lcard .m{font-family:var(--mono);font-size:9px;color:var(--dim);margin-top:4px}
+.lcard .pt{position:absolute;top:9px;right:10px;font-family:var(--mono);font-size:10px;color:var(--dim)}
+.lcard.on .pt{color:inherit}
+.budget{display:flex;align-items:center;gap:12px;margin-top:14px;padding-top:12px;border-top:1px solid var(--rule)}
+.budget .g{font-family:var(--mono);font-size:10.5px;color:var(--dim)}
+.budget .g b{color:var(--text);font-weight:400}
+.bar{flex:1;height:5px;background:#05080D;border-radius:3px;overflow:hidden;max-width:220px}
+.bar i{display:block;height:100%;background:var(--hot)}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:13px;margin:16px 0}
+.tile{background:var(--panel);border:1px solid var(--rule);border-radius:3px;padding:13px 15px}
+.tile .k{font-family:var(--mono);font-size:9.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--dim);margin-bottom:5px}
+.tile .v{font-size:14px;color:#B4BFCC}
+.pager{display:flex;justify-content:space-between;gap:12px;margin-top:52px;padding-top:20px;border-top:1px solid var(--rule)}
+.pager a{color:var(--dim);text-decoration:none;font-size:13px;font-family:var(--mono)}
+.pager a:hover{color:var(--bright)}
+.check{list-style:none;margin-left:0}
+.check li{display:grid;grid-template-columns:16px 1fr;gap:9px;padding:7px 0;border-bottom:1px solid var(--rule);font-size:14px;margin:0}
+.check li::before{content:"";display:block;width:11px;height:11px;border:1px solid var(--rule2);border-radius:2px;margin-top:5px}
+.t-core{color:var(--ok)}.t-std{color:var(--p1)}.t-exo{color:#C77DFF}.t-util{color:var(--p2)}
+pre{font-family:var(--mono);font-size:12px;color:#9FB3C8;overflow-x:auto;line-height:1.6;margin:0}
+@media(max-width:900px){:root{--nav:0px}nav{position:static;width:auto;height:auto;border-right:none;border-bottom:1px solid var(--rule)}main{padding:26px 18px 80px}.grid2{grid-template-columns:1fr}.chips{grid-template-columns:repeat(3,1fr)}.lgrid{grid-template-columns:repeat(2,1fr)}.stats div{min-width:50%}}
+@media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+</head>
+<body>
+<nav>
+  <div class="brand"><div class="t">Tank Duel</div><div class="s">Ammunition</div></div>
+  <div class="navgrp">Design</div>
+  <a href="#p1" data-p="p1"><span class="i">01</span><span>Roster &amp; rules</span></a>
+  <a href="#p2" data-p="p2"><span class="i">02</span><span>The twelve shells</span></a>
+  <div class="navgrp">Interface</div>
+  <a href="#p3" data-p="p3"><span class="i">03</span><span>Loadout &amp; HUD</span></a>
+  <div class="navgrp">Building it</div>
+  <a href="#p4" data-p="p4"><span class="i">04</span><span>The hook model</span></a>
+  <a href="#p5" data-p="p5"><span class="i">05</span><span>Balance &amp; tests</span></a>
+</nav>
+
+<main>
+
+<!-- 01 -->
+<section class="page" id="p1">
+  <div class="eyebrow">01 · Design</div>
+  <h1>Twelve shells, one rule</h1>
+  <p class="lede">Every limited shell must be <strong>situationally</strong> better than the HE Shell and never flatly better. A weapon that is just "HE but more" isn't a decision, it's a resource drain — and the player learns to hoard it instead of using it.</p>
+
+  <p>Each shell below is defined by where it beats HE and where it's a wasted turn. If you can't write both sentences, the shell isn't designed yet. Every trajectory on the next page is computed with the tuned constants, so the diagrams show real behaviour rather than an artist's idea of it.</p>
+
+  <h2>Four tiers</h2>
+  <table>
+    <tr><th>Tier</th><th>Count</th><th>Role</th><th>Availability</th></tr>
+    <tr><td class="t-core">Core</td><td class="num">1</td><td>The ranging instrument and the fallback. Its range table is the one players memorise.</td><td>Unlimited, always equipped</td></tr>
+    <tr><td class="t-std">Standard</td><td class="num">5</td><td>Answers to a specific board state: cover, open ground, a slope, a dug-in target.</td><td>Loadout, cheap</td></tr>
+    <tr><td class="t-exo">Exotic</td><td class="num">5</td><td>Change the geometry of a turn rather than the damage. High cost, low ammo.</td><td>Loadout, expensive</td></tr>
+    <tr><td class="t-util">Utility</td><td class="num">1</td><td>No damage. Spends a turn to change your own position in the match.</td><td>Loadout</td></tr>
+  </table>
+
+  <div class="note hot">
+    <div class="h">Why HE stays unlimited</div>
+    <p>There must never be a game state where a player cannot act. Unlimited HE guarantees it, and it also gives every other shell a fixed reference point — "this one arcs shorter than HE at the same power" is a sentence players can hold in their head. Take that away and the whole roster becomes twelve unrelated things to memorise.</p>
+  </div>
+
+  <h2>Full stat table</h2>
+  <div id="statTable"></div>
+
+  <div class="note warn">
+    <div class="h">Mass is the stat that surprises everyone</div>
+    <p>Mass multiplies gravity, and range goes as <code>v² / (GRAVITY × mass)</code>. A player who has memorised "power 75 reaches the enemy" and switches to a mass-1.55 shell falls hundreds of pixels short. It's the most common mistake in the genre and it's worth showing rather than explaining:</p>
+  </div>
+  <div class="fig"><div id="massFig"></div>
+    <div class="figcap">Identical inputs — 45°, power 76, no wind. The only difference is mass. Heavy Mortar lands 316 px short of HE.</div>
+  </div>
+
+  <div class="pager"><span></span><a href="#p2">The twelve shells →</a></div>
+</section>
+
+<!-- 02 -->
+<section class="page" id="p2">
+  <div class="eyebrow">02 · Roster</div>
+  <h1>The twelve shells</h1>
+  <p class="lede">Each diagram is a real simulation on the same test range: firer at x=150, target at x=850, seed 1597, no wind. Where a shell has special behaviour, the dashed line shows it.</p>
+  <div id="shells"></div>
+  <div class="pager"><a href="#p1">← Design rules</a><a href="#p3">Loadout &amp; HUD →</a></div>
+</section>
+
+<!-- 03 -->
+<section class="page" id="p3">
+  <div class="eyebrow">03 · Interface</div>
+  <h1>Loadout &amp; HUD</h1>
+  <p class="lede">Twelve shells will not fit in the control deck, and they shouldn't. The player picks a small loadout before the match, and the HUD only ever shows what they brought.</p>
+
+  <h2>Loadout screen</h2>
+  <p>Ten points, at most five slots, HE always free and always equipped. This is where the interesting decision lives — not in the match, where you're just spending what you already chose.</p>
+  <div class="mock">
+    <div class="mockbar"><span class="t">Loadout</span><span class="s">MATCH SETUP · 3 / 3</span><span class="r">TERRA · BEST OF 3</span></div>
+    <div class="lgrid" id="loadout"></div>
+    <div class="budget">
+      <span class="g">POINTS <b id="ptsUsed">—</b></span>
+      <div class="bar"><i id="ptsBar" style="width:0"></i></div>
+      <span class="g">SLOTS <b id="slotsUsed">—</b></span>
+      <span class="g" style="margin-left:auto">HE SHELL <b>ALWAYS EQUIPPED · FREE</b></span>
+    </div>
+  </div>
+
+  <h2>In-match control deck</h2>
+  <p>The same deck from the prototype, showing only the six equipped shells. This is what the player actually operates, and it never changes size mid-match.</p>
+  <div class="mock">
+    <div class="mockbar"><span class="t">Aim</span><span class="s">TURN 07 · BRASS</span><span class="r">HP 83 / 100</span></div>
+    <div class="chips" id="hudchips"></div>
+    <div class="deckrow">
+      <div class="fld">
+        <div class="top"><span class="kk">Elevation</span><span class="vv">46°</span></div>
+        <div class="trk" style="color:var(--p1)"><i style="left:48%"></i></div>
+      </div>
+      <div class="fld">
+        <div class="top"><span class="kk">Power</span><span class="vv">72</span></div>
+        <div class="trk" style="color:var(--p1)"><i style="left:69%"></i></div>
+      </div>
+      <div class="windb"><span class="kk">Wind</span><div class="vv" style="color:var(--hot)">▶ 95</div></div>
+      <button class="firebtn">Fire</button>
+    </div>
+  </div>
+
+  <h2>Icon set</h2>
+  <p>Twelve icons on one 24&times;24 grid, stroke-only, drawn in <code>currentColor</code> so each inherits its shell's accent. They have to survive being rendered at 16&nbsp;px on a chip, which is what drives every decision below.</p>
+  <div class="mock"><div id="iconsheet"></div></div>
+  <table>
+    <tr><th>Rule</th><th>Reason</th></tr>
+    <tr><td>Stroke-only, no fills, 1.75&nbsp;px weight</td><td>Fills turn to mud at 16&nbsp;px. Uniform weight keeps the set visually level so no icon shouts.</td></tr>
+    <tr><td>A ground line at y&nbsp;19.5 on eight of twelve</td><td>Terrain interaction is the shared semantic. The four without it &mdash; HE, Mortar, Roller, Repair &mdash; are the four that don't reshape ground.</td></tr>
+    <tr><td>HE and Mortar share a silhouette</td><td>Mortar is deliberately read as "HE, heavier". The only differences are a fatter body and two descending chevrons for mass.</td></tr>
+    <tr><td>Cluster and MIRV share a fork motif</td><td>Same family, different stage count &mdash; one fork versus two. A player who learns one gets the other free.</td></tr>
+    <tr><td><code>currentColor</code>, never hardcoded fills</td><td>The chip already colours by selection state. One icon file works selected, unselected, and greyed out.</td></tr>
+    <tr><td>Every path fits within 0.8&ndash;23.2</td><td>A 1.75&nbsp;px stroke centred on the path edge needs ~0.9&nbsp;px of padding or it clips. Verified programmatically, not by eye.</td></tr>
+  </table>
+
+  <h2>Rules for the deck</h2>
+  <table>
+    <tr><th>Rule</th><th>Reason</th></tr>
+    <tr><td>Six slots maximum, fixed positions all match</td><td>Keys 1–6 have to mean the same thing on turn 20 as on turn 1. Muscle memory is the point.</td></tr>
+    <tr><td>Spent shells grey out but keep their slot</td><td>Removing a chip reflows the row and breaks every key binding mid-match.</td></tr>
+    <tr><td>Selecting a spent shell falls back to HE</td><td>No dead selection state, ever. Slot 1 is always live.</td></tr>
+    <tr><td>Ammo count is always visible, never on hover</td><td>Deciding whether to spend the last mortar is the decision. Hiding the count hides the game.</td></tr>
+    <tr><td>Mass shown on the chip when it isn't 1.00</td><td>Cheapest possible fix for the range surprise. A small <code>×1.55</code> under the name saves a wasted turn.</td></tr>
+  </table>
+
+  <div class="note ok">
+    <div class="h">Loadout is where the meta lives</div>
+    <p>Ten points across eleven shells is a real deckbuilding decision, and it's the cheapest replayability you will ever add — no new code paths, just a number on each shell. It also solves the roster problem: twelve shells would be overwhelming in one deck, but picking five of eleven before a match is a pleasure.</p>
+    <p>Ship the loadout screen in the same phase as the fifth shell, not later. Six or more shells in one deck without a loadout step is where it starts feeling cluttered.</p>
+  </div>
+
+  <div class="pager"><a href="#p2">← The shells</a><a href="#p4">The hook model →</a></div>
+</section>
+
+<!-- 04 -->
+<section class="page" id="p4">
+  <div class="eyebrow">04 · Implementation</div>
+  <h1>The hook model</h1>
+  <p class="lede">Twelve shells, four hooks, no subclasses. Adding a thirteenth should be a table entry, not a file.</p>
+
+  <div class="fig" style="line-height:1.6;padding:16px"><pre>interface Shell {
+  id: string; name: string; tier: Tier;
+  ammo: number | 'inf';
+  cost: number;              <span style="color:#6E7A8A">// loadout points</span>
+
+  <span style="color:#6E7A8A">// flight</span>
+  mass: number;              <span style="color:#6E7A8A">// × gravity — the range-changing stat</span>
+  drag: number;              <span style="color:#6E7A8A">// × wind susceptibility</span>
+
+  <span style="color:#6E7A8A">// detonation</span>
+  blastRadius: number;
+  damage: number;
+  terrain: 'carve' | 'fill' | 'column' | 'scorch' | 'none';
+
+  <span style="color:#6E7A8A">// the four hooks — all optional</span>
+  onApex?:        (p, world) =&gt; void;      <span style="color:#6E7A8A">// Cluster, MIRV</span>
+  onAltitude?:    { alt: number, fn };      <span style="color:#6E7A8A">// Airburst</span>
+  onTerrainHit?:  (p, world) =&gt; Handled;   <span style="color:#6E7A8A">// Buster, Roller, Skipper, Drill</span>
+  onDetonate?:    (x, y, world) =&gt; void;   <span style="color:#6E7A8A">// Napalm, Sandbags</span>
+}</pre></div>
+
+  <h2>What each hook has to guarantee</h2>
+  <table>
+    <tr><th>Hook</th><th>Used by</th><th>Must terminate because</th></tr>
+    <tr><td><code>onApex</code></td><td>Cluster, MIRV</td><td>Children inherit <code>apexDone: true</code>. MIRV's second split is a separate counter, capped at depth 2. Without the cap a bug turns one shell into an exponential fork bomb.</td></tr>
+    <tr><td><code>onAltitude</code></td><td>Airburst</td><td>The fuse must <em>arm</em> only after the shell has exceeded the trigger altitude once. Otherwise it detonates at the muzzle, because the muzzle is already close to the ground.</td></tr>
+    <tr><td><code>onTerrainHit</code></td><td>Buster, Roller, Skipper, Drill</td><td>Every one needs an independent hard stop: burrow distance, roll fuse, bounce count, drill depth. Never rely on the geometry alone to end the behaviour.</td></tr>
+    <tr><td><code>onDetonate</code></td><td>Napalm, Sandbags</td><td>Runs once, after damage and terrain. Fire zones need a turn counter that decrements in HANDOFF, not in FLIGHT.</td></tr>
+  </table>
+
+  <div class="note hot">
+    <div class="h">The bug that will cost you an afternoon</div>
+    <p>Post-bounce and post-split projectiles spawn <em>on or inside</em> terrain, so the very next collision check fires immediately and the behaviour collapses into a single point. Every hook that repositions a projectile needs a short collision grace — about 14 substeps — before terrain checks resume.</p>
+    <p>This happened while building the Skipper diagram on this page: without grace, all three skips landed within 20 px of each other and it looked like the physics were broken.</p>
+  </div>
+
+  <h2>Ricochet: the finding worth keeping</h2>
+  <p>The Skipper was first built with real reflection about the surface normal. It was chaotic and unaimable — on the same terrain, small changes in launch angle produced wildly different outcomes, and some skips travelled <em>backwards</em> off a downslope:</p>
+  <p>Identical launch settings, identical terrain, both implementations run side by side. Each row lists where the shell touched down on each of its four contacts:</p>
+  <table>
+    <tr><th>Launch</th><th>Physical reflection</th><th>Scripted skip</th></tr>
+    <tr><td class="num">28° / 62</td><td class="num" style="color:var(--hot)">379, 493, 449, 461</td><td class="num" style="color:var(--ok)">379, 715, 866, 1009</td></tr>
+    <tr><td class="num">30° / 62</td><td class="num" style="color:var(--hot)">485, 494, 489, 464</td><td class="num" style="color:var(--ok)">485, 808, 840, 907</td></tr>
+    <tr><td class="num">32° / 62</td><td class="num" style="color:var(--hot)">494, 449, 461, 462</td><td class="num" style="color:var(--ok)">494, 812, 838, 902</td></tr>
+  </table>
+  <p>The physical column is non-monotonic: on every row the shell stalls after the first contact and then travels <em>backwards</em>. It also has no useful relationship to the launch settings — 28° and 32° first land 115&nbsp;px apart but finish within 1&nbsp;px of each other, which means the player's aim stops mattering the moment the shell touches down.</p>
+  <p>The scripted version ignores the surface normal entirely: keep the direction of travel, shed 18% of horizontal speed, relaunch at a fixed shallow angle. Not physical, monotonic, completely aimable, and it reads as a skipping stone.</p>
+  <div class="note ok">
+    <div class="h">General principle</div>
+    <p>In an aiming game, a behaviour the player cannot predict is a behaviour they will not use. Where physical accuracy and predictability conflict, take predictability — and be explicit in the code that you did, so nobody "fixes" it back to physical six months later.</p>
+  </div>
+
+  <div class="pager"><a href="#p3">← Loadout</a><a href="#p5">Balance &amp; tests →</a></div>
+</section>
+
+<!-- 05 -->
+<section class="page" id="p5">
+  <div class="eyebrow">05 · Verification</div>
+  <h1>Balance &amp; tests</h1>
+  <p class="lede">Damage per point, the numbers that need watching, and the assertions that catch the whole class of bugs this roster introduces.</p>
+
+  <h2>Damage per loadout point</h2>
+  <p>Theoretical maximum damage if every shell of that type connects perfectly, divided by its point cost. It is a sanity check, not a target — a shell at the bottom of this table is fine if it does something damage can't measure.</p>
+  <div id="dppTable"></div>
+
+  <div class="note warn">
+    <div class="h">Read this table carefully</div>
+    <p>Sandbags and Repair Kit score zero and should. Their value is tempo and survival, which this metric cannot see. The real signal is any <em>damage</em> shell sitting far above or below the pack — that one needs its cost moved, and MIRV at four points is the one to watch, because nine submunitions across a wide spread is very swingy: near-worthless against a dug-in target, devastating on open ground.</p>
+  </div>
+
+  <h2>Numbers to watch in playtest</h2>
+  <table>
+    <tr><th>Signal</th><th>Means</th><th>Fix</th></tr>
+    <tr><td>A shell is never picked</td><td>Its situation doesn't arise often enough, or costs too much</td><td>Lower the cost first. Only buff the shell if cost 1 still doesn't move it.</td></tr>
+    <tr><td>A shell is always picked</td><td>It isn't situational, it's just good</td><td>Raise cost. If it's still auto-included at 4, it violates the design rule and needs a real drawback.</td></tr>
+    <tr><td>Shells are hoarded to the last turn</td><td>Spending feels punishing</td><td>Raise ammo counts rather than damage. Scarcity should be interesting, not stressful.</td></tr>
+    <tr><td>Matches end before turn 8</td><td>Damage is too high across the roster</td><td>Scale all damage down together. Never nerf individual shells for a global problem.</td></tr>
+    <tr><td>Utility shells never appear</td><td>Ten points is too tight for a non-damage pick</td><td>Raise the budget to 12 before discounting the utility shells.</td></tr>
+  </table>
+
+  <h2>Test checklist</h2>
+  <h3>Flight and hooks</h3>
+  <ul class="check">
+    <li>Every shell's max range at power 100 on every world exceeds that world's spawn gap, or its mass is overridden for that world.</li>
+    <li>Cluster splits exactly once; submunitions never re-split.</li>
+    <li>MIRV splits exactly twice; total submunitions is exactly 9, never more.</li>
+    <li>Airburst fired at minimum power and elevation does not detonate at the muzzle.</li>
+    <li>Skipper bounces exactly three times, and every skip lands further from the firer than the last.</li>
+    <li>Bunker Buster burrow terminates within its stated distance or at a map boundary.</li>
+    <li>Drill Charge stops at the map floor rather than tunnelling past it.</li>
+    <li>Roller terminates on all of: fuse expiry, climb limit, map edge, hull contact.</li>
+    <li>Every projectile repositioned by a hook gets a collision grace period before terrain checks resume.</li>
+  </ul>
+  <h3>Damage and terrain</h3>
+  <ul class="check">
+    <li>Self-damage applies at full value for every shell, including submunitions.</li>
+    <li>Sandbags never sets a solid pixel inside any hull box, including the firer's.</li>
+    <li>Napalm fire zones decrement in HANDOFF exactly once per round, not once per turn per player.</li>
+    <li>Napalm damage stops when the zone expires even if the tank is still standing in it.</li>
+    <li>Repair Kit cannot be used on two consecutive turns by the same player.</li>
+    <li>Repair Kit never takes a tank above 100 health.</li>
+    <li>Drill Charge's vertical column carve does not read or write outside the terrain mask at map edges.</li>
+  </ul>
+  <h3>Loadout and UI</h3>
+  <ul class="check">
+    <li>A loadout can never exceed 10 points or 5 slots.</li>
+    <li>HE occupies slot 1 in every loadout and cannot be removed.</li>
+    <li>Keys 1–6 map to the same shell for the entire match, including after shells are spent.</li>
+    <li>Selecting a spent shell falls back to HE rather than leaving a dead selection.</li>
+    <li>Chips show mass when it differs from 1.00.</li>
+    <li>Both players' loadouts persist across rounds within a match; ammo resets each round.</li>
+  </ul>
+
+  <div class="pager"><a href="#p4">← Hook model</a><span></span></div>
+</section>
+
+</main>
+
+<script>
+"use strict";
+/* ============ sim core — same constants as the prototype ============ */
+const FW=1000, FH=560, GRAVITY=0.215, MUZZLE=0.160, SUB=8;
+const C={p1:'#E8B33C',p2:'#4FC3D9',hot:'#FF6B35',warn:'#FFD166',dim:'#6E7A8A'};
+
+function mulberry32(a){return function(){a|=0;a=(a+0x6D2B79F5)|0;let t=Math.imul(a^(a>>>15),1|a);
+  t=(t+Math.imul(t^(t>>>7),61|t))^t;return((t^(t>>>14))>>>0)/4294967296;};}
+function heights(seed){
+  const r=mulberry32(seed),N=256,p=new Float32Array(N+1);
+  p[0]=FH*(.55+r()*.1);p[N]=FH*(.55+r()*.1);
+  let st=N,d=FH*.26;
+  while(st>1){const h=st>>1;for(let i=h;i<N;i+=st)p[i]=(p[i-h]+p[i+h])/2+(r()*2-1)*d;st=h;d*=.55;}
+  const out=new Float32Array(FW);
+  for(let x=0;x<FW;x++){const t=x*N/FW,i=Math.floor(t),f=t-i;
+    out[x]=Math.max(FH*.40,Math.min(FH-60,p[i]*(1-f)+p[Math.min(N,i+1)]*f+Math.sin(x*.012)*7));}
+  return out;
+}
+const hAt=(h,x)=>x<0?h[0]:x>=FW?h[FW-1]:h[x|0];
+
+function fly(h,x,y,vx,vy,wind,mass,drag,stopAlt,grace){
+  const pts=[{x,y}]; let armed=!stopAlt, g=grace||0;
+  for(let f=0;f<900;f++){
+    for(let s=0;s<SUB;s++){
+      if(g>0) g--;
+      vy+=GRAVITY*mass/SUB; vx+=wind*0.00038*drag/SUB; x+=vx/SUB; y+=vy/SUB;
+      if(stopAlt && !armed && (hAt(h,x)-y)>stopAlt+30) armed=true;
+      if(x<-100||x>FW+100||y>FH+150){pts.push({x,y});return{pts,imp:null,vx,vy};}
+      if(stopAlt && armed && (hAt(h,x)-y)<=stopAlt){pts.push({x,y});return{pts,imp:{x,y},vx,vy,air:true};}
+      if(g<=0 && y>=hAt(h,x)){pts.push({x,y});return{pts,imp:{x,y},vx,vy};}
+    }
+    pts.push({x,y});
+  }
+  return{pts,imp:null,vx,vy};
+}
+function launch(h,ox,oy,ang,pow,wind,mass,drag,stopAlt){
+  const a=ang*Math.PI/180,v=pow*MUZZLE;
+  return fly(h,ox,oy,Math.cos(a)*v,-Math.sin(a)*v,wind,mass,drag,stopAlt,0);
+}
+function apexIdx(pts){let b=0;for(let i=1;i<pts.length;i++)if(pts[i].y<pts[b].y)b=i;return b;}
+
+const ICONS = {
+
+  he: `<path d="M12 2.5c2.1 2.4 3.1 4.9 3.1 7.4v6.4H8.9V9.9c0-2.5 1-5 3.1-7.4z"/>
+       <path d="M8.9 16.3 6.2 20.5M15.1 16.3l2.7 4.2"/>
+       <path d="M9.4 20.5h5.2"/>`,
+
+  mortar: `<path d="M12 3.4c2.6 2.4 3.9 4.7 3.9 7.1v5.8H8.1v-5.8c0-2.4 1.3-4.7 3.9-7.1z"/>
+           <path d="M8.1 16.3 5.2 20.5M15.9 16.3l2.9 4.2"/>
+           <path d="M9.6 9.6 12 12l2.4-2.4"/>
+           <path d="M9.6 13 12 15.4l2.4-2.4"/>`,
+
+  cluster: `<circle cx="12" cy="4.6" r="1.7"/>
+            <path d="M10.7 6.1 6.6 15.6M11.5 6.4 9.6 16.4M12 6.4v10.2M12.5 6.4l1.9 10M13.3 6.1l4.1 9.5"/>
+            <path d="M2.5 19.8h19"/>`,
+
+  buster: `<path d="M12 2.2v5.6"/>
+           <path d="M8.8 6.6 12 10l3.2-3.4"/>
+           <path d="M2.5 11.4h6.4M15.1 11.4h6.4"/>
+           <path d="M12 12.8v2.6M12 17.4v3"/>`,
+
+  roller: `<path d="M2.5 7.4 21.5 18.6"/>
+           <circle cx="15.2" cy="13.3" r="2.7"/>
+           <path d="M7.4 9.4 9.8 10.8M10.2 7.6 12.3 8.8"/>`,
+
+  sand: `<rect x="3.4" y="13.7" width="8.1" height="4.7" rx="2.35"/>
+         <rect x="12.5" y="13.7" width="8.1" height="4.7" rx="2.35"/>
+         <rect x="7.9" y="8.5" width="8.1" height="4.7" rx="2.35"/>
+         <path d="M2.5 20.4h19"/>`,
+
+  skipper: `<path d="M2.5 19.5h19"/>
+            <path d="M3 19.5C4.3 9.2 7.6 9.2 8.9 19.5"/>
+            <path d="M8.9 19.5C10 12.6 12.7 12.6 13.8 19.5"/>
+            <path d="M13.8 19.5C14.7 15.2 16.8 15.2 17.7 19.5"/>`,
+
+  airburst: `<path d="M7.4 6.4 12 2.2l4.6 4.2"/>
+             <path d="M6 9.4v6.2M12 8.4v7.2M18 9.4v6.2"/>
+             <path d="M4.4 14 6 15.8 7.6 14M10.4 14 12 15.8 13.6 14M16.4 14 18 15.8 19.6 14"/>
+             <path d="M2.5 19.5h19"/>`,
+
+  drill: `<path d="M12 2.2v4.6"/>
+          <path d="M9.8 5 12 7.2 14.2 5"/>
+          <path d="M2.5 9.6h7M14.5 9.6h7"/>
+          <path d="M9.6 9.6v7.8l2.4 4.2 2.4-4.2V9.6"/>
+          <path d="M9.6 12.7h4.8M9.6 15.4h4.8"/>`,
+
+  mirv: `<circle cx="12" cy="3" r="1.4"/>
+         <path d="M12 4.5 7.4 8.8M12 4.5v4.3M12 4.5l4.6 4.3"/>
+         <path d="M7.4 8.8 5 15.4M7.4 8.8v6.6M7.4 8.8 9.8 15.4"/>
+         <path d="M12 8.8 9.8 15.4M12 8.8v6.6M12 8.8l2.2 6.6"/>
+         <path d="M16.6 8.8 14.2 15.4M16.6 8.8v6.6M16.6 8.8 19 15.4"/>
+         <path d="M2.5 19.5h19"/>`,
+
+  napalm: `<path d="M12 2.8c3.1 3.5 4.6 6.1 4.6 8.4a4.6 4.6 0 0 1-9.2 0c0-1.7.7-3.2 2.1-4.7.4 1.4 1 2.3 2 2.8-.3-2.2.5-4.4 2.5-6.5z"/>
+           <path d="M5.6 19.6c0-1.6.9-2.8 2.2-3.4M18.4 19.6c0-1.6-.9-2.8-2.2-3.4"/>
+           <path d="M2.5 19.6h19"/>`,
+
+  repair: `<rect x="2.8" y="7.4" width="18.4" height="12.2" rx="2.2"/>
+           <path d="M8.8 7.4V6a1.6 1.6 0 0 1 1.6-1.6h3.2A1.6 1.6 0 0 1 15.2 6v1.4"/>
+           <path d="M12 10.4v6.2M8.9 13.5h6.2"/>`
+};
+
+const ICON_META = {
+  he:'Shell silhouette with fins — the baseline everything else is read against',
+  mortar:'Same silhouette, heavier body, two descending chevrons for mass 1.55',
+  cluster:'Apex node fanning into five diverging submunitions',
+  buster:'Nose entering a broken ground line, shaft continuing below',
+  roller:'A ball on a slope with motion marks up-hill behind it',
+  sand:'Three stacked bags on the ground line — the only additive shell',
+  skipper:'Three diminishing hops along the ground line',
+  airburst:'Burst chevron above, three bomblets falling vertically',
+  drill:'Drill bit with flutes and a pointed tip below a broken ground line',
+  mirv:'A two-stage fork: one node to three, three to nine',
+  napalm:'Flame with side flares sitting on the ground line',
+  repair:'Field case with a cross — the only non-ordnance item'
+};
+
+
+function icon(id,size){
+  return `<svg viewBox="0 0 24 24" width="${size||18}" height="${size||18}" fill="none"
+    stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"
+    aria-hidden="true" style="flex:none;display:block">${ICONS[id]}</svg>`;
+}
+
+/* ============ shells ============ */
+const SHELLS=[
+{id:'he',slot:1,name:'HE Shell',tier:'core',ammo:'∞',cost:0,mass:1.00,drag:1.00,r:26,dmg:34,terrain:'carve',col:C.hot,
+ ang:46,pow:76,
+ good:'Every ranging shot, and any turn where nothing special is needed.',
+ bad:'Never truly wasted — but at low enemy health a bigger shell ends it a turn sooner.',
+ body:`The reference. Mass 1.00 means its range table is the one players memorise, and every other shell is understood as a deviation from it.`,
+ impl:'No hooks. If this shell needs special-casing anywhere, the abstraction is wrong.'},
+
+{id:'mortar',slot:2,name:'Heavy Mortar',tier:'std',ammo:4,cost:3,mass:1.55,drag:0.65,r:44,dmg:52,terrain:'carve',col:'#FF8C42',
+ ang:46,pow:96,
+ good:'The finishing blow. A 44 px radius does not need a direct hit.',
+ bad:'Any turn where the player has not re-solved for its mass. Same power flies far shorter.',
+ body:`The heaviest shell in the roster. Low drag makes it the most wind-resistant, but mass 1.55 caps its range at ~794 px — near the spawn gap, so it is a full-power weapon at typical distance.`,
+ impl:'Assert max range exceeds the spawn gap on every world. This weapon regressed once at mass 2.00 and was silently unusable.'},
+
+{id:'cluster',slot:3,name:'Cluster Bomb',tier:'std',ammo:3,cost:2,mass:1.00,drag:1.15,r:20,dmg:18,terrain:'carve',col:'#FFD166',
+ ang:50,pow:78,apex:5,
+ good:'A target on flat, open ground. Five submunitions across ~170 px means near-misses still connect.',
+ bad:'A target in a crater or behind a ridge — submunitions hit the rim and nothing reaches.',
+ body:`Splits at apex into five, spread by ±1.8 px/frame of horizontal velocity. Highest drag in the roster, so wind moves it more than anything else.`,
+ impl:'Children inherit apexDone:true. Guard the apex trigger with a minimum altitude or a flat shot clusters at the muzzle.'},
+
+{id:'buster',slot:4,name:'Bunker Buster',tier:'std',ammo:3,cost:2,mass:1.45,drag:0.80,r:32,dmg:44,terrain:'carve',col:'#C77DFF',
+ ang:46,pow:90,dig:36,
+ good:'A target behind sandbags or dug into a hillside. Burrows 36 px along its incoming vector.',
+ bad:'An exposed target — it buries itself under the tank and loses most of its splash to soil.',
+ body:`The answer to cover. It is the only shell that reliably beats a Sandbag wall, which is what keeps Sandbags from being oppressive.`,
+ impl:'Burrow must terminate at its distance limit or a map boundary. It can exit the far side of a thin wall — that is correct.'},
+
+{id:'roller',slot:5,name:'Roller',tier:'std',ammo:3,cost:2,mass:1.10,drag:0.85,r:28,dmg:38,terrain:'carve',col:'#7BD389',
+ ang:52,pow:82,roll:true,
+ good:'A target at the bottom of a slope. Aim at the hillside above them and let gravity aim for you.',
+ bad:'A target uphill or on a plateau — it stops and detonates harmlessly.',
+ body:`The only shell where terrain reading substitutes for arithmetic. Strongest on Craters terrain, where every crater wall is a ramp; weakest on Plates, where it stops dead on every terrace.`,
+ impl:'Four independent terminators: fuse, climb limit, map edge, hull contact. Any one alone must be sufficient.'},
+
+{id:'sand',slot:6,name:'Sandbags',tier:'std',ammo:3,cost:1,mass:1.20,drag:0.90,r:34,dmg:0,terrain:'fill',col:'#C9A87C',
+ ang:62,pow:40,fill:true,
+ good:'Denying a firing lane the opponent has already proved works. Costs a turn, buys a turn.',
+ bad:'Before the opponent has found the range — you are defending against a shot they cannot make yet.',
+ body:`Adds terrain instead of removing it. The wall is <strong>symmetrical</strong>: it blocks the builder's own low shots just as thoroughly, which is what makes it a real decision rather than a free upgrade.`,
+ impl:'Fill must skip any pixel inside a hull box. Settle must dig upward before applying gravity or a buried tank soft-locks the turn.'},
+
+{id:'skipper',slot:7,name:'Skipper',tier:'exo',ammo:3,cost:2,mass:1.00,drag:0.95,r:22,dmg:26,terrain:'carve',col:'#8FD6FF',
+ ang:30,pow:62,skip:3,
+ good:'Reaching a target behind a low ridge, at a flat angle nothing else can manage.',
+ bad:'Broken ground — each skip is a chance to land in a hole and stop early.',
+ body:`Skips three times along the surface, shedding 18% of horizontal speed each time. Deliberately <em>not</em> physical: it ignores the surface normal so the player can actually aim it. See page 04 for why.`,
+ impl:'Needs a collision grace of ~14 substeps after each bounce or all three skips collapse onto one point.'},
+
+{id:'airburst',slot:8,name:'Airburst',tier:'exo',ammo:2,cost:3,mass:1.10,drag:1.00,r:18,dmg:22,terrain:'carve',col:'#FF9FD4',
+ ang:46,pow:86,burst:90,
+ good:'A target in a crater or trench. Three bomblets fall straight down, ignoring the rim entirely.',
+ bad:'A target under an overhang or inside a tunnel — the bomblets hit the roof.',
+ body:`Detonates at a fixed 90 px above the surface and releases three bomblets vertically. The only shell whose damage arrives from directly overhead, which makes it the hard counter to digging in.`,
+ impl:'The fuse must arm only after exceeding the trigger altitude once, or it detonates at the muzzle — the muzzle is already near the ground.'},
+
+{id:'drill',slot:9,name:'Drill Charge',tier:'exo',ammo:2,cost:2,mass:1.35,drag:0.75,r:30,dmg:30,terrain:'column',col:'#B0A0FF',
+ ang:46,pow:92,drill:80,
+ good:'Terrain sculpting. Cuts a narrow 80 px shaft straight down — drop a tank off a plateau or open a firing lane.',
+ bad:'Direct damage. Thirty damage for two loadout points is poor value if you only wanted a hit.',
+ body:`The only shell that reshapes terrain vertically rather than spherically. Its real use is dropping an opponent: cut the ground from under a tank and fall damage does the work.`,
+ impl:'Column carve must clamp at the map floor and at both x edges. Terrain effect type is its own kind, not a big carve.'},
+
+{id:'mirv',slot:10,name:'MIRV',tier:'exo',ammo:2,cost:4,mass:1.00,drag:1.10,r:16,dmg:12,terrain:'carve',col:'#FFD9F0',
+ ang:52,pow:80,mirv:true,
+ good:'Wide open ground with no cover anywhere. Nine impacts across ~300 px is unavoidable.',
+ bad:'Anything with cover. Nine small blasts against a dug-in target is nine wasted blasts.',
+ body:`Splits at apex into three, and each of those splits again shortly after into three more — nine submunitions total. The swingiest shell in the roster and the most expensive.`,
+ impl:'Cap split depth at 2 with an explicit counter. Without the cap a bug turns one shell into an exponential fork bomb that hangs the frame.'},
+
+{id:'napalm',slot:11,name:'Napalm',tier:'exo',ammo:2,cost:3,mass:1.05,drag:1.05,r:24,dmg:14,terrain:'scorch',col:'#FF7043',
+ ang:46,pow:78,burn:70,
+ good:'Area denial over time. Leaves a burning strip that damages anything standing in it for two rounds.',
+ bad:'A finishing blow — 14 impact damage is the lowest in the roster.',
+ body:`Spreads fire ±70 px along the surface from the impact. Ten damage per round to any tank inside the zone, for two rounds. The only shell whose damage arrives on someone else's turn.`,
+ impl:'Zone timers decrement in HANDOFF exactly once per round, not once per turn per player — the classic off-by-two.'},
+
+{id:'repair',slot:12,name:'Repair Kit',tier:'util',ammo:1,cost:2,mass:0,drag:0,r:0,dmg:-30,terrain:'none',col:'#4FC3D9',
+ noFlight:true,
+ good:'Below about 35 health, when surviving one more exchange wins the round.',
+ bad:'Early. Spending a turn not shooting while at full health hands the opponent free tempo.',
+ body:`Heals 30 and ends the turn. No flight, no aiming, no terrain change. Cannot be used on consecutive turns, so it cannot stall a match.`,
+ impl:'Never heal above 100. Enforce the consecutive-turn lock in HANDOFF, and grey the chip out so the rule is visible rather than surprising.'}
+];
+
+/* ============ behaviour resolution for diagrams ============ */
+const H=heights(1597);
+const TX1=150, TX2=850;
+const OX=(ang)=>TX1+Math.cos(ang*Math.PI/180)*24;
+const OY=(ang)=>hAt(H,TX1)-16-Math.sin(ang*Math.PI/180)*24;
+
+function resolve(sh){
+  if(sh.noFlight) return null;
+  const ox=OX(sh.ang), oy=OY(sh.ang);
+  const arcs=[], under=[], blasts=[], zones=[];
+
+  if(sh.skip){
+    const a=sh.ang*Math.PI/180, v=sh.pow*MUZZLE;
+    let vx=Math.cos(a)*v, vy=-Math.sin(a)*v, x=ox, y=oy;
+    for(let i=0;i<=sh.skip;i++){
+      const f=fly(H,x,y,vx,vy,0,sh.mass,sh.drag,0,i>0?14:0);
+      arcs.push({pts:f.pts,col:sh.col,w:i===0?2.6:2.2,o:1-i*0.13});
+      if(!f.imp) break;
+      if(i===sh.skip){ blasts.push(f.imp); break; }
+      blasts.push(Object.assign({small:true},f.imp));
+      vx=f.vx*0.82; vy=-Math.abs(vx)*0.52;
+      x=f.imp.x; y=Math.min(f.imp.y,hAt(H,f.imp.x))-7;
+    }
+    return {arcs,under,blasts,zones};
+  }
+
+  const f=launch(H,ox,oy,sh.ang,sh.pow,0,sh.mass,sh.drag,sh.burst||0);
+  arcs.push({pts:f.pts,col:sh.col});
+
+  if(sh.burst && f.imp){
+    // three bomblets straight down
+    blasts.push(Object.assign({air:true,small:true},f.imp));
+    [-46,0,46].forEach(dx=>{
+      const bx=f.imp.x+dx;
+      under.push({pts:[{x:bx,y:f.imp.y},{x:bx,y:hAt(H,bx)}],col:sh.col});
+      blasts.push({x:bx,y:hAt(H,bx),small:true});
+    });
+    return {arcs,under,blasts,zones};
+  }
+  if(sh.drill && f.imp){
+    under.push({pts:[{x:f.imp.x,y:f.imp.y},{x:f.imp.x,y:Math.min(FH-4,f.imp.y+sh.drill)}],col:C.warn,w:5});
+    blasts.push({x:f.imp.x,y:Math.min(FH-4,f.imp.y+sh.drill)});
+    return {arcs,under,blasts,zones};
+  }
+  if(sh.dig && f.imp){
+    const L=f.pts.length,A=f.pts[L-1],B=f.pts[L-2]||A,len=Math.hypot(A.x-B.x,A.y-B.y)||1;
+    const end={x:A.x+(A.x-B.x)/len*sh.dig, y:A.y+(A.y-B.y)/len*sh.dig};
+    under.push({pts:[A,end],col:C.warn});
+    blasts.push(end);
+    return {arcs,under,blasts,zones};
+  }
+  if(sh.roll && f.imp){
+    const pts=[{x:f.imp.x,y:hAt(H,f.imp.x)}];
+    let x=f.imp.x, dir=hAt(H,x+8)>hAt(H,x-8)?1:-1;
+    for(let i=0;i<300;i++){
+      const nx=x+2*dir;
+      if(nx<4||nx>FW-4) break;
+      if(hAt(H,nx)<hAt(H,x)-5) break;
+      x=nx; pts.push({x,y:hAt(H,x)});
+      if(Math.abs(x-TX2)<15||Math.abs(x-TX1)<15) break;
+      if(Math.abs(hAt(H,x+6)-hAt(H,x-6))<0.6&&i>30) break;
+    }
+    under.push({pts,col:C.warn});
+    blasts.push(pts[pts.length-1]);
+    return {arcs,under,blasts,zones};
+  }
+  if(sh.apex && f.imp!==undefined){
+    const bi=apexIdx(f.pts), ap=f.pts[bi], pv=f.pts[Math.max(0,bi-1)];
+    arcs[0]={pts:f.pts.slice(0,bi+1),col:sh.col};
+    for(let k=0;k<sh.apex;k++){
+      const sp=(k-(sh.apex-1)/2)*0.9;
+      const c=fly(H,ap.x,ap.y,(ap.x-pv.x)+sp,(ap.y-pv.y)-0.6+Math.abs(sp)*0.12,0,sh.mass,sh.drag,0,10);
+      arcs.push({pts:c.pts,col:sh.col,w:1.7,o:.72});
+      if(c.imp) blasts.push(Object.assign({small:true},c.imp));
+    }
+    return {arcs,under,blasts,zones};
+  }
+  if(sh.mirv){
+    const bi=apexIdx(f.pts), ap=f.pts[bi], pv=f.pts[Math.max(0,bi-1)];
+    arcs[0]={pts:f.pts.slice(0,bi+1),col:sh.col};
+    for(let k=0;k<3;k++){
+      const sp=(k-1)*1.5;
+      const c=fly(H,ap.x,ap.y,(ap.x-pv.x)+sp,(ap.y-pv.y)-0.5,0,sh.mass,sh.drag,0,10);
+      const si=Math.min(26,c.pts.length-1), sp2=c.pts[si], pv2=c.pts[Math.max(0,si-1)];
+      arcs.push({pts:c.pts.slice(0,si+1),col:sh.col,w:1.9,o:.8});
+      for(let j=0;j<3;j++){
+        const s3=(j-1)*1.1;
+        const d=fly(H,sp2.x,sp2.y,(sp2.x-pv2.x)+s3,(sp2.y-pv2.y),0,sh.mass,sh.drag,0,10);
+        arcs.push({pts:d.pts,col:sh.col,w:1.3,o:.6});
+        if(d.imp) blasts.push(Object.assign({small:true},d.imp));
+      }
+    }
+    return {arcs,under,blasts,zones};
+  }
+  if(sh.burn && f.imp){
+    blasts.push(f.imp);
+    zones.push({x0:f.imp.x-sh.burn,x1:f.imp.x+sh.burn});
+    return {arcs,under,blasts,zones};
+  }
+  if(sh.fill && f.imp){
+    blasts.push(Object.assign({fill:true},f.imp));
+    return {arcs,under,blasts,zones};
+  }
+  if(f.imp) blasts.push(f.imp);
+  return {arcs,under,blasts,zones};
+}
+
+/* ============ SVG ============ */
+function terrPath(h){
+  let d=`M -20 ${FH} L -20 ${h[0].toFixed(1)}`;
+  for(let x=0;x<FW;x+=4) d+=` L ${x} ${h[x].toFixed(1)}`;
+  return d+` L ${FW-1} ${h[FW-1].toFixed(1)} L ${FW+20} ${h[FW-1].toFixed(1)} L ${FW+20} ${FH} Z`;
+}
+function tankG(x,y,col,ang){
+  const a=ang*Math.PI/180;
+  return `<g transform="translate(${x},${y.toFixed(1)})">
+    <rect x="-15" y="-7" width="30" height="7" rx="3" fill="#2A313C"/>
+    <rect x="-13" y="-15" width="26" height="9" rx="2.5" fill="${col}"/>
+    <path d="M -6 -16 A 6 6 0 0 1 6 -16 Z" fill="${col}"/>
+    <line x1="0" y1="-16" x2="${(Math.cos(a)*26).toFixed(1)}" y2="${(-16-Math.sin(a)*26).toFixed(1)}"
+      stroke="${col}" stroke-width="4" stroke-linecap="round"/></g>`;
+}
+const poly=p=>p.map(q=>q.x.toFixed(1)+','+q.y.toFixed(1)).join(' ');
+
+function shellSVG(sh,res){
+  const uid='sh'+(shellSVG._n=(shellSVG._n||0)+1);
+  let s=`<svg viewBox="0 0 ${FW} ${FH}" xmlns="http://www.w3.org/2000/svg" role="img"
+    aria-label="${sh.name} trajectory on the test range">
+    <defs><linearGradient id="${uid}" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#171E2B"/><stop offset=".45" stop-color="#2B3A52"/>
+      <stop offset=".8" stop-color="#6A6E7C"/><stop offset="1" stop-color="#C9A87C"/></linearGradient></defs>
+    <rect width="${FW}" height="${FH}" fill="url(#${uid})"/>
+    <path d="${terrPath(H)}" fill="#4A5540"/><path d="${terrPath(H)}" fill="none" stroke="#5E6B52" stroke-width="2.5"/>`;
+  (res.zones||[]).forEach(z=>{
+    let d=`M ${z.x0} ${hAt(H,z.x0).toFixed(1)}`;
+    for(let x=z.x0;x<=z.x1;x+=6) d+=` L ${x} ${hAt(H,x).toFixed(1)}`;
+    s+=`<path d="${d}" fill="none" stroke="${C.hot}" stroke-width="9" stroke-linecap="round" opacity=".38"/>
+        <path d="${d}" fill="none" stroke="${C.warn}" stroke-width="3.5" stroke-linecap="round" opacity=".85"/>`;
+  });
+  (res.under||[]).forEach(u=>{
+    s+=`<polyline points="${poly(u.pts)}" fill="none" stroke="${u.col||C.warn}" stroke-width="${u.w||2.8}"
+      stroke-dasharray="7 5" stroke-linecap="round"/>`;
+  });
+  (res.arcs||[]).forEach(a=>{
+    const step=Math.max(1,Math.floor(a.pts.length/320));
+    const pts=a.pts.filter((_,i)=>i%step===0||i===a.pts.length-1);
+    s+=`<polyline points="${poly(pts)}" fill="none" stroke="${a.col}" stroke-width="${a.w||2.6}"
+      stroke-linecap="round" stroke-linejoin="round" opacity="${a.o||1}"/>`;
+  });
+  s+=tankG(TX1,hAt(H,TX1),C.p1,sh.ang)+tankG(TX2,hAt(H,TX2),C.p2,135);
+  (res.blasts||[]).forEach(b=>{
+    const rr=b.small?(sh.r*0.42):(sh.r*0.6);
+    const col=b.fill?C.warn:C.hot;
+    s+=`<circle cx="${b.x.toFixed(1)}" cy="${b.y.toFixed(1)}" r="${rr.toFixed(1)}" fill="${col}" opacity=".22"/>
+        <circle cx="${b.x.toFixed(1)}" cy="${b.y.toFixed(1)}" r="${b.small?3.6:5.5}" fill="${col}"/>`;
+    if(b.fill) s+=`<circle cx="${b.x.toFixed(1)}" cy="${b.y.toFixed(1)}" r="${sh.r}" fill="none"
+        stroke="${C.warn}" stroke-width="2" stroke-dasharray="5 5" opacity=".8"/>`;
+  });
+  return s+'</svg>';
+}
+
+/* mass comparison */
+function massFig(){
+  const uid='mf';
+  const a=launch(H,OX(45),OY(45),45,76,0,1.00,1.00,0);
+  const b=launch(H,OX(45),OY(45),45,76,0,1.55,0.65,0);
+  let s=`<svg viewBox="0 0 ${FW} ${FH}" xmlns="http://www.w3.org/2000/svg" role="img"
+    aria-label="HE Shell versus Heavy Mortar at identical settings">
+    <defs><linearGradient id="${uid}" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#171E2B"/><stop offset=".45" stop-color="#2B3A52"/>
+      <stop offset=".8" stop-color="#6A6E7C"/><stop offset="1" stop-color="#C9A87C"/></linearGradient></defs>
+    <rect width="${FW}" height="${FH}" fill="url(#${uid})"/>
+    <path d="${terrPath(H)}" fill="#4A5540"/><path d="${terrPath(H)}" fill="none" stroke="#5E6B52" stroke-width="2.5"/>
+    <polyline points="${poly(a.pts)}" fill="none" stroke="${C.hot}" stroke-width="2.8" stroke-linecap="round"/>
+    <polyline points="${poly(b.pts)}" fill="none" stroke="#FF8C42" stroke-width="2.8" stroke-linecap="round"
+      stroke-dasharray="8 5"/>`;
+  s+=tankG(TX1,hAt(H,TX1),C.p1,45)+tankG(TX2,hAt(H,TX2),C.p2,135);
+  [[a,C.hot,'HE · mass 1.00'],[b,'#FF8C42','MORTAR · mass 1.55']].forEach(([f,col,lab])=>{
+    if(!f.imp) return;
+    s+=`<circle cx="${f.imp.x.toFixed(1)}" cy="${f.imp.y.toFixed(1)}" r="5.5" fill="${col}"/>
+      <text x="${f.imp.x.toFixed(1)}" y="${(f.imp.y-16).toFixed(1)}" fill="${col}" text-anchor="middle"
+      font-family="ui-monospace,monospace" font-size="17">${lab}</text>`;
+  });
+  const gap=Math.round(a.imp.x-b.imp.x);
+  s+=`<line x1="${b.imp.x.toFixed(1)}" y1="${(b.imp.y+26).toFixed(1)}" x2="${a.imp.x.toFixed(1)}"
+      y2="${(b.imp.y+26).toFixed(1)}" stroke="#C7D0DC" stroke-width="1.5" stroke-dasharray="4 4" opacity=".7"/>
+    <text x="${((a.imp.x+b.imp.x)/2).toFixed(1)}" y="${(b.imp.y+46).toFixed(1)}" fill="#C7D0DC"
+      text-anchor="middle" font-family="ui-monospace,monospace" font-size="17">${gap} px short</text>`;
+  return s+'</svg>';
+}
+
+/* ============ render ============ */
+const TIER={core:['Core','t-core'],std:['Standard','t-std'],exo:['Exotic','t-exo'],util:['Utility','t-util']};
+
+function renderShells(){
+  document.getElementById('shells').innerHTML=SHELLS.map(sh=>{
+    const res=resolve(sh);
+    const pic=res?`<div class="pic">${shellSVG(sh,res)}</div>`:'';
+    const dmg=sh.dmg<0?('heal '+(-sh.dmg)):sh.dmg;
+    return `<article class="shell">
+      <header>
+        <span class="slot">${String(sh.slot).padStart(2,'0')}</span>
+        <span style="color:${sh.col};display:flex;align-self:center">${icon(sh.id,22)}</span>
+        <span class="nm" style="color:${sh.col}">${sh.name}</span>
+        <span class="tier ${TIER[sh.tier][1]}">${TIER[sh.tier][0]}</span>
+        <span class="cost">${sh.cost===0?'FREE':sh.cost+' PT'} · ${sh.ammo} AMMO</span>
+      </header>
+      ${pic}
+      <div class="stats">
+        <div><div class="k">Mass</div><div class="v" style="${sh.mass>1?'color:var(--warn)':''}">${sh.mass?sh.mass.toFixed(2):'—'}</div></div>
+        <div><div class="k">Drag</div><div class="v">${sh.drag?sh.drag.toFixed(2):'—'}</div></div>
+        <div><div class="k">Blast</div><div class="v">${sh.r||'—'}</div></div>
+        <div><div class="k">Damage</div><div class="v">${dmg}</div></div>
+        <div><div class="k">Terrain</div><div class="v" style="font-size:12px">${sh.terrain}</div></div>
+        ${res?`<div><div class="k">Shown at</div><div class="v" style="font-size:12px">${sh.ang}° / ${sh.pow}</div></div>`:''}
+      </div>
+      <div class="body">
+        <p>${sh.body}</p>
+        <p><span class="lbl">Built for</span>${sh.good}</p>
+        <p><span class="lbl">Wasted on</span>${sh.bad}</p>
+      </div>
+      <div class="impl">${sh.impl}</div>
+    </article>`;
+  }).join('');
+}
+
+function renderStatTable(){
+  const rows=SHELLS.map(s=>`<tr>
+    <td style="color:${s.col}"><span style="display:inline-flex;vertical-align:-4px;margin-right:7px">${icon(s.id,17)}</span>${s.name}</td>
+    <td>${TIER[s.tier][0]}</td>
+    <td class="num">${s.ammo}</td>
+    <td class="num">${s.cost||'—'}</td>
+    <td class="num" style="${s.mass>1?'color:var(--warn)':''}">${s.mass?s.mass.toFixed(2):'—'}</td>
+    <td class="num">${s.drag?s.drag.toFixed(2):'—'}</td>
+    <td class="num">${s.r||'—'}</td>
+    <td class="num">${s.dmg<0?'+'+(-s.dmg):s.dmg}</td>
+    <td>${s.terrain}</td></tr>`).join('');
+  document.getElementById('statTable').innerHTML=`<table>
+    <tr><th>Shell</th><th>Tier</th><th>Ammo</th><th>Cost</th><th>Mass</th><th>Drag</th>
+        <th>Blast</th><th>Damage</th><th>Terrain</th></tr>${rows}</table>`;
+}
+
+function renderDPP(){
+  const rows=SHELLS.filter(s=>s.cost>0).map(s=>{
+    const mult=s.apex?s.apex:(s.mirv?9:(s.burst?3:1));
+    const total=s.dmg>0?s.dmg*mult*s.ammo:0;
+    const dpp=s.cost?total/s.cost:0;
+    return {s,mult,total,dpp};
+  }).sort((a,b)=>b.dpp-a.dpp);
+  const max=Math.max(...rows.map(r=>r.dpp))||1;
+  document.getElementById('dppTable').innerHTML=`<table>
+    <tr><th>Shell</th><th>Cost</th><th>Ammo</th><th>Hits each</th><th>Max total</th><th>Per point</th><th></th></tr>
+    ${rows.map(({s,mult,total,dpp})=>`<tr>
+      <td style="color:${s.col}">${s.name}</td>
+      <td class="num">${s.cost}</td><td class="num">${s.ammo}</td><td class="num">${mult}</td>
+      <td class="num">${total}</td><td class="num">${dpp.toFixed(1)}</td>
+      <td style="width:34%"><div style="height:5px;background:#05080D;border-radius:3px;overflow:hidden">
+        <div style="height:100%;width:${(dpp/max*100).toFixed(0)}%;background:${s.col};opacity:.8"></div></div></td>
+    </tr>`).join('')}</table>`;
+}
+
+const EQUIPPED=['he','mortar','cluster','buster','roller','sand'];
+const CHOSEN=['mortar','cluster','buster','roller','sand'];
+
+function renderHudChips(){
+  const spent={he:'∞',mortar:2,cluster:0,buster:3,roller:1,sand:3};
+  document.getElementById('hudchips').innerHTML=EQUIPPED.map((id,i)=>{
+    const s=SHELLS.find(x=>x.id===id), a=spent[id];
+    const sel=id==='mortar', out=a===0;
+    return `<div class="chip ${sel?'sel':''} ${out?'out':''}" style="${sel?'color:'+s.col:''}">
+      <div class="k" style="display:flex;justify-content:space-between;align-items:center">
+        <span>${i+1}</span><span style="opacity:.85">${icon(s.id,16)}</span></div>
+      <div class="n">${s.name}${s.mass>1?` <span style="color:var(--warn);font-family:var(--mono);font-size:9px">×${s.mass.toFixed(2)}</span>`:''}</div>
+      <div class="a">${a==='∞'?'UNLIMITED':(a===0?'EMPTY':a+' LEFT')}</div></div>`;
+  }).join('');
+}
+
+function renderLoadout(){
+  const pool=SHELLS.filter(s=>s.cost>0);
+  document.getElementById('loadout').innerHTML=pool.map(s=>{
+    const on=CHOSEN.includes(s.id);
+    return `<div class="lcard ${on?'on':''}" style="${on?'color:'+s.col:''}">
+      <span class="pt">${s.cost}</span>
+      <div style="color:${on?s.col:'var(--dim)'};margin-bottom:6px">${icon(s.id,20)}</div>
+      <div class="n" style="${on?'color:'+s.col:''}">${s.name}</div>
+      <div class="m">${s.ammo} AMMO · ${s.dmg<0?'HEAL '+(-s.dmg):s.dmg+' DMG'}${s.mass>1?' · ×'+s.mass.toFixed(2):''}</div>
+    </div>`;
+  }).join('');
+  const used=CHOSEN.reduce((n,id)=>n+SHELLS.find(s=>s.id===id).cost,0);
+  document.getElementById('ptsUsed').textContent=used+' / 10';
+  document.getElementById('slotsUsed').textContent=CHOSEN.length+' / 5';
+  document.getElementById('ptsBar').style.width=(used/10*100)+'%';
+}
+
+function renderMassFig(){ document.getElementById('massFig').innerHTML=massFig(); }
+
+/* routing */
+const pages=[...document.querySelectorAll('.page')], links=[...document.querySelectorAll('nav a')];
+function show(id){
+  if(!document.getElementById(id)) id='p1';
+  pages.forEach(p=>p.classList.toggle('on',p.id===id));
+  links.forEach(a=>a.classList.toggle('on',a.dataset.p===id));
+  window.scrollTo({top:0,behavior:'instant'});
+}
+addEventListener('hashchange',()=>show(location.hash.slice(1)||'p1'));
+
+function renderIconSheet(){
+  document.getElementById('iconsheet').innerHTML=
+    `<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:9px">`+
+    SHELLS.map(s=>`<div style="background:var(--panel);border:1px solid var(--rule);border-radius:3px;
+      padding:12px 11px;display:flex;gap:11px;align-items:flex-start">
+      <span style="color:${s.col};flex:none">${icon(s.id,26)}</span>
+      <div style="min-width:0">
+        <div style="font-size:12px;letter-spacing:.04em;color:var(--bright);line-height:1.25">${s.name}</div>
+        <div style="font-family:var(--mono);font-size:9px;color:var(--dim);margin-top:3px;line-height:1.4">${ICON_META[s.id]}</div>
+        <div style="margin-top:8px;display:flex;gap:8px;align-items:flex-end;color:${s.col};opacity:.9">
+          ${icon(s.id,16)}${icon(s.id,14)}${icon(s.id,12)}
+          <span style="font-family:var(--mono);font-size:8.5px;color:var(--dim);opacity:.8">16 / 14 / 12 px</span>
+        </div>
+      </div></div>`).join('')+`</div>`;
+}
+renderStatTable(); renderMassFig(); renderShells(); renderHudChips(); renderLoadout(); renderDPP(); renderIconSheet();
+show(location.hash.slice(1)||'p1');
+</script>
+</body>
+</html>

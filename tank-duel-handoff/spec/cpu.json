@@ -1,0 +1,24 @@
+{
+  "$comment": "Bracketing CPU. Gains are DERIVED from the range table, not tuned by hand. Measured over 500 trials per tier.",
+  "algorithm": [
+    "Opening shot: power = sqrt(distance * baseGravity) / muzzleCoefficient, elevation fixed at 45.",
+    "Every shot after: power += error * (1 / rangePerPowerPoint) + (wind - lastWind) * (-driftPerWindUnit / rangePerPowerPoint) * dir * windSkill",
+    "error = (targetX - lastImpactX) * dir, positive meaning the shot fell short.",
+    "Clamp power to 15..100, then apply the tier's jitter."
+  ],
+  "derivedGains": {
+    "rangePerPowerPoint": 17.8,
+    "driftPerWindUnit": 1.15,
+    "$comment": "rangePerPowerPoint is d(range)/d(power) near power 75. Recompute if constants change."
+  },
+  "tiers": [
+    { "id": "recruit", "name": "Recruit", "jitter": 0.13,  "windSkill": 0.0,
+      "measured": { "medianShotsToHit": 5, "meanShotsToHit": 5.6, "failedIn15": "70/500" } },
+    { "id": "gunner",  "name": "Gunner",  "jitter": 0.05,  "windSkill": 0.6,
+      "measured": { "medianShotsToHit": 3, "meanShotsToHit": 3.7, "failedIn15": "18/500" } },
+    { "id": "veteran", "name": "Veteran", "jitter": 0.015, "windSkill": 1.0,
+      "measured": { "medianShotsToHit": 2, "meanShotsToHit": 2.8, "failedIn15": "11/500" } }
+  ],
+  "hitDefinition": "impact within 30 px of the target tank",
+  "$warning": "Do NOT give the CPU the true firing solution and add error to it. It must observe its own impact and correct, or it will feel like it is cheating on the shots it lands and stupid on the ones it misses."
+}

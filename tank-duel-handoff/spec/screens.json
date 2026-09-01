@@ -1,0 +1,118 @@
+{
+  "$comment": "Screen flow. Quick Start is 2 screens; Custom Game is 1. See docs/05-flow.html for the interactive version.",
+  "screens": [
+    {
+      "id": "TITLE",
+      "buttons": [
+        "Quick Start",
+        "Custom Game",
+        "How to Play"
+      ],
+      "corner": [
+        "Settings"
+      ],
+      "idleAnimation": [
+        "embers",
+        "drifting cloud bands",
+        "sweeping beams",
+        "waving flags",
+        "twinkling stars",
+        "pulsing muzzle glow",
+        "periodic exchange of fire"
+      ],
+      "$note": "No Exit (it is a web page). No Credits button (lives in Settings). No Leaderboards until a backend exists."
+    },
+    {
+      "id": "MODE",
+      "from": "Quick Start",
+      "step": "1 / 2",
+      "options": [
+        "1v1 Local",
+        "1 v CPU"
+      ],
+      "subOptions": [
+        "Recruit",
+        "Gunner",
+        "Veteran"
+      ]
+    },
+    {
+      "id": "MAP",
+      "from": "MODE",
+      "step": "2 / 2",
+      "options": [
+        "terra",
+        "vesper",
+        "rust",
+        "selene",
+        "ferrum",
+        "hollow",
+        "random"
+      ],
+      "$note": "Random is a first-class tile in the grid, not a menu item."
+    },
+    {
+      "id": "CUSTOM",
+      "ammoCount": {
+        "min": 1,
+        "max": 9
+      },
+      "from": "Custom Game",
+      "groups": {
+        "match": [
+          "rounds 1/3/5",
+          "wind off/light/full",
+          "turnTimer off/30/15"
+        ],
+        "world": [
+          "world",
+          "terrain generator",
+          "seed"
+        ],
+        "ammunition": [
+          "per-shell enable toggle",
+          "per-shell ammo count 1-9",
+          "HE locked on and unlimited"
+        ]
+      },
+      "$icons": "Each ammunition row shows the shell icon."
+    },
+    {
+      "id": "HOWTO",
+      "from": "How to Play",
+      "teaches": "bracketing, using three real trajectories: short 69, long 82, hit 76",
+      "$note": "Do NOT add a trajectory preview. See docs/05-flow.html."
+    },
+    {
+      "id": "LOADOUT",
+      "layout": "side-by-side",
+      "players": [
+        "Player 1",
+        "Player 2"
+      ],
+      "deploy": "shared"
+    },
+    {
+      "id": "ROUND_OVER",
+      "buttons": [
+        "Rematch",
+        "Change loadout",
+        "Menu"
+      ],
+      "$note": "Higher priority than TITLE. It decides whether a second match happens.",
+      "$icons": "Recap shows icons for the shells each player spent."
+    }
+  ],
+  "quickStartPath": [
+    "TITLE",
+    "MODE",
+    "MAP",
+    "ROUND_INTRO"
+  ],
+  "customPath": [
+    "TITLE",
+    "CUSTOM",
+    "ROUND_INTRO"
+  ],
+  "iconRule": "Every surface that names a shell shows its icon alongside the name. Paths are in shells.json under each shell's 'icon' field. Icons are stroke-only and use currentColor, so a single file covers selected, unselected and disabled states."
+}

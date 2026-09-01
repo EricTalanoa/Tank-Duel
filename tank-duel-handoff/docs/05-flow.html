@@ -1,0 +1,782 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tank Duel — Screen Flow</title>
+<style>
+:root{
+  --void:#0B0F16;--panel:#141A24;--panel2:#1B2330;--rule:#252F3D;--rule2:#364356;
+  --text:#C7D0DC;--dim:#7A8697;--bright:#EDF2F8;
+  --hot:#FF6B35;--blue:#4FC3D9;--grn:#7BD389;--amber:#E8B33C;--warn:#FFD166;
+  --mono:ui-monospace,"SF Mono","JetBrains Mono",Menlo,Consolas,monospace;
+  --sans:"Roboto Condensed","Arial Narrow",Inter,system-ui,sans-serif;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--void);color:var(--text);font-family:var(--sans);font-size:15px;line-height:1.6;
+  -webkit-font-smoothing:antialiased;padding:22px 18px 80px}
+.wrap{max-width:1060px;margin:0 auto}
+.crumb{display:flex;gap:7px;align-items:center;font-family:var(--mono);font-size:10px;
+  letter-spacing:.15em;text-transform:uppercase;color:#4A5666;margin-bottom:10px;flex-wrap:wrap}
+.crumb span.on{color:var(--hot)}
+.crumb i{font-style:normal;opacity:.45}
+
+.screen{display:none}
+.screen.on{display:block}
+
+/* ---------- title ---------- */
+.title{position:relative;border:1px solid var(--rule2);border-radius:4px;overflow:hidden;background:#05080D}
+.title canvas{width:100%;height:auto;display:block}
+.tOver{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:0}
+.logo{text-align:center;margin-bottom:6px}
+.logo .t{font-size:clamp(30px,6.4vw,62px);font-weight:700;letter-spacing:.04em;line-height:1;
+  text-shadow:0 3px 0 rgba(0,0,0,.55),0 0 34px rgba(255,107,53,.28)}
+.logo .t .a{color:var(--amber)}.logo .t .b{color:var(--blue)}
+.logo .s{font-family:var(--mono);font-size:clamp(7px,1.15vw,11px);letter-spacing:.4em;
+  text-transform:uppercase;color:#93A2B4;margin-top:9px}
+.menu{display:flex;flex-direction:column;gap:9px;width:min(340px,58%);margin-top:clamp(10px,3vw,26px)}
+.mbtn{display:flex;align-items:center;gap:13px;padding:0 18px;height:clamp(38px,6.4vw,52px);
+  border-radius:3px;border:1px solid;cursor:pointer;font-family:var(--sans);font-weight:700;
+  font-size:clamp(11px,2.1vw,16px);letter-spacing:.14em;text-transform:uppercase;
+  background:rgba(12,17,25,.82);color:var(--bright);transition:transform .13s,box-shadow .13s}
+.mbtn:hover{transform:translateY(-2px)}
+.mbtn .ic{flex:none;display:flex;opacity:.9}
+.mbtn.p{border-color:var(--hot);box-shadow:inset 0 0 22px rgba(255,107,53,.16)}
+.mbtn.p:hover{box-shadow:inset 0 0 22px rgba(255,107,53,.3),0 5px 20px rgba(255,107,53,.18)}
+.mbtn.s{border-color:#2F6B7C}
+.mbtn.t{border-color:#3E6B48}
+.corner{position:absolute;top:11px;width:34px;height:34px;border:1px solid var(--rule2);border-radius:3px;
+  background:rgba(12,17,25,.8);display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--dim)}
+.corner:hover{color:var(--text);border-color:#4A5A6E}
+.corner.l{left:11px}
+.tagline{position:absolute;bottom:12px;left:50%;transform:translateX(-50%);font-family:var(--mono);
+  font-size:clamp(7px,1.1vw,10px);letter-spacing:.24em;text-transform:uppercase;color:#5C6A7C;white-space:nowrap}
+
+/* ---------- generic screen chrome ---------- */
+.sc{background:var(--panel);border:1px solid var(--rule);border-radius:4px;overflow:hidden}
+.sc>header{display:flex;align-items:baseline;gap:12px;padding:13px 17px;border-bottom:1px solid var(--rule);
+  background:var(--panel2);flex-wrap:wrap}
+.sc>header .h{font-size:15px;letter-spacing:.16em;text-transform:uppercase;color:var(--bright);font-weight:700}
+.sc>header .n{font-family:var(--mono);font-size:10px;color:var(--dim);letter-spacing:.1em}
+.sc>header .r{margin-left:auto;font-family:var(--mono);font-size:10px;color:var(--dim)}
+.sc>.b{padding:17px}
+.foot{display:flex;gap:10px;align-items:center;padding:13px 17px;border-top:1px solid var(--rule);flex-wrap:wrap}
+.foot .sum{font-family:var(--mono);font-size:10.5px;color:var(--dim);letter-spacing:.04em}
+.foot .sum b{color:var(--text);font-weight:400}
+.back{background:transparent;border:1px solid var(--rule);color:var(--text);font-family:var(--sans);
+  font-size:11px;letter-spacing:.14em;text-transform:uppercase;padding:10px 16px;border-radius:2px;cursor:pointer}
+.back:hover{border-color:var(--rule2)}
+.go{margin-left:auto;background:var(--hot);color:#0B0F16;border:none;font-family:var(--sans);font-weight:700;
+  font-size:12.5px;letter-spacing:.17em;text-transform:uppercase;padding:12px 26px;border-radius:2px;cursor:pointer}
+.go:disabled{background:var(--rule);color:var(--dim);cursor:default}
+
+/* ---------- mode ---------- */
+.modes{display:grid;grid-template-columns:1fr 1fr;gap:11px}
+.mode{border:1px solid var(--rule);border-radius:3px;background:var(--panel2);padding:16px;cursor:pointer;
+  transition:border-color .13s,background .13s}
+.mode:hover{border-color:var(--rule2)}
+.mode.sel{border-color:currentColor;background:#212B3A}
+.mode .n{font-size:16px;letter-spacing:.1em;text-transform:uppercase;font-weight:700;color:var(--bright)}
+.mode.sel .n{color:inherit}
+.mode .d{font-size:13px;color:#9FAABA;margin-top:6px;line-height:1.5}
+.tiers{display:grid;grid-template-columns:repeat(3,1fr);gap:7px;margin-top:12px}
+.tier{border:1px solid var(--rule);border-radius:2px;padding:9px;background:#151C27;cursor:pointer}
+.tier.sel{border-color:var(--blue);background:#1B2734}
+.tier .t{font-family:var(--mono);font-size:11px;color:var(--text);letter-spacing:.08em}
+.tier.sel .t{color:var(--blue)}
+.tier .v{font-family:var(--mono);font-size:9px;color:var(--dim);margin-top:3px}
+
+/* ---------- map ---------- */
+.maps{display:grid;grid-template-columns:repeat(4,1fr);gap:9px}
+.map{border:1px solid var(--rule);border-radius:3px;overflow:hidden;background:var(--panel2);cursor:pointer;
+  transition:border-color .13s,transform .13s}
+.map:hover{border-color:var(--rule2);transform:translateY(-2px)}
+.map.sel{border-color:currentColor}
+.map .pic{line-height:0}.map .pic svg{width:100%;height:auto;display:block}
+.map .m{padding:8px 10px}
+.map .n{font-size:12.5px;letter-spacing:.09em;text-transform:uppercase;font-weight:700;line-height:1.2}
+.map .d{font-family:var(--mono);font-size:8.5px;color:var(--dim);margin-top:4px;letter-spacing:.03em}
+.map .bar{height:3px;background:#080C12;border-radius:2px;margin-top:6px;overflow:hidden}
+.map .bar i{display:block;height:100%;opacity:.8}
+.rand{display:flex;align-items:center;justify-content:center;min-height:100%;color:var(--dim);text-align:center;padding:22px 10px}
+
+/* ---------- custom ---------- */
+.grp{margin-bottom:18px}
+.grp>.gh{font-family:var(--mono);font-size:9.5px;letter-spacing:.18em;text-transform:uppercase;color:var(--dim);
+  margin-bottom:9px;padding-bottom:6px;border-bottom:1px solid var(--rule)}
+.opts{display:grid;grid-template-columns:repeat(auto-fit,minmax(168px,1fr));gap:9px}
+.opt .k{font-family:var(--mono);font-size:9px;letter-spacing:.13em;text-transform:uppercase;color:var(--dim);margin-bottom:5px}
+.seg{display:flex;border:1px solid var(--rule);border-radius:2px;overflow:hidden}
+.seg button{flex:1;background:#151C27;border:none;border-right:1px solid var(--rule);color:var(--dim);
+  font-family:var(--mono);font-size:10.5px;padding:8px 4px;cursor:pointer;letter-spacing:.05em}
+.seg button:last-child{border-right:none}
+.seg button.on{background:#26313F;color:var(--bright)}
+.ammo{display:grid;grid-template-columns:repeat(auto-fit,minmax(158px,1fr));gap:7px}
+.ar{display:flex;align-items:center;gap:9px;border:1px solid var(--rule);border-radius:2px;padding:8px 10px;background:#151C27}
+.ar.off{opacity:.34}
+.ar .sw{width:15px;height:15px;border:1px solid var(--rule2);border-radius:2px;flex:none;cursor:pointer;
+  display:flex;align-items:center;justify-content:center}
+.ar.on .sw{background:currentColor;border-color:currentColor}
+.ar .nm{font-size:11.5px;color:var(--text);line-height:1.2;min-width:0;flex:1}
+.ar .ct{display:flex;align-items:center;gap:5px;font-family:var(--mono);font-size:11px;color:var(--dim)}
+.ar .ct button{width:19px;height:19px;background:#1E2735;border:1px solid var(--rule);color:var(--text);
+  border-radius:2px;cursor:pointer;font-family:var(--mono);font-size:11px;line-height:1;padding:0}
+.ar .ct b{min-width:14px;text-align:center;color:var(--text);font-weight:400}
+
+/* ---------- how to play ---------- */
+.htp{display:grid;grid-template-columns:1fr 1.5fr;gap:14px}
+.stage2{border:1px solid var(--rule);border-radius:3px;overflow:hidden;background:#05080D;line-height:0;position:relative}
+.stage2 canvas{width:100%;height:auto;display:block}
+.shotlbl{position:absolute;left:11px;bottom:10px;font-family:var(--mono);font-size:10.5px;
+  background:rgba(8,12,18,.82);padding:5px 9px;border-radius:2px;letter-spacing:.06em}
+.steps .s{border-left:2px solid var(--rule2);padding:0 0 0 13px;margin-bottom:15px}
+.steps .s.act{border-left-color:var(--hot)}
+.steps .s .t{font-size:13px;letter-spacing:.09em;text-transform:uppercase;font-weight:700;color:var(--bright)}
+.steps .s.act .t{color:var(--hot)}
+.steps .s p{font-size:13px;color:#9FAABA;margin-top:4px}
+.keys{display:grid;grid-template-columns:repeat(auto-fit,minmax(146px,1fr));gap:8px;margin-top:14px}
+.key{border:1px solid var(--rule);border-radius:2px;padding:9px 11px;background:#151C27}
+.key .k{font-family:var(--mono);font-size:12px;color:var(--warn)}
+.key .d{font-size:11.5px;color:var(--dim);margin-top:3px;line-height:1.35}
+.facts{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:9px;margin-top:14px}
+.fact{border:1px solid var(--rule);border-radius:2px;padding:11px 13px;background:#151C27}
+.fact .v{font-family:var(--mono);font-size:17px;color:var(--bright)}
+.fact .d{font-size:11.5px;color:var(--dim);margin-top:3px;line-height:1.4}
+
+/* ---------- deploy ---------- */
+.rows{display:grid;gap:0}
+.rw{display:flex;gap:12px;padding:10px 0;border-bottom:1px solid var(--rule);align-items:baseline}
+.rw:last-child{border-bottom:none}
+.rw .k{font-family:var(--mono);font-size:9.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--dim);min-width:120px}
+.rw .v{font-size:14px;color:var(--bright)}
+.rw .x{margin-left:auto;font-family:var(--mono);font-size:10.5px;color:var(--dim)}
+
+.callout{border-left:2px solid var(--hot);background:var(--panel);padding:12px 15px;margin-top:16px;font-size:13.5px}
+.callout .h{font-family:var(--mono);font-size:9.5px;letter-spacing:.16em;text-transform:uppercase;color:var(--hot);margin-bottom:5px}
+.callout p{color:#9FAABA}
+
+@media(max-width:820px){
+  .modes,.htp{grid-template-columns:1fr}
+  .maps{grid-template-columns:repeat(2,1fr)}
+  .menu{width:78%}
+}
+@media(prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<div class="crumb" id="crumb"></div>
+
+<!-- ============ TITLE ============ -->
+<section class="screen on" id="s-title">
+  <div class="title">
+    <canvas id="tc" width="1200" height="620"></canvas>
+    <div class="corner l" id="btnSettings" title="Settings">
+      <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.7">
+        <circle cx="12" cy="12" r="3.2"/><path d="M19.4 15a1.6 1.6 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.6 1.6 0 0 0-1.8-.3 1.6 1.6 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1A1.6 1.6 0 0 0 9 19.4a1.6 1.6 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.6 1.6 0 0 0 .3-1.8 1.6 1.6 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1A1.6 1.6 0 0 0 4.6 9a1.6 1.6 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.6 1.6 0 0 0 1.8.3H9a1.6 1.6 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.6 1.6 0 0 0 1 1.5 1.6 1.6 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.6 1.6 0 0 0-.3 1.8V9a1.6 1.6 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.6 1.6 0 0 0-1.5 1z"/></svg>
+    </div>
+    <div class="tOver">
+      <div class="logo">
+        <div class="t"><span class="a">TANK</span> <span class="b">DUEL</span></div>
+        <div class="s">A turn-based artillery duel</div>
+      </div>
+      <div class="menu">
+        <button class="mbtn p" data-go="mode">
+          <span class="ic"><svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.8">
+            <circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="2.4"/><path d="M12 1.6v4M12 18.4v4M1.6 12h4M18.4 12h4"/></svg></span>
+          Quick Start</button>
+        <button class="mbtn s" data-go="custom">
+          <span class="ic"><svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.8">
+            <path d="M4 6h10M18 6h2M4 12h2M10 12h10M4 18h12M20 18h0"/>
+            <circle cx="16" cy="6" r="2"/><circle cx="8" cy="12" r="2"/><circle cx="18" cy="18" r="2"/></svg></span>
+          Custom Game</button>
+        <button class="mbtn t" data-go="howto">
+          <span class="ic"><svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.8">
+            <path d="M3 5.5A2.5 2.5 0 0 1 5.5 3H11v18H5.5A2.5 2.5 0 0 1 3 18.5z"/>
+            <path d="M21 5.5A2.5 2.5 0 0 0 18.5 3H13v18h5.5a2.5 2.5 0 0 0 2.5-2.5z"/></svg></span>
+          How to Play</button>
+      </div>
+    </div>
+    <div class="tagline">Good aim · Smart moves · Total victory</div>
+  </div>
+  <div class="callout">
+    <div class="h">Idle animation running</div>
+    <p>Embers, drifting cloud bands, sweeping beams, waving flags, twinkling stars, a pulsing muzzle glow, and a
+    periodic exchange of fire between the two silhouettes. All canvas, no assets, about 90 lines. It also doubles as
+    an ambient physics test — if the loop stutters here it will stutter in a match.</p>
+  </div>
+</section>
+
+<!-- ============ MODE ============ -->
+<section class="screen" id="s-mode">
+  <div class="sc">
+    <header><span class="h">Select mode</span><span class="n">QUICK START · 1 / 2</span>
+      <span class="r" id="modeR">—</span></header>
+    <div class="b">
+      <div class="modes">
+        <div class="mode sel" data-mode="local" style="color:var(--amber)">
+          <div class="n">1 v 1 Local</div>
+          <div class="d">Hotseat on one device. Two people, one screen, alternating turns.
+            No AI, no netcode — the mode the whole game is designed around.</div>
+        </div>
+        <div class="mode" data-mode="cpu" style="color:var(--blue)">
+          <div class="n">1 v CPU</div>
+          <div class="d">Play against a bracketing gunner. It fires a ranging shot, reads its own miss,
+            and corrects — the same way you do.</div>
+          <div class="tiers" id="tiers"></div>
+        </div>
+      </div>
+    </div>
+    <div class="foot">
+      <button class="back" data-go="title">← Back</button>
+      <span class="sum" id="modeSum"></span>
+      <button class="go" data-go="map">Continue</button>
+    </div>
+  </div>
+</section>
+
+<!-- ============ MAP ============ -->
+<section class="screen" id="s-map">
+  <div class="sc">
+    <header><span class="h">Select map</span><span class="n">QUICK START · 2 / 2</span>
+      <span class="r" id="mapR">—</span></header>
+    <div class="b"><div class="maps" id="maps"></div></div>
+    <div class="foot">
+      <button class="back" data-go="mode">← Back</button>
+      <span class="sum" id="mapSum"></span>
+      <button class="go" data-go="deploy">Start Game</button>
+    </div>
+  </div>
+</section>
+
+<!-- ============ CUSTOM ============ -->
+<section class="screen" id="s-custom">
+  <div class="sc">
+    <header><span class="h">Custom game</span><span class="n">ALL SETTINGS</span>
+      <span class="r" id="customR">—</span></header>
+    <div class="b">
+      <div class="grp"><div class="gh">Match</div><div class="opts" id="optMatch"></div></div>
+      <div class="grp"><div class="gh">World</div><div class="opts" id="optWorld"></div></div>
+      <div class="grp"><div class="gh">Ammunition — enable shells and set how many of each</div>
+        <div class="ammo" id="ammoList"></div></div>
+    </div>
+    <div class="foot">
+      <button class="back" data-go="title">← Back</button>
+      <span class="sum" id="customSum"></span>
+      <button class="go" data-go="deploy">Start Game</button>
+    </div>
+  </div>
+</section>
+
+<!-- ============ HOW TO PLAY ============ -->
+<section class="screen" id="s-howto">
+  <div class="sc">
+    <header><span class="h">How to play</span><span class="n">ONE IDEA: WALK YOUR FIRE ONTO THE TARGET</span></header>
+    <div class="b">
+      <div class="htp">
+        <div class="steps" id="steps"></div>
+        <div>
+          <div class="stage2"><canvas id="hc" width="1000" height="470"></canvas>
+            <div class="shotlbl" id="shotlbl">—</div></div>
+          <div class="facts">
+            <div class="fact"><div class="v">632 px</div><div class="d">How far power 70 travels at 45°. Learn three of these and you can bracket anything.</div></div>
+            <div class="fact"><div class="v">±115 px</div><div class="d">What full wind does to that shot. Roughly 7 power, or 2°, to cancel.</div></div>
+            <div class="fact"><div class="v">×1.55</div><div class="d">Heavy Mortar's mass. It multiplies gravity, so the power that works for HE falls far short.</div></div>
+          </div>
+        </div>
+      </div>
+      <div class="keys" id="keys"></div>
+    </div>
+    <div class="foot">
+      <button class="back" data-go="title">← Back</button>
+      <span class="sum">Three shots. Short, long, hit. That is the entire game.</span>
+      <button class="go" data-go="mode">Play</button>
+    </div>
+  </div>
+</section>
+
+<!-- ============ DEPLOY ============ -->
+<section class="screen" id="s-deploy">
+  <div class="sc">
+    <header><span class="h">Deploying</span><span class="n">RESOLVED CONFIGURATION</span></header>
+    <div class="b"><div class="rows" id="deployRows"></div></div>
+    <div class="foot">
+      <button class="back" data-go="title">← Menu</button>
+      <span class="sum">In the build this hands off to <b>ROUND_INTRO</b>.</span>
+      <button class="go" data-go="title">Fight</button>
+    </div>
+  </div>
+  <div class="callout">
+    <div class="h">What the round-over screen needs</div>
+    <p>More important than this one, because it decides whether a second match happens.
+    Three buttons: <b>Rematch</b> (same settings, new seed, primary),
+    <b>Change loadout</b> (rematch but stop at ammo), and a quiet <b>Menu</b>.
+    If a player has to cross the title screen to play again, most won't.</p>
+  </div>
+</section>
+
+</div>
+
+<script>
+"use strict";
+/* ===================== shared sim ===================== */
+const G=0.215,MUZZLE=0.160,SUB=8,WIND_K=0.00038;
+function mul32(a){return function(){a|=0;a=(a+0x6D2B79F5)|0;let t=Math.imul(a^(a>>>15),1|a);
+  t=(t+Math.imul(t^(t>>>7),61|t))^t;return((t^(t>>>14))>>>0)/4294967296;};}
+function midpoint(rnd,W,H,lo,hi,rough){
+  const N=256,p=new Float32Array(N+1);
+  p[0]=H*(lo+rnd()*(hi-lo));p[N]=H*(lo+rnd()*(hi-lo));
+  let st=N,d=H*rough;
+  while(st>1){const h=st>>1;for(let i=h;i<N;i+=st)p[i]=(p[i-h]+p[i+h])/2+(rnd()*2-1)*d;st=h;d*=.55;}
+  const o=new Float32Array(W);
+  for(let x=0;x<W;x++){const t=x*N/W,i=Math.floor(t),f=t-i;o[x]=p[i]*(1-f)+p[Math.min(N,i+1)]*f;}
+  return o;
+}
+const GEN={
+  hills(s,W,H){const r=mul32(s),h=midpoint(r,W,H,.50,.66,.30);
+    for(let x=0;x<W;x++){h[x]+=Math.sin(x*.011)*8+Math.sin(x*.029+1.3)*4;h[x]=Math.max(H*.34,Math.min(H-50,h[x]));}return h;},
+  canyon(s,W,H){const r=mul32(s),h=midpoint(r,W,H,.42,.52,.14);
+    for(let x=0;x<W;x++){const t=(x/W-.5)*2,g=Math.exp(-(t*t)/.028);
+      h[x]+=g*(H*.62-h[x]);h[x]=Math.max(H*.30,Math.min(H-8,h[x]));}return h;},
+  craters(s,W,H){const r=mul32(s),h=midpoint(r,W,H,.52,.60,.10),n=6+Math.floor(r()*5);
+    for(let k=0;k<n;k++){const cx=r()*W,rad=W*(.035+r()*.075),dep=rad*(.5+r()*.4);
+      for(let x=Math.max(0,cx-rad|0);x<Math.min(W,cx+rad|0);x++){const dx=(x-cx)/rad;
+        h[x]+=dep*Math.max(0,1-dx*dx)*.95;if(Math.abs(dx)>.86&&Math.abs(dx)<1)h[x]-=dep*.28;}}
+    for(let x=0;x<W;x++)h[x]=Math.max(H*.36,Math.min(H-40,h[x]));return h;},
+  plates(s,W,H){const r=mul32(s),b=midpoint(r,W,H,.48,.62,.26),st=H*.075,h=new Float32Array(W);
+    for(let x=0;x<W;x++)h[x]=Math.max(H*.36,Math.min(H-45,Math.round(b[x]/st)*st));return h;},
+  spires(s,W,H){const r=mul32(s),h=midpoint(r,W,H,.62,.72,.10),n=5+Math.floor(r()*4);
+    for(let k=0;k<n;k++){const cx=W*(.08+r()*.84),wd=W*(.018+r()*.028),ht=H*(.16+r()*.26);
+      for(let x=Math.max(0,cx-wd*2|0);x<Math.min(W,cx+wd*2|0);x++){const dx=(x-cx)/wd;h[x]-=ht*Math.exp(-dx*dx*1.6);}}
+    for(let x=0;x<W;x++)h[x]=Math.max(H*.16,Math.min(H-40,h[x]));return h;},
+  ring(s,W,H){const r=mul32(s),h=new Float32Array(W),amp=[],ph=[],fr=[];
+    for(let k=0;k<5;k++){fr.push(k+1);amp.push((H*.09)/(k*.6+1));ph.push(r()*Math.PI*2);}
+    for(let x=0;x<W;x++){let v=H*.56;for(let k=0;k<5;k++)v+=Math.sin((x/W)*Math.PI*2*fr[k]+ph[k])*amp[k];
+      h[x]=Math.max(H*.34,Math.min(H-50,v));}return h;}
+};
+const WORLDS=[
+ {id:'terra',name:'Terra',g:1.00,drag:0,width:1000,wind:100,gen:'hills',accent:'#7BD389',atm:'STANDARD',
+  sky:['#171E2B','#2B3A52','#6A6E7C','#C9A87C'],ground:'#4A5540',edge:'#5E6B52'},
+ {id:'vesper',name:'Vesper',g:0.90,drag:.012,width:620,wind:60,gen:'spires',accent:'#FF8C6B',atm:'THICK',
+  sky:['#2A1420','#5C2438','#A8553C','#E0A070'],ground:'#6B4238',edge:'#7E5245'},
+ {id:'rust',name:'Rust',g:0.62,drag:0,width:1620,wind:40,gen:'canyon',accent:'#E8B33C',atm:'THIN',
+  sky:['#1C1614','#4A2E22','#8A5A3C','#D9A878'],ground:'#7A4A32',edge:'#8E5A3E'},
+ {id:'selene',name:'Selene',g:0.45,drag:0,width:2220,wind:0,gen:'craters',accent:'#B8C4D4',atm:'VACUUM',
+  sky:['#05070C','#0C121C','#1A2230','#4A4E58'],ground:'#5A5E62',edge:'#6E7276'},
+ {id:'ferrum',name:'Ferrum',g:1.75,drag:0,width:580,wind:80,gen:'plates',accent:'#FF5C5C',atm:'STANDARD',
+  sky:['#0A0A0E','#241A22','#4A2A2A','#7A4038'],ground:'#3E3A3E',edge:'#524C52'},
+ {id:'hollow',name:'Hollow',g:0.30,drag:0,width:1200,wind:20,gen:'ring',accent:'#4FC3D9',atm:'MICRO · WRAPS',
+  sky:['#02040A','#080E1A','#101A2A','#243040'],ground:'#3A4450',edge:'#4E5A68'}
+];
+const ICONS={
+  he:`<path d="M12 2.5c2.1 2.4 3.1 4.9 3.1 7.4v6.4H8.9V9.9c0-2.5 1-5 3.1-7.4z"/><path d="M8.9 16.3 6.2 20.5M15.1 16.3l2.7 4.2"/><path d="M9.4 20.5h5.2"/>`,
+  mortar:`<path d="M12 3.4c2.6 2.4 3.9 4.7 3.9 7.1v5.8H8.1v-5.8c0-2.4 1.3-4.7 3.9-7.1z"/><path d="M8.1 16.3 5.2 20.5M15.9 16.3l2.9 4.2"/><path d="M9.6 9.6 12 12l2.4-2.4"/><path d="M9.6 13 12 15.4l2.4-2.4"/>`,
+  cluster:`<circle cx="12" cy="4.6" r="1.7"/><path d="M10.7 6.1 6.6 15.6M11.5 6.4 9.6 16.4M12 6.4v10.2M12.5 6.4l1.9 10M13.3 6.1l4.1 9.5"/><path d="M2.5 19.8h19"/>`,
+  buster:`<path d="M12 2.2v5.6"/><path d="M8.8 6.6 12 10l3.2-3.4"/><path d="M2.5 11.4h6.4M15.1 11.4h6.4"/><path d="M12 12.8v2.6M12 17.4v3"/>`,
+  roller:`<path d="M2.5 7.4 21.5 18.6"/><circle cx="15.2" cy="13.3" r="2.7"/><path d="M7.4 9.4 9.8 10.8M10.2 7.6 12.3 8.8"/>`,
+  sand:`<rect x="3.4" y="13.7" width="8.1" height="4.7" rx="2.35"/><rect x="12.5" y="13.7" width="8.1" height="4.7" rx="2.35"/><rect x="7.9" y="8.5" width="8.1" height="4.7" rx="2.35"/><path d="M2.5 20.4h19"/>`,
+  skipper:`<path d="M2.5 19.5h19"/><path d="M3 19.5C4.3 9.2 7.6 9.2 8.9 19.5"/><path d="M8.9 19.5C10 12.6 12.7 12.6 13.8 19.5"/><path d="M13.8 19.5C14.7 15.2 16.8 15.2 17.7 19.5"/>`,
+  airburst:`<path d="M7.4 6.4 12 2.2l4.6 4.2"/><path d="M6 9.4v6.2M12 8.4v7.2M18 9.4v6.2"/><path d="M4.4 14 6 15.8 7.6 14M10.4 14 12 15.8 13.6 14M16.4 14 18 15.8 19.6 14"/><path d="M2.5 19.5h19"/>`,
+  drill:`<path d="M12 2.2v4.6"/><path d="M9.8 5 12 7.2 14.2 5"/><path d="M2.5 9.6h7M14.5 9.6h7"/><path d="M9.6 9.6v7.8l2.4 4.2 2.4-4.2V9.6"/><path d="M9.6 12.7h4.8M9.6 15.4h4.8"/>`,
+  mirv:`<circle cx="12" cy="3" r="1.4"/><path d="M12 4.5 7.4 8.8M12 4.5v4.3M12 4.5l4.6 4.3"/><path d="M7.4 8.8 5 15.4M7.4 8.8v6.6M7.4 8.8 9.8 15.4"/><path d="M12 8.8 9.8 15.4M12 8.8v6.6M12 8.8l2.2 6.6"/><path d="M16.6 8.8 14.2 15.4M16.6 8.8v6.6M16.6 8.8 19 15.4"/><path d="M2.5 19.5h19"/>`,
+  napalm:`<path d="M12 2.8c3.1 3.5 4.6 6.1 4.6 8.4a4.6 4.6 0 0 1-9.2 0c0-1.7.7-3.2 2.1-4.7.4 1.4 1 2.3 2 2.8-.3-2.2.5-4.4 2.5-6.5z"/><path d="M5.6 19.6c0-1.6.9-2.8 2.2-3.4M18.4 19.6c0-1.6-.9-2.8-2.2-3.4"/><path d="M2.5 19.6h19"/>`,
+  repair:`<rect x="2.8" y="7.4" width="18.4" height="12.2" rx="2.2"/><path d="M8.8 7.4V6a1.6 1.6 0 0 1 1.6-1.6h3.2A1.6 1.6 0 0 1 15.2 6v1.4"/><path d="M12 10.4v6.2M8.9 13.5h6.2"/>`,
+  anvil:`<path d="M4.4 11.2h13.1c1.9 0 3.2 1.2 4 3-2.6-.6-4.2.1-5.6 1.4H8.6c-2.6 0-4.2-1.7-4.2-4.4z"/>
+         <path d="M10.2 15.6v2.4M13.8 15.6v2.4"/>
+         <path d="M7.6 18h8.8"/>
+         <path d="M8.4 6.2v-3M12 5v-2.6M15.6 6.2v-3"/>`
+};
+const icon=(id,s)=>`<svg viewBox="0 0 24 24" width="${s||16}" height="${s||16}" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex:none;display:block">${ICONS[id]}</svg>`;
+
+const SHELLS=[
+ {id:'he',name:'HE Shell',ammo:'∞',def:true,lock:true,col:'#FF6B35'},
+ {id:'mortar',name:'Heavy Mortar',ammo:4,def:true,col:'#FF8C42'},
+ {id:'cluster',name:'Cluster Bomb',ammo:3,def:true,col:'#FFD166'},
+ {id:'buster',name:'Bunker Buster',ammo:3,def:true,col:'#C77DFF'},
+ {id:'roller',name:'Roller',ammo:3,def:true,col:'#7BD389'},
+ {id:'sand',name:'Sandbags',ammo:3,def:true,col:'#C9A87C'},
+ {id:'skipper',name:'Skipper',ammo:3,def:false,col:'#8FD6FF'},
+ {id:'airburst',name:'Airburst',ammo:2,def:false,col:'#FF9FD4'},
+ {id:'drill',name:'Drill Charge',ammo:2,def:false,col:'#B0A0FF'},
+ {id:'mirv',name:'MIRV',ammo:2,def:false,col:'#FFD9F0'},
+ {id:'napalm',name:'Napalm',ammo:2,def:false,col:'#FF7043'},
+ {id:'anvil',name:'Anvil Round',ammo:2,def:true,col:'#9FB3C8'},
+ {id:'repair',name:'Repair Kit',ammo:1,def:false,col:'#4FC3D9'}
+];
+const TIERS=[
+ {id:'recruit',name:'Recruit',stat:'~5.6 shots to hit'},
+ {id:'gunner', name:'Gunner', stat:'~3.7 shots to hit'},
+ {id:'veteran',name:'Veteran',stat:'~2.8 shots to hit'}
+];
+
+/* ===================== state ===================== */
+const cfg={mode:'local',tier:'gunner',world:'random',rounds:3,wind:'full',timer:'off',
+  gen:'auto',seed:'random',ammo:{}, path:'quick'};
+SHELLS.forEach(s=>cfg.ammo[s.id]={on:s.def||s.lock,n:s.ammo==='∞'?'∞':s.ammo});
+
+/* ===================== title idle animation ===================== */
+const tc=document.getElementById('tc'),tx=tc.getContext('2d');
+const TW=1200,TH=620;
+const rnd=mul32(7);
+const stars=[...Array(90)].map(()=>({x:rnd()*TW,y:rnd()*TH*.55,r:.6+rnd()*1.4,p:rnd()*7,s:.6+rnd()*1.6}));
+const clouds=[...Array(7)].map((_,i)=>({y:60+i*46+rnd()*22,w:280+rnd()*340,h:26+rnd()*26,
+  x:rnd()*TW,v:.06+rnd()*.16,a:.05+rnd()*.07}));
+let embers=[],puffs=[],flash=[0,0],T=0;
+const ridgeFar=GEN.hills(31,TW,TH), ridgeNear=GEN.hills(88,TW,TH);
+function tankSil(g,x,y,col,dir,rec){
+  g.save();g.translate(x+(-dir*rec),y);g.scale(dir,1);
+  g.fillStyle=col;
+  g.beginPath();g.roundRect(-30,-14,60,14,4);g.fill();
+  g.beginPath();g.roundRect(-25,-30,50,18,5);g.fill();
+  g.beginPath();g.arc(0,-32,12,Math.PI,0);g.fill();
+  g.fillRect(4,-38,44,7);
+  g.fillStyle='rgba(0,0,0,.4)';
+  for(let i=-1;i<=1;i++){g.beginPath();g.arc(i*17,-7,5,0,7);g.fill();}
+  g.restore();
+}
+function flag(g,x,y,col,lbl,t){
+  g.strokeStyle='#6B5A3C';g.lineWidth=3;
+  g.beginPath();g.moveTo(x,y);g.lineTo(x,y-72);g.stroke();
+  g.fillStyle=col;g.beginPath();g.moveTo(x,y-72);
+  for(let i=0;i<=10;i++){const p=i/10;g.lineTo(x+p*46,y-72+Math.sin(t*2.2+p*4)*4.5);}
+  for(let i=10;i>=0;i--){const p=i/10;g.lineTo(x+p*46,y-44+Math.sin(t*2.2+p*4)*4.5);}
+  g.closePath();g.fill();
+  g.fillStyle='rgba(0,0,0,.55)';g.font='700 15px '+getComputedStyle(document.body).fontFamily;
+  g.fillText(lbl,x+15,y-56);
+}
+function drawTitle(){
+  T+=1/60;
+  const g=tx;
+  const sk=g.createLinearGradient(0,0,0,TH);
+  sk.addColorStop(0,'#050810');sk.addColorStop(.42,'#0E1930');sk.addColorStop(.72,'#20304A');sk.addColorStop(1,'#3A3A44');
+  g.fillStyle=sk;g.fillRect(0,0,TW,TH);
+
+  stars.forEach(s=>{g.globalAlpha=.25+.55*Math.abs(Math.sin(T*s.s+s.p));
+    g.fillStyle='#CFE0F5';g.beginPath();g.arc(s.x,s.y,s.r,0,7);g.fill();});
+  g.globalAlpha=1;
+
+  // sweeping beams
+  for(let i=0;i<2;i++){
+    const ang=-Math.PI/2+Math.sin(T*.17+i*2.1)*.55, ox=i?TW*.72:TW*.28, oy=TH*.96;
+    const gr=g.createLinearGradient(ox,oy,ox+Math.cos(ang)*TH,oy+Math.sin(ang)*TH);
+    gr.addColorStop(0,'rgba(255,190,120,.10)');gr.addColorStop(1,'rgba(255,190,120,0)');
+    g.fillStyle=gr;g.beginPath();g.moveTo(ox,oy);
+    g.lineTo(ox+Math.cos(ang-.05)*TH*1.2,oy+Math.sin(ang-.05)*TH*1.2);
+    g.lineTo(ox+Math.cos(ang+.05)*TH*1.2,oy+Math.sin(ang+.05)*TH*1.2);
+    g.closePath();g.fill();
+  }
+
+  clouds.forEach(c=>{c.x+=c.v;if(c.x>TW+c.w)c.x=-c.w;
+    g.globalAlpha=c.a;g.fillStyle='#8FA6C4';
+    g.beginPath();g.ellipse(c.x,c.y,c.w/2,c.h/2,0,0,7);g.fill();});
+  g.globalAlpha=1;
+
+  // central glow
+  const pulse=.55+.45*Math.sin(T*1.4);
+  const gg=g.createRadialGradient(TW/2,TH*.30,4,TW/2,TH*.30,190);
+  gg.addColorStop(0,'rgba(255,150,60,'+(.16*pulse).toFixed(3)+')');
+  gg.addColorStop(1,'rgba(255,150,60,0)');
+  g.fillStyle=gg;g.fillRect(TW/2-200,TH*.30-200,400,400);
+
+  // ridges
+  const ridge=(h,col,off)=>{g.fillStyle=col;g.beginPath();g.moveTo(0,TH);
+    for(let x=0;x<TW;x+=6)g.lineTo(x,h[x]+off);g.lineTo(TW,TH);g.closePath();g.fill();};
+  ridge(ridgeFar,'#141C2C',96);
+  ridge(ridgeNear,'#0C121D',176);
+
+  // foreground cliffs
+  g.fillStyle='#070B12';
+  g.beginPath();g.moveTo(0,TH);g.lineTo(0,TH*.70);
+  for(let x=0;x<=310;x+=10)g.lineTo(x,TH*.70+Math.sin(x*.02)*9+x*.045);
+  g.lineTo(310,TH);g.closePath();g.fill();
+  g.beginPath();g.moveTo(TW,TH);g.lineTo(TW,TH*.70);
+  for(let x=0;x<=310;x+=10)g.lineTo(TW-x,TH*.70+Math.sin(x*.023)*9+x*.045);
+  g.lineTo(TW-310,TH);g.closePath();g.fill();
+
+  // periodic exchange of fire
+  [0,1].forEach(i=>{
+    if(Math.random()<.0055&&flash[i]<=0){
+      flash[i]=9;
+      const bx=i?TW-232:232, by=TH*.745;
+      for(let k=0;k<11;k++)puffs.push({x:bx+(i?-52:52),y:by-38,
+        vx:(i?-1:1)*(.5+Math.random()*1.4),vy:-.35-Math.random()*.5,
+        life:52+Math.random()*30,max:82,r:4+Math.random()*7});
+    }
+    if(flash[i]>0)flash[i]--;
+  });
+  puffs=puffs.filter(p=>{p.x+=p.vx;p.y+=p.vy;p.r+=.22;p.life--;
+    g.globalAlpha=Math.max(0,p.life/p.max)*.3;g.fillStyle='#9AA8BC';
+    g.beginPath();g.arc(p.x,p.y,p.r,0,7);g.fill();return p.life>0;});
+  g.globalAlpha=1;
+
+  flag(g,150,TH*.755,'#E8B33C','P1',T);
+  flag(g,TW-196,TH*.755,'#4FC3D9','P2',T+1.1);
+  tankSil(g,232,TH*.755,'#E8B33C',1,flash[0]>0?4:0);
+  tankSil(g,TW-232,TH*.755,'#4FC3D9',-1,flash[1]>0?4:0);
+  [0,1].forEach(i=>{ if(flash[i]>5){
+    const bx=i?TW-232-52:232+52;
+    g.globalAlpha=(flash[i]-5)/4;g.fillStyle='#FFD9A0';
+    g.beginPath();g.arc(bx,TH*.755-38,13,0,7);g.fill();g.globalAlpha=1;}});
+
+  // embers
+  if(Math.random()<.5) embers.push({x:Math.random()*TW,y:TH+8,
+    vx:(Math.random()-.5)*.28,vy:-(.35+Math.random()*.85),life:150+Math.random()*160,max:310,
+    r:.8+Math.random()*1.6});
+  embers=embers.filter(e=>{e.x+=e.vx;e.y+=e.vy;e.vx+=(Math.random()-.5)*.02;e.life--;
+    g.globalAlpha=Math.max(0,e.life/e.max)*.8;g.fillStyle=Math.random()<.3?'#FFD9A0':'#FF8C42';
+    g.beginPath();g.arc(e.x,e.y,e.r,0,7);g.fill();return e.life>0&&e.y>-20;});
+  g.globalAlpha=1;
+
+  // vignette
+  const vg=g.createRadialGradient(TW/2,TH/2,TH*.34,TW/2,TH/2,TH*.98);
+  vg.addColorStop(0,'rgba(0,0,0,0)');vg.addColorStop(1,'rgba(0,0,0,.66)');
+  g.fillStyle=vg;g.fillRect(0,0,TW,TH);
+}
+
+/* ===================== how-to-play bracketing loop ===================== */
+const hc=document.getElementById('hc'),hx=hc.getContext('2d');
+const HW=1000,HH=470;
+const HHT=(()=>{const h=GEN.hills(1597,HW,HH*1.19);const o=new Float32Array(HW);
+  for(let x=0;x<HW;x++)o[x]=Math.min(HH-40,h[x]*.84+60);return o;})();
+const hAt=(h,x)=>x<0?h[0]:x>=HW?h[HW-1]:h[x|0];
+const T1=140,T2=840;
+function arc(ang,pow,wind){
+  const a=ang*Math.PI/180,v=pow*MUZZLE;
+  let x=T1+Math.cos(a)*24,y=hAt(HHT,T1)-16-Math.sin(a)*24,vx=Math.cos(a)*v,vy=-Math.sin(a)*v;
+  const pts=[{x,y}];
+  for(let f=0;f<900;f++){for(let s=0;s<SUB;s++){
+    vy+=G/SUB;vx+=wind*WIND_K/SUB;x+=vx/SUB;y+=vy/SUB;
+    if(x<-40||x>HW+40||y>HH+80){pts.push({x,y});return{pts,imp:null};}
+    if(y>=hAt(HHT,x)){pts.push({x,y});return{pts,imp:{x,y}};}}
+    pts.push({x,y});}
+  return{pts,imp:null};
+}
+const SHOTS=[
+ {ang:45,pow:69,wind:0,label:'SHOT 1 · power <b>69</b> · <b style="color:#7A8697">111 px SHORT</b>'},
+ {ang:45,pow:82,wind:0,label:'SHOT 2 · power <b>82</b> · <b style="color:#7A8697">100 px LONG</b>'},
+ {ang:45,pow:76,wind:0,label:'SHOT 3 · power <b>76</b> — the midpoint · <b style="color:#FF6B35">HIT</b>'}
+];
+SHOTS.forEach(s=>{s.r=arc(s.ang,s.pow,s.wind);});
+let hIdx=0,hFrame=0,hHold=0,trails=[];
+function drawHowto(){
+  const g=hx;
+  const sk=g.createLinearGradient(0,0,0,HH);
+  sk.addColorStop(0,'#171E2B');sk.addColorStop(.45,'#2B3A52');sk.addColorStop(.8,'#6A6E7C');sk.addColorStop(1,'#C9A87C');
+  g.fillStyle=sk;g.fillRect(0,0,HW,HH);
+  g.beginPath();g.moveTo(-10,HH);g.lineTo(-10,HHT[0]);
+  for(let x=0;x<HW;x+=3)g.lineTo(x,HHT[x]);
+  g.lineTo(HW,HHT[HW-1]);g.lineTo(HW,HH);g.closePath();
+  g.fillStyle='#4A5540';g.fill();g.strokeStyle='#5E6B52';g.lineWidth=2.5;g.stroke();
+
+  trails.forEach((t,i)=>{
+    g.setLineDash([2,7]);g.lineWidth=1.8;g.globalAlpha=.3;g.strokeStyle='#E8B33C';
+    g.beginPath();g.moveTo(t[0].x,t[0].y);
+    for(let k=1;k<t.length;k++)g.lineTo(t[k].x,t[k].y);
+    g.stroke();g.setLineDash([]);g.globalAlpha=1;
+  });
+
+  const cur=SHOTS[hIdx],n=Math.min(cur.r.pts.length,hFrame);
+  if(n>1){
+    g.strokeStyle=hIdx===2?'#FF6B35':'#E8B33C';g.lineWidth=2.8;g.lineCap='round';g.lineJoin='round';
+    g.beginPath();g.moveTo(cur.r.pts[0].x,cur.r.pts[0].y);
+    for(let k=1;k<n;k++)g.lineTo(cur.r.pts[k].x,cur.r.pts[k].y);
+    g.stroke();
+    const p=cur.r.pts[n-1];
+    g.fillStyle=hIdx===2?'#FF6B35':'#E8B33C';
+    g.beginPath();g.arc(p.x,p.y,3.6,0,7);g.fill();
+  }
+  if(n>=cur.r.pts.length&&cur.r.imp){
+    const k=Math.min(1,(hHold)/16);
+    g.globalAlpha=.9-k*.55;g.fillStyle='#FF6B35';
+    g.beginPath();g.arc(cur.r.imp.x,cur.r.imp.y,6+k*26,0,7);g.fill();g.globalAlpha=1;
+  }
+  [[T1,'#E8B33C',cur.ang],[T2,'#4FC3D9',135]].forEach(([x,col,ang])=>{
+    const y=hAt(HHT,x),a=ang*Math.PI/180;
+    g.save();g.translate(x,y);
+    g.fillStyle='#2A313C';g.beginPath();g.roundRect(-15,-7,30,7,3);g.fill();
+    g.fillStyle=col;g.beginPath();g.roundRect(-13,-15,26,9,2.5);g.fill();
+    g.beginPath();g.arc(0,-16,6,Math.PI,0);g.fill();
+    g.strokeStyle=col;g.lineWidth=4;g.lineCap='round';
+    g.beginPath();g.moveTo(0,-16);g.lineTo(Math.cos(a)*25,-16-Math.sin(a)*25);g.stroke();
+    g.restore();
+  });
+
+  hFrame+=2;
+  if(hFrame>=cur.r.pts.length){
+    hHold++;
+    if(hHold>52){
+      trails.push(cur.r.pts);
+      if(trails.length>2)trails.shift();
+      hIdx=(hIdx+1)%3; if(hIdx===0)trails=[];
+      hFrame=0;hHold=0;paintSteps();
+    }
+  }
+  document.getElementById('shotlbl').innerHTML=cur.label;
+}
+
+/* ===================== screens ===================== */
+const STEPS=[
+ {t:'1 · Fire a ranging shot',p:'You have no information yet. Point at 45°, guess the power, and shoot. This one is not meant to hit.'},
+ {t:'2 · Read your own trail',p:'The dotted line stays on screen. Short means more power, long means less. That line is the only aiming instrument in the game.'},
+ {t:'3 · Split the difference',p:'Halfway between a short and a long is a hit. Wind rerolls every turn, so you re-solve a little each time — never from scratch.'}
+];
+function paintSteps(){
+  document.getElementById('steps').innerHTML=STEPS.map((s,i)=>
+    `<div class="s ${i===hIdx?'act':''}"><div class="t">${s.t}</div><p>${s.p}</p></div>`).join('');
+}
+document.getElementById('keys').innerHTML=[
+ ['← →','Elevation. Hold Shift for 5° steps.'],
+ ['↑ ↓','Power, 10 to 100.'],
+ ['1 – 6','Pick a shell from your deck. <span style="display:inline-flex;gap:5px;margin-top:5px">'+
+   ['he','mortar','cluster','buster','roller','anvil'].map(id=>`<span style="color:${SHELLS.find(s=>s.id===id).col}">${icon(id,15)}</span>`).join('')+'</span>'],
+ ['Space','Fire. Nothing else accepts input once it leaves the barrel.']
+].map(([k,d])=>`<div class="key"><div class="k">${k}</div><div class="d">${d}</div></div>`).join('');
+
+function terrainSVG(w,seed,vh){
+  const W=460,H=560,h=GEN[w.gen](seed,W,H);
+  const uid='k'+(terrainSVG._n=(terrainSVG._n||0)+1);
+  let d=`M 0 ${H} L 0 ${h[0].toFixed(1)}`;
+  for(let x=0;x<W;x+=3)d+=` L ${x} ${h[x].toFixed(1)}`;
+  d+=` L ${W} ${h[W-1].toFixed(1)} L ${W} ${H} Z`;
+  return `<svg viewBox="0 0 ${W} ${vh}" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+    <defs><linearGradient id="${uid}" x1="0" y1="0" x2="0" y2="1">
+    ${w.sky.map((c,i)=>`<stop offset="${(i/(w.sky.length-1)).toFixed(2)}" stop-color="${c}"/>`).join('')}
+    </linearGradient></defs>
+    <rect width="${W}" height="${vh}" fill="url(#${uid})"/>
+    <path d="${d}" fill="${w.ground}"/><path d="${d}" fill="none" stroke="${w.edge}" stroke-width="4"/></svg>`;
+}
+
+function renderTiers(){
+  document.getElementById('tiers').innerHTML=TIERS.map(t=>
+    `<div class="tier ${cfg.tier===t.id?'sel':''}" data-tier="${t.id}">
+      <div class="t">${t.name}</div><div class="v">${t.stat}</div></div>`).join('');
+  document.querySelectorAll('[data-tier]').forEach(e=>e.onclick=ev=>{
+    ev.stopPropagation();cfg.mode='cpu';cfg.tier=e.dataset.tier;renderMode();});
+}
+function renderMode(){
+  document.querySelectorAll('[data-mode]').forEach(e=>{
+    e.classList.toggle('sel',e.dataset.mode===cfg.mode);});
+  renderTiers();
+  const t=TIERS.find(x=>x.id===cfg.tier);
+  document.getElementById('modeR').textContent=cfg.mode==='cpu'?('CPU · '+t.name.toUpperCase()):'HOTSEAT';
+  document.getElementById('modeSum').innerHTML=cfg.mode==='cpu'
+    ? `CPU brackets like a player: ranging shot, read the miss, correct. <b>${t.stat}</b>`
+    : `Two players, one device. <b>No AI required</b>.`;
+}
+document.querySelectorAll('[data-mode]').forEach(e=>e.onclick=()=>{cfg.mode=e.dataset.mode;renderMode();});
+
+function renderMaps(){
+  const maxW=Math.max(...WORLDS.map(w=>w.width));
+  document.getElementById('maps').innerHTML=WORLDS.map(w=>
+    `<div class="map ${cfg.world===w.id?'sel':''}" data-world="${w.id}" style="color:${w.accent}">
+      <div class="pic">${terrainSVG(w,882,168)}</div>
+      <div class="m"><div class="n" style="color:${w.accent}">${w.name}</div>
+        <div class="d">GRAVITY ${w.g.toFixed(2)} · ${w.atm}</div>
+        <div class="bar"><i style="width:${Math.round(w.width/maxW*100)}%;background:${w.accent}"></i></div></div>
+    </div>`).join('')+
+    `<div class="map ${cfg.world==='random'?'sel':''}" data-world="random" style="color:#9FB3C8">
+      <div class="rand"><div><div class="n" style="color:#C7D0DC">Random</div>
+      <div class="d" style="margin-top:5px">ANY WORLD<br>ANY TERRAIN</div></div></div></div>`;
+  document.querySelectorAll('[data-world]').forEach(e=>e.onclick=()=>{cfg.world=e.dataset.world;renderMaps();});
+  const w=WORLDS.find(x=>x.id===cfg.world);
+  document.getElementById('mapR').textContent=w?w.name.toUpperCase():'RANDOM';
+  document.getElementById('mapSum').innerHTML=w
+    ? `Power 75 travels <b>${Math.round((75*MUZZLE)**2/(G*w.g))} px</b> here. Your Terra numbers will not carry over.`
+    : `A different world each round — <b>the player who adapts fastest wins</b>.`;
+}
+
+const OPTS={
+  rounds:{k:'Rounds',v:[['1','1'],['3','3'],['5','5']]},
+  wind:{k:'Wind',v:[['off','OFF'],['light','±40'],['full','±100']]},
+  timer:{k:'Turn timer',v:[['off','OFF'],['30','30s'],['15','15s']]},
+  gen:{k:'Terrain',v:[['auto','WORLD'],['hills','HILLS'],['canyon','CANYON'],['craters','CRATERS']]},
+  seed:{k:'Seed',v:[['random','RANDOM'],['1597','1597']]}
+};
+function renderCustom(){
+  const seg=(key,o)=>`<div class="opt"><div class="k">${o.k}</div><div class="seg">
+    ${o.v.map(([v,l])=>`<button data-opt="${key}" data-v="${v}" class="${String(cfg[key])===v?'on':''}">${l}</button>`).join('')}
+  </div></div>`;
+  document.getElementById('optMatch').innerHTML=seg('rounds',OPTS.rounds)+seg('wind',OPTS.wind)+seg('timer',OPTS.timer);
+  document.getElementById('optWorld').innerHTML=seg('gen',OPTS.gen)+seg('seed',OPTS.seed)+
+    `<div class="opt"><div class="k">World</div><div class="seg">
+      ${['random',...WORLDS.map(w=>w.id)].map(id=>`<button data-opt="world" data-v="${id}" class="${cfg.world===id?'on':''}">${id==='random'?'RND':id.slice(0,3).toUpperCase()}</button>`).join('')}
+    </div></div>`;
+  document.getElementById('ammoList').innerHTML=SHELLS.map(s=>{
+    const a=cfg.ammo[s.id];
+    return `<div class="ar ${a.on?'on':'off'}" style="${a.on?'color:'+s.col:''}">
+      <div class="sw" data-tog="${s.id}"></div>
+      <span style="color:${a.on?s.col:'var(--dim)'}">${icon(s.id,17)}</span>
+      <div class="nm">${s.name}${s.lock?' <span style="font-family:var(--mono);font-size:8.5px;color:var(--dim)">LOCKED</span>':''}</div>
+      <div class="ct">${s.lock?'<b>∞</b>':
+        `<button data-amt="${s.id}" data-d="-1">−</button><b>${a.n}</b><button data-amt="${s.id}" data-d="1">+</button>`}</div>
+    </div>`;
+  }).join('');
+  document.querySelectorAll('[data-opt]').forEach(b=>b.onclick=()=>{cfg[b.dataset.opt]=b.dataset.v;renderCustom();renderMaps();});
+  document.querySelectorAll('[data-tog]').forEach(b=>b.onclick=()=>{
+    const s=SHELLS.find(x=>x.id===b.dataset.tog); if(s.lock)return;
+    cfg.ammo[s.id].on=!cfg.ammo[s.id].on; renderCustom();});
+  document.querySelectorAll('[data-amt]').forEach(b=>b.onclick=()=>{
+    const a=cfg.ammo[b.dataset.amt];
+    a.n=Math.max(1,Math.min(9,a.n+ +b.dataset.d)); renderCustom();});
+  const on=SHELLS.filter(s=>cfg.ammo[s.id].on).length;
+  const total=SHELLS.filter(s=>cfg.ammo[s.id].on&&!s.lock).reduce((n,s)=>n+cfg.ammo[s.id].n,0);
+  document.getElementById('customR').textContent=on+' SHELLS · '+total+' ROUNDS';
+  document.getElementById('customSum').innerHTML=on>7
+    ? `<b style="color:var(--warn)">${on} shells enabled</b> — the deck shows six. Players pick from these at the loadout step.`
+    : `<b>${on} shells</b>, ${total} limited rounds between them.`;
+}
+
+function renderDeploy(){
+  const w=WORLDS.find(x=>x.id===cfg.world);
+  const t=TIERS.find(x=>x.id===cfg.tier);
+  const on=SHELLS.filter(s=>cfg.ammo[s.id].on);
+  const rows=[
+    ['Path',cfg.path==='quick'?'Quick Start':'Custom Game',cfg.path==='quick'?'2 screens':'1 screen'],
+    ['Mode',cfg.mode==='cpu'?('1 v CPU · '+t.name):'1 v 1 Local',cfg.mode==='cpu'?t.stat:'hotseat'],
+    ['World',w?w.name:'Random','gravity '+(w?w.g.toFixed(2):'—')],
+    ['Terrain',cfg.gen==='auto'?(w?w.gen:'world default'):cfg.gen,'seed '+cfg.seed],
+    ['Rounds','Best of '+cfg.rounds,'wind '+cfg.wind+' · timer '+cfg.timer],
+    ['Ammunition',
+      `<span style="display:inline-flex;gap:7px;align-items:center;flex-wrap:wrap;vertical-align:-3px">
+        ${on.map(s=>`<span style="color:${s.col}" title="${s.name}">${icon(s.id,19)}</span>`).join('')}
+       </span>`,
+      on.length+' enabled']
+  ];
+  document.getElementById('deployRows').innerHTML=rows.map(([k,v,x])=>
+    `<div class="rw"><span class="k">${k}</span><span class="v">${v}</span><span class="x">${x}</span></div>`).join('');
+}
+
+const CRUMBS={title:['Title'],mode:['Title','Mode'],map:['Title','Mode','Map'],
+  custom:['Title','Custom'],howto:['Title','How to play'],
+  deploy:cfg=>['Title',cfg.path==='quick'?'Mode':'Custom',cfg.path==='quick'?'Map':'','Deploy'].filter(Boolean)};
+let screen='title';
+function go(id){
+  if(id==='custom')cfg.path='custom';
+  if(id==='mode')cfg.path='quick';
+  screen=id;
+  document.querySelectorAll('.screen').forEach(s=>s.classList.toggle('on',s.id==='s-'+id));
+  const c=typeof CRUMBS[id]==='function'?CRUMBS[id](cfg):CRUMBS[id];
+  document.getElementById('crumb').innerHTML=c.map((x,i)=>
+    `<span class="${i===c.length-1?'on':''}">${x}</span>`).join('<i>›</i>');
+  if(id==='mode')renderMode();
+  if(id==='map')renderMaps();
+  if(id==='custom')renderCustom();
+  if(id==='deploy')renderDeploy();
+  if(id==='howto'){hIdx=0;hFrame=0;hHold=0;trails=[];paintSteps();}
+  scrollTo({top:0,behavior:'instant'});
+}
+document.querySelectorAll('[data-go]').forEach(b=>b.onclick=()=>go(b.dataset.go));
+document.getElementById('btnSettings').onclick=()=>alert(
+  'Settings\n\n· Sound / music\n· Reduced motion\n· Colour-blind palette\n· Credits\n\n'+
+  'Everything that is not a match setting lives here. If it needs tabs, it has too much in it.');
+
+paintSteps(); go('title');
+(function loop(){
+  drawTitle();
+  if(screen==='howto') drawHowto();
+  requestAnimationFrame(loop);
+})();
+</script>
+</body>
+</html>

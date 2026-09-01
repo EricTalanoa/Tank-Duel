@@ -1,0 +1,898 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tank Duel — Prototype</title>
+<style>
+  :root{
+    --void:#0E1219; --panel:#141A24; --panel2:#1B2330; --rule:#252F3D;
+    --text:#C7D0DC; --dim:#6E7A8A; --p1:#E8B33C; --p2:#4FC3D9; --hot:#FF6B35;
+    --mono: ui-monospace,"SF Mono","JetBrains Mono",Menlo,Consolas,monospace;
+    --sans:"Roboto Condensed","Arial Narrow",Inter,system-ui,sans-serif;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{
+    background:var(--void); color:var(--text); font-family:var(--sans);
+    min-height:100vh; display:flex; align-items:center; justify-content:center;
+    padding:14px; -webkit-font-smoothing:antialiased;
+  }
+  .shell{width:100%; max-width:1000px}
+
+  .label{font-size:10px; letter-spacing:.16em; text-transform:uppercase; color:var(--dim)}
+  .num{font-family:var(--mono); font-variant-numeric:tabular-nums}
+
+  /* ---- top bar ---- */
+  .topbar{display:grid; grid-template-columns:1fr auto 1fr; gap:10px; margin-bottom:8px}
+  .pcard{background:var(--panel); border:1px solid var(--rule); border-radius:3px; padding:8px 11px; position:relative; overflow:hidden}
+  .pcard::before{content:""; position:absolute; left:0; top:0; bottom:0; width:3px; background:var(--rule)}
+  .pcard.p1::before{background:var(--p1)} .pcard.p2::before{background:var(--p2)}
+  .pcard.idle{opacity:.42}
+  .pcard.p2{text-align:right}
+  .pname{font-size:13px; letter-spacing:.1em; text-transform:uppercase; font-weight:700}
+  .pcard.p1 .pname{color:var(--p1)} .pcard.p2 .pname{color:var(--p2)}
+  .hpwrap{height:6px; background:#0A0E14; border-radius:2px; margin-top:6px; overflow:hidden}
+  .hpbar{height:100%; width:100%; transition:width .28s cubic-bezier(.2,.8,.3,1)}
+  .p1 .hpbar{background:var(--p1)} .p2 .hpbar{background:var(--p2)}
+  .hpnum{font-size:11px; margin-top:3px; color:var(--dim)}
+  .turnbox{display:flex; flex-direction:column; align-items:center; justify-content:center; padding:0 14px}
+  .turnbox .v{font-family:var(--mono); font-size:15px; letter-spacing:.05em}
+
+  /* ---- canvas ---- */
+  .stage{position:relative; border:1px solid var(--rule); border-radius:3px; overflow:hidden; background:#0A0E14; line-height:0}
+  canvas{width:100%; height:auto; display:block; touch-action:none; cursor:crosshair}
+
+  .overlay{position:absolute; inset:0; display:none; align-items:center; justify-content:center;
+    background:rgba(10,14,20,.86); backdrop-filter:blur(3px); line-height:1.4}
+  .overlay.on{display:flex}
+  .ov{text-align:center}
+  .ov h2{font-size:30px; letter-spacing:.1em; text-transform:uppercase; margin-bottom:6px}
+  .ov p{font-size:12px; color:var(--dim); margin-bottom:16px; letter-spacing:.05em}
+
+  /* ---- control deck ---- */
+  .deck{margin-top:8px; background:var(--panel); border:1px solid var(--rule); border-radius:3px; padding:11px}
+  .wep{display:grid; grid-template-columns:repeat(6,1fr); gap:6px; margin-bottom:11px}
+  .chip{background:var(--panel2); border:1px solid var(--rule); border-radius:2px; padding:7px 6px; cursor:pointer;
+    text-align:left; color:var(--text); font-family:var(--sans); transition:border-color .12s, background .12s}
+  .chip:hover{border-color:#3A4658}
+  .chip.sel{border-color:currentColor; background:#222C3B}
+  .chip.out{opacity:.3; cursor:not-allowed}
+  .chip .k{font-family:var(--mono); font-size:9px; color:var(--dim)}
+  .chip .n{font-size:11.5px; line-height:1.2; margin:2px 0 3px; letter-spacing:.02em}
+  .chip .a{font-family:var(--mono); font-size:9.5px; color:var(--dim)}
+  .chip.sel .a{color:inherit}
+
+  .row{display:grid; grid-template-columns:1fr 1fr auto auto; gap:12px; align-items:end}
+  .field .top{display:flex; justify-content:space-between; align-items:baseline; margin-bottom:5px}
+  .field .val{font-family:var(--mono); font-size:19px; font-variant-numeric:tabular-nums}
+  .stepper{display:flex; gap:5px; align-items:center}
+  .stepper button{width:26px; height:26px; flex:none; background:var(--panel2); border:1px solid var(--rule);
+    color:var(--text); border-radius:2px; cursor:pointer; font-family:var(--mono); font-size:14px; line-height:1}
+  .stepper button:hover{border-color:#3A4658}
+  input[type=range]{-webkit-appearance:none; appearance:none; flex:1; height:26px; background:transparent; cursor:pointer}
+  input[type=range]::-webkit-slider-runnable-track{height:4px; background:#0A0E14; border-radius:2px}
+  input[type=range]::-moz-range-track{height:4px; background:#0A0E14; border-radius:2px}
+  input[type=range]::-webkit-slider-thumb{-webkit-appearance:none; width:11px; height:18px; border-radius:2px;
+    background:currentColor; margin-top:-7px}
+  input[type=range]::-moz-range-thumb{width:11px; height:18px; border-radius:2px; background:currentColor; border:none}
+
+  .windbox{text-align:center; min-width:96px}
+  .windval{font-family:var(--mono); font-size:19px; margin-top:2px}
+
+  .fire{background:var(--hot); border:none; color:#0E1219; font-family:var(--sans); font-weight:700;
+    font-size:14px; letter-spacing:.18em; text-transform:uppercase; padding:0 26px; height:44px;
+    border-radius:2px; cursor:pointer; transition:filter .12s}
+  .fire:hover{filter:brightness(1.12)}
+  .fire:disabled{background:var(--rule); color:var(--dim); cursor:default}
+  .ghost{background:transparent; border:1px solid var(--rule); color:var(--text); font-family:var(--sans);
+    font-size:12px; letter-spacing:.12em; text-transform:uppercase; padding:10px 20px; border-radius:2px; cursor:pointer}
+  .ghost:hover{border-color:#3A4658}
+
+  .hint{margin-top:8px; font-size:10.5px; color:var(--dim); letter-spacing:.05em; text-align:center}
+  .hint b{color:#93A0B0; font-weight:400; font-family:var(--mono)}
+
+  @media (max-width:720px){
+    .wep{grid-template-columns:repeat(3,1fr)}
+    .row{grid-template-columns:1fr 1fr; }
+    .windbox{grid-column:1} .fire{grid-column:2; width:100%}
+    .turnbox{padding:0 6px}
+  }
+</style>
+</head>
+<body>
+<div class="shell">
+
+  <div class="topbar">
+    <div class="pcard p1" id="card1">
+      <div class="pname">Brass</div>
+      <div class="hpwrap"><div class="hpbar" id="hp1"></div></div>
+      <div class="hpnum num" id="hpn1">100 / 100</div>
+    </div>
+    <div class="turnbox">
+      <div class="label">Turn</div>
+      <div class="v num" id="turnNum">1</div>
+    </div>
+    <div class="pcard p2 idle" id="card2">
+      <div class="pname">Cyan</div>
+      <div class="hpwrap"><div class="hpbar" id="hp2"></div></div>
+      <div class="hpnum num" id="hpn2">100 / 100</div>
+    </div>
+  </div>
+
+  <div class="stage">
+    <canvas id="cv" width="1000" height="560"></canvas>
+    <div class="overlay" id="ovl">
+      <div class="ov">
+        <h2 id="ovTitle">Brass wins</h2>
+        <p id="ovSub">Direct hit, turn 12</p>
+        <button class="ghost" id="againBtn">New battle</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="deck">
+    <div class="wep" id="wep"></div>
+    <div class="row">
+      <div class="field">
+        <div class="top"><span class="label">Elevation</span><span class="val" id="angVal">45&deg;</span></div>
+        <div class="stepper" id="angStep">
+          <button data-d="-1">&minus;</button>
+          <input type="range" id="angRange" min="0" max="90" step="1" value="45">
+          <button data-d="1">+</button>
+        </div>
+      </div>
+      <div class="field">
+        <div class="top"><span class="label">Power</span><span class="val" id="powVal">62</span></div>
+        <div class="stepper" id="powStep">
+          <button data-d="-1">&minus;</button>
+          <input type="range" id="powRange" min="10" max="100" step="1" value="62">
+          <button data-d="1">+</button>
+        </div>
+      </div>
+      <div class="windbox">
+        <div class="label">Wind</div>
+        <div class="windval" id="windVal">&mdash;</div>
+      </div>
+      <button class="fire" id="fireBtn">Fire</button>
+    </div>
+    <div class="hint">
+      <b>&larr; &rarr;</b> elevation &nbsp;·&nbsp; <b>&uarr; &darr;</b> power &nbsp;·&nbsp;
+      <b>Shift</b> coarse &nbsp;·&nbsp; <b>1&ndash;6</b> weapon &nbsp;·&nbsp; <b>Space</b> fire &nbsp;·&nbsp;
+      drag on the field to aim
+    </div>
+  </div>
+
+</div>
+
+<script>
+"use strict";
+/* ============================================================
+   TANK DUEL — spike prototype
+   Everything below is intentionally in one file. In the real
+   build this splits into sim/ and render/ as per the plan.
+   ============================================================ */
+
+const W = 1000, H = 560;
+const cv  = document.getElementById('cv');
+const ctx = cv.getContext('2d');
+
+/* ---------- terrain ---------- */
+let mask = new Uint8Array(W * H);           // 1 = solid
+const terr    = document.createElement('canvas'); terr.width = W; terr.height = H;
+const terrCtx = terr.getContext('2d');
+let terrImg   = terrCtx.createImageData(W, H);
+
+const SCRUB   = [74, 85, 64];
+const DIRT    = [92, 74, 54];
+const BEDROCK = [52, 41, 31];
+
+function hashNoise(x, y){
+  let n = (x * 374761393 + y * 668265263) >>> 0;
+  n = ((n ^ (n >>> 13)) * 1274126177) >>> 0;
+  return ((n >>> 16) & 255) / 255;
+}
+
+function genTerrain(){
+  mask.fill(0);
+  const N = 512;
+  const pts = new Float32Array(N + 1);
+  pts[0] = H * (0.48 + Math.random() * 0.2);
+  pts[N] = H * (0.48 + Math.random() * 0.2);
+  let step = N, disp = H * 0.34;
+  while (step > 1){
+    const half = step >> 1;
+    for (let i = half; i < N; i += step){
+      pts[i] = (pts[i - half] + pts[i + half]) / 2 + (Math.random() * 2 - 1) * disp;
+    }
+    step = half; disp *= 0.55;
+  }
+  for (let x = 0; x < W; x++){
+    const t = x * N / W, i = Math.floor(t), f = t - i;
+    let v = pts[i] * (1 - f) + pts[Math.min(N, i + 1)] * f;
+    v += Math.sin(x * 0.011) * 9 + Math.sin(x * 0.031 + 1.7) * 4;
+    v = Math.max(H * 0.30, Math.min(H - 46, v));
+    const top = Math.round(v);
+    for (let y = top; y < H; y++) mask[y * W + x] = 1;
+  }
+  paintColumns(0, W);
+}
+
+function paintColumns(x0, x1){
+  x0 = Math.max(0, x0 | 0); x1 = Math.min(W, x1 | 0);
+  const d = terrImg.data;
+  for (let x = x0; x < x1; x++){
+    let depth = 0;
+    for (let y = 0; y < H; y++){
+      const i = (y * W + x) * 4;
+      if (mask[y * W + x]){
+        depth++;
+        let c;
+        if (depth <= 5)       c = SCRUB;
+        else if (depth <= 34) c = DIRT;
+        else {
+          const k = Math.min(1, (depth - 34) / 260);
+          c = [ DIRT[0] + (BEDROCK[0] - DIRT[0]) * k,
+                DIRT[1] + (BEDROCK[1] - DIRT[1]) * k,
+                DIRT[2] + (BEDROCK[2] - DIRT[2]) * k ];
+        }
+        const n = (hashNoise(x, y) - 0.5) * 16;
+        d[i]   = c[0] + n;
+        d[i+1] = c[1] + n;
+        d[i+2] = c[2] + n;
+        d[i+3] = 255;
+      } else {
+        depth = 0;
+        d[i+3] = 0;
+      }
+    }
+  }
+  terrCtx.putImageData(terrImg, 0, 0, x0, 0, x1 - x0, H);
+}
+
+function solidAt(x, y){
+  x |= 0; y |= 0;
+  if (x < 0 || x >= W || y < 0) return false;
+  if (y >= H) return true;                    // floor is solid
+  return mask[y * W + x] === 1;
+}
+
+function carve(cx, cy, r){
+  const x0 = Math.max(0, (cx - r) | 0), x1 = Math.min(W, (cx + r + 1) | 0);
+  const y0 = Math.max(0, (cy - r) | 0), y1 = Math.min(H, (cy + r + 1) | 0);
+  const r2 = r * r;
+  for (let y = y0; y < y1; y++){
+    const dy = y - cy;
+    for (let x = x0; x < x1; x++){
+      const dx = x - cx;
+      if (dx * dx + dy * dy <= r2) mask[y * W + x] = 0;
+    }
+  }
+  paintColumns(x0 - 1, x1 + 1);
+}
+
+function fillTerrain(cx, cy, r){
+  const x0 = Math.max(0, (cx - r) | 0), x1 = Math.min(W, (cx + r + 1) | 0);
+  const y0 = Math.max(0, (cy - r) | 0), y1 = Math.min(H, (cy + r + 1) | 0);
+  const r2 = r * r;
+  for (let y = y0; y < y1; y++){
+    const dy = y - cy;
+    for (let x = x0; x < x1; x++){
+      const dx = x - cx;
+      if (dx * dx + dy * dy <= r2){
+        // don't entomb a tank
+        let blocked = false;
+        for (const t of tanks){
+          if (Math.abs(x - t.x) < 17 && y > t.y - 24 && y < t.y + 3){ blocked = true; break; }
+        }
+        if (!blocked) mask[y * W + x] = 1;
+      }
+    }
+  }
+  paintColumns(x0 - 1, x1 + 1);
+}
+
+/* ---------- weapons ---------- */
+const WEAPONS = [
+  { id:'he',      name:'HE Shell',      ammo:Infinity, mass:1.00, drag:1.00, r:26, dmg:34, terrain:'carve', color:'#FF6B35' },
+  { id:'mortar',  name:'Heavy Mortar',  ammo:4,        mass:1.55, drag:0.65, r:44, dmg:52, terrain:'carve', color:'#FF8C42', smoke:true },
+  { id:'cluster', name:'Cluster Bomb',  ammo:3,        mass:1.00, drag:1.15, r:20, dmg:18, terrain:'carve', color:'#FFD166', apex:5 },
+  { id:'buster',  name:'Bunker Buster', ammo:3,        mass:1.45, drag:0.80, r:32, dmg:44, terrain:'carve', color:'#C77DFF', dig:36 },
+  { id:'sand',    name:'Sandbags',      ammo:3,        mass:1.20, drag:0.90, r:34, dmg:0,  terrain:'fill',  color:'#C9A87C' },
+  { id:'roller',  name:'Roller',        ammo:3,        mass:1.10, drag:0.85, r:28, dmg:38, terrain:'carve', color:'#7BD389', roll:true }
+];
+
+/* ---------- entities ---------- */
+const GRAVITY = 0.215, WIND_K = 0.00038, SUBSTEPS = 8, MUZZLE = 0.160;
+
+let tanks = [], projectiles = [], particles = [], rings = [];
+let turnIdx = 0, turnCount = 1, wind = 0, phase = 'aim', settleT = 0, shake = 0, hitstop = 0;
+let winner = null, winReason = '';
+
+function makeTank(x, dir, color, name){
+  return {
+    x, y: 0, dir, color, name, hp: 100,
+    angle: dir > 0 ? 45 : 135,
+    power: 62,
+    wep: 0,
+    ammo: WEAPONS.map(w => w.ammo),
+    trails: [],
+    vy: 0, fallFrom: null, recoil: 0
+  };
+}
+
+function groundTank(t, snap){
+  // climb out if buried
+  let guard = 0;
+  while (solidAt(t.x, t.y - 8) && guard++ < 400) t.y--;
+  if (snap){
+    t.y = Math.max(0, t.y);
+    while (t.y < H && !solidAt(t.x, t.y + 1)) t.y++;
+    t.vy = 0; t.fallFrom = null;
+  }
+}
+
+function isGrounded(t){
+  for (let dx = -9; dx <= 9; dx += 3) if (solidAt(t.x + dx, t.y + 1)) return true;
+  return false;
+}
+
+function newBattle(){
+  genTerrain();
+  const x1 = 80  + Math.floor(Math.random() * 110);
+  const x2 = W - 80 - Math.floor(Math.random() * 110);
+  tanks = [ makeTank(x1,  1, '#E8B33C', 'Brass'), makeTank(x2, -1, '#4FC3D9', 'Cyan') ];
+  for (const t of tanks){ t.y = 0; groundTank(t, true); }
+  projectiles = []; particles = []; rings = [];
+  turnIdx = 0; turnCount = 1; phase = 'aim'; winner = null; shake = 0;
+  rollWind();
+  document.getElementById('ovl').classList.remove('on');
+  syncUI();
+}
+
+function rollWind(){ wind = Math.round((Math.random() * 2 - 1) * 100); }
+
+/* ---------- firing ---------- */
+function fire(){
+  if (phase !== 'aim') return;
+  const t = tanks[turnIdx], w = WEAPONS[t.wep];
+  if (t.ammo[t.wep] <= 0) return;
+  if (t.ammo[t.wep] !== Infinity) t.ammo[t.wep]--;
+
+  const a  = t.angle * Math.PI / 180;
+  const v  = t.power * MUZZLE;
+  const px = t.x + Math.cos(a) * 24;
+  const py = t.y - 16 - Math.sin(a) * 24;
+
+  projectiles.push({
+    x: px, y: py, vx: Math.cos(a) * v, vy: -Math.sin(a) * v,
+    w, owner: turnIdx, primary: true, apexDone: false,
+    dig: 0, rolling: false, fuse: 0, age: 0
+  });
+
+  t.recoil = 5;
+  t.trails.push([{x: px, y: py}]);
+  if (t.trails.length > 3) t.trails.shift();
+
+  for (let i = 0; i < 10; i++){
+    particles.push({
+      x: px, y: py,
+      vx: Math.cos(a) * (2 + Math.random() * 3) + (Math.random() - .5) * 2,
+      vy: -Math.sin(a) * (2 + Math.random() * 3) + (Math.random() - .5) * 2,
+      life: 14 + Math.random() * 10, max: 24, size: 2.5, col: '#FFD9A0', grav: .05
+    });
+  }
+  shake = Math.max(shake, 3);
+  phase = 'fly';
+  syncUI();
+}
+
+function stepProjectile(p){
+  p.age++;
+  const w = p.w;
+
+  if (p.rolling){
+    p.fuse--;
+    if (p.fuse <= 0) return explode(p.x, p.y, w, p.owner);
+    // gravity while airborne
+    if (!solidAt(p.x, p.y + 1)){ p.vy += GRAVITY * .8; p.y += Math.min(p.vy, 7); return false; }
+    p.vy = 0;
+    const dir = Math.sign(p.vx) || 1;
+    for (let s = 0; s < 3; s++){
+      const nx = p.x + dir;
+      let climbed = 0;
+      let ny = p.y;
+      while (solidAt(nx, ny) && climbed < 5){ ny--; climbed++; }
+      if (climbed >= 5) { return explode(p.x, p.y, w, p.owner); }
+      p.x = nx; p.y = ny;
+      let drop = 0;
+      while (!solidAt(p.x, p.y + 1) && drop < 5){ p.y++; drop++; }
+      if (p.x < 2 || p.x > W - 2) return explode(p.x, p.y, w, p.owner);
+      if (tankAt(p.x, p.y)) return explode(p.x, p.y, w, p.owner);
+    }
+    if (p.age % 3 === 0) particles.push({x:p.x, y:p.y, vx:0, vy:-.2, life:10, max:10, size:2, col:'#9A8B6E', grav:0});
+    return false;
+  }
+
+  if (p.dig > 0){
+    const len = Math.hypot(p.vx, p.vy) || 1;
+    const dx = p.vx / len * 1.15, dy = p.vy / len * 1.15;
+    for (let s = 0; s < 3 && p.dig > 0; s++){
+      p.x += dx; p.y += dy; p.dig -= 1.15;
+      carveSmall(p.x, p.y, 5);
+      if (p.x < 0 || p.x > W || p.y > H) return explode(p.x, p.y, w, p.owner);
+    }
+    if (p.dig <= 0) return explode(p.x, p.y, w, p.owner);
+    return false;
+  }
+
+  for (let s = 0; s < SUBSTEPS; s++){
+    p.vy += GRAVITY * w.mass / SUBSTEPS;
+    p.vx += wind * WIND_K * w.drag / SUBSTEPS;
+    p.x  += p.vx / SUBSTEPS;
+    p.y  += p.vy / SUBSTEPS;
+
+    if (p.x < -200 || p.x > W + 200 || p.y > H + 300) return true;   // gone
+
+    if (w.apex && !p.apexDone && p.vy >= 0 && p.y < H * .9){
+      p.apexDone = true;
+      splitCluster(p);
+      return true;
+    }
+    if (tankAt(p.x, p.y)) return explode(p.x, p.y, w, p.owner, true);
+    if (solidAt(p.x, p.y)){
+      if (w.dig){ p.dig = w.dig; return false; }
+      if (w.roll){ p.rolling = true; p.fuse = 150; p.vx = Math.sign(p.vx) * 2.4; p.vy = 0; return false; }
+      return explode(p.x, p.y, w, p.owner);
+    }
+  }
+
+  if (p.primary){
+    const tr = tanks[p.owner].trails;
+    if (tr.length) tr[tr.length - 1].push({x: p.x, y: p.y});
+  }
+
+  if (w.smoke && p.age % 2 === 0){
+    particles.push({x:p.x, y:p.y, vx:(Math.random()-.5)*.4, vy:-.25, life:26, max:26, size:3.4, col:'#6C7686', grav:0});
+  }
+  return false;
+}
+
+function carveSmall(cx, cy, r){
+  const x0 = Math.max(0,(cx-r)|0), x1 = Math.min(W,(cx+r+1)|0);
+  const y0 = Math.max(0,(cy-r)|0), y1 = Math.min(H,(cy+r+1)|0);
+  for (let y=y0;y<y1;y++) for (let x=x0;x<x1;x++){
+    const dx=x-cx, dy=y-cy; if (dx*dx+dy*dy<=r*r) mask[y*W+x]=0;
+  }
+  paintColumns(x0-1, x1+1);
+}
+
+function splitCluster(p){
+  const n = p.w.apex;
+  for (let i = 0; i < n; i++){
+    const spread = (i - (n - 1) / 2) * 0.9;
+    projectiles.push({
+      x: p.x, y: p.y,
+      vx: p.vx + spread, vy: p.vy - 0.6 + Math.abs(spread) * 0.12,
+      w: p.w, owner: p.owner, primary: false, apexDone: true,
+      dig: 0, rolling: false, fuse: 0, age: 0
+    });
+  }
+  for (let i = 0; i < 12; i++)
+    particles.push({x:p.x, y:p.y, vx:(Math.random()-.5)*4, vy:(Math.random()-.5)*4, life:16, max:16, size:2, col:'#FFD166', grav:.06});
+}
+
+// Self-hits are allowed on purpose — shooting your own hull is part of the genre.
+function tankAt(x, y){
+  for (const t of tanks){
+    if (t.hp <= 0) continue;
+    if (Math.abs(x - t.x) < 15 && y > t.y - 22 && y < t.y + 3) return t;
+  }
+  return null;
+}
+
+function explode(x, y, w, owner, direct){
+  if (w.terrain === 'carve') carve(x, y, w.r);
+  else if (w.terrain === 'fill') fillTerrain(x, y, w.r);
+
+  if (w.dmg > 0){
+    for (const t of tanks){
+      if (t.hp <= 0) continue;
+      const d = Math.hypot(t.x - x, (t.y - 9) - y);
+      if (d < w.r + 12){
+        const k = Math.max(0.25, 1 - d / (w.r + 12));
+        applyDamage(t, w.dmg * k, direct ? 'Direct hit' : 'Splash');
+      }
+    }
+  }
+
+  rings.push({x, y, r: 4, max: w.r * 1.9, life: 20, max_life: 20, col: w.color});
+  const n = 26 + Math.round(w.r * 0.9);
+  for (let i = 0; i < n; i++){
+    const a = Math.random() * Math.PI * 2, sp = Math.random() * (2 + w.r * 0.13);
+    particles.push({
+      x, y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp - 0.6,
+      life: 18 + Math.random() * 22, max: 40,
+      size: 1.6 + Math.random() * 3,
+      col: Math.random() < .55 ? w.color : (Math.random() < .5 ? '#FFE1A8' : '#6C7686'),
+      grav: 0.13
+    });
+  }
+  shake = Math.max(shake, Math.min(13, w.r * 0.32));
+  if (direct) hitstop = 9;
+  return true;
+}
+
+function applyDamage(t, amount, reason){
+  t.hp = Math.max(0, t.hp - Math.round(amount));
+  if (t.hp <= 0 && !winner){
+    winner = tanks[t === tanks[0] ? 1 : 0];
+    winReason = reason;
+  }
+  syncUI();
+}
+
+/* ---------- settle ---------- */
+function settleStep(){
+  let busy = false;
+  for (const t of tanks){
+    if (t.hp <= 0) continue;
+    let guard = 0;
+    while (solidAt(t.x, t.y - 8) && guard++ < 400){ t.y--; busy = true; }
+    if (!isGrounded(t)){
+      if (t.fallFrom === null) t.fallFrom = t.y;
+      t.vy = Math.min(t.vy + 0.42, 8);
+      t.y += t.vy;
+      busy = true;
+      if (t.y > H + 40){ applyDamage(t, 999, 'Knocked off the map'); t.y = H + 40; }
+    } else if (t.fallFrom !== null){
+      const drop = t.y - t.fallFrom;
+      if (drop > 40) applyDamage(t, (drop - 40) * 0.5, 'Fall damage');
+      t.fallFrom = null; t.vy = 0;
+    } else { t.vy = 0; }
+  }
+  return busy;
+}
+
+/* ---------- main loop ---------- */
+function step(){
+  if (hitstop > 0){ hitstop--; return; }
+
+  if (phase === 'fly'){
+    for (let i = projectiles.length - 1; i >= 0; i--){
+      if (stepProjectile(projectiles[i])) projectiles.splice(i, 1);
+    }
+    if (projectiles.length === 0){ phase = 'settle'; settleT = 0; }
+  } else if (phase === 'settle'){
+    const busy = settleStep();
+    settleT++;
+    if (!busy && settleT > 22 && particles.length < 22){
+      if (winner){
+        phase = 'over';
+        showWin();
+      } else {
+        turnIdx = 1 - turnIdx;
+        if (turnIdx === 0) turnCount++;
+        rollWind();
+        phase = 'aim';
+        syncUI();
+      }
+    }
+  }
+
+  for (const t of tanks) if (t.recoil > 0) t.recoil *= 0.78;
+
+  for (let i = particles.length - 1; i >= 0; i--){
+    const p = particles[i];
+    p.vy += p.grav; p.x += p.vx; p.y += p.vy; p.vx *= 0.985; p.life--;
+    if (p.life <= 0) particles.splice(i, 1);
+  }
+  for (let i = rings.length - 1; i >= 0; i--){
+    const r = rings[i]; r.r += (r.max - r.r) * 0.24; r.life--;
+    if (r.life <= 0) rings.splice(i, 1);
+  }
+  if (shake > 0) shake *= 0.86;
+}
+
+/* ---------- render ---------- */
+let skyGrad = null;
+function buildSky(){
+  skyGrad = ctx.createLinearGradient(0, 0, 0, H);
+  skyGrad.addColorStop(0,    '#171E2B');
+  skyGrad.addColorStop(0.42, '#2B3A52');
+  skyGrad.addColorStop(0.78, '#6A6E7C');
+  skyGrad.addColorStop(1,    '#C9A87C');
+}
+buildSky();
+
+function draw(){
+  ctx.save();
+  if (shake > 0.4) ctx.translate((Math.random()-.5)*shake, (Math.random()-.5)*shake);
+
+  ctx.fillStyle = skyGrad;
+  ctx.fillRect(-20, -20, W + 40, H + 40);
+
+  // distant ridge
+  ctx.globalAlpha = .18; ctx.fillStyle = '#0E1219';
+  ctx.beginPath(); ctx.moveTo(-20, H);
+  for (let x = -20; x <= W + 20; x += 26){
+    ctx.lineTo(x, H * .60 + Math.sin(x * .0055) * 34 + Math.sin(x * .017) * 12);
+  }
+  ctx.lineTo(W + 20, H); ctx.closePath(); ctx.fill();
+  ctx.globalAlpha = 1;
+
+  // wind streaks
+  ctx.strokeStyle = 'rgba(200,215,235,.10)'; ctx.lineWidth = 1;
+  const t = performance.now() * 0.001;
+  for (let i = 0; i < 14; i++){
+    const yy = ((i * 97) % (H * .5)) + 24;
+    const xx = ((t * wind * 0.9 + i * 173) % (W + 200)) - 100;
+    ctx.beginPath(); ctx.moveTo(xx, yy); ctx.lineTo(xx + Math.sign(wind) * (6 + Math.abs(wind) * .14), yy); ctx.stroke();
+  }
+
+  ctx.drawImage(terr, 0, 0);
+
+  drawGhostTrails();
+  for (const tk of tanks) drawTank(tk);
+  drawProjectiles();
+  drawFX();
+  if (phase === 'aim' && !winner) drawAimHelper(tanks[turnIdx]);
+
+  ctx.restore();
+  drawWindGauge();
+}
+
+function drawGhostTrails(){
+  const t = tanks[turnIdx];
+  if (!t) return;
+  ctx.save();
+  ctx.setLineDash([2, 6]); ctx.lineWidth = 1.5; ctx.lineCap = 'round';
+  t.trails.forEach((tr, i) => {
+    if (tr.length < 2) return;
+    ctx.globalAlpha = 0.13 + i * 0.13;
+    ctx.strokeStyle = t.color;
+    ctx.beginPath(); ctx.moveTo(tr[0].x, tr[0].y);
+    for (let k = 1; k < tr.length; k++) ctx.lineTo(tr[k].x, tr[k].y);
+    ctx.stroke();
+  });
+  ctx.restore();
+}
+
+function drawTank(t){
+  if (t.hp <= 0) return;
+  const a = t.angle * Math.PI / 180;
+  const rx = -Math.cos(a) * t.recoil, ry = Math.sin(a) * t.recoil;
+  const x = t.x + rx, y = t.y + ry;
+
+  ctx.save();
+  ctx.translate(x, y);
+
+  // shadow
+  ctx.fillStyle = 'rgba(0,0,0,.28)';
+  ctx.beginPath(); ctx.ellipse(0, 0, 17, 3.5, 0, 0, 7); ctx.fill();
+
+  // treads
+  ctx.fillStyle = '#2A313C';
+  roundRect(-15, -7, 30, 7, 3); ctx.fill();
+  ctx.fillStyle = '#161C25';
+  for (let i = -1; i <= 1; i++){ ctx.beginPath(); ctx.arc(i * 9, -3.5, 2.6, 0, 7); ctx.fill(); }
+
+  // hull
+  ctx.fillStyle = t.color;
+  roundRect(-13, -15, 26, 9, 2.5); ctx.fill();
+  ctx.fillStyle = 'rgba(0,0,0,.20)';
+  ctx.fillRect(-13, -9, 26, 3);
+
+  // turret + barrel
+  ctx.fillStyle = t.color;
+  ctx.beginPath(); ctx.arc(0, -16, 6, Math.PI, 0); ctx.fill();
+  ctx.strokeStyle = t.color; ctx.lineWidth = 4; ctx.lineCap = 'round';
+  ctx.beginPath(); ctx.moveTo(0, -16);
+  ctx.lineTo(Math.cos(a) * 25, -16 - Math.sin(a) * 25); ctx.stroke();
+  ctx.strokeStyle = 'rgba(0,0,0,.25)'; ctx.lineWidth = 1.4;
+  ctx.beginPath(); ctx.moveTo(0, -16);
+  ctx.lineTo(Math.cos(a) * 25, -16 - Math.sin(a) * 25); ctx.stroke();
+
+  ctx.restore();
+}
+
+function roundRect(x, y, w, h, r){
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.arcTo(x + w, y, x + w, y + h, r);
+  ctx.arcTo(x + w, y + h, x, y + h, r);
+  ctx.arcTo(x, y + h, x, y, r);
+  ctx.arcTo(x, y, x + w, y, r);
+  ctx.closePath();
+}
+
+function drawProjectiles(){
+  for (const p of projectiles){
+    ctx.fillStyle = p.w.color;
+    ctx.beginPath(); ctx.arc(p.x, p.y, p.rolling ? 4 : 3.2, 0, 7); ctx.fill();
+    ctx.globalAlpha = .35;
+    ctx.beginPath(); ctx.arc(p.x, p.y, 7, 0, 7); ctx.fill();
+    ctx.globalAlpha = 1;
+  }
+}
+
+function drawFX(){
+  for (const p of particles){
+    ctx.globalAlpha = Math.max(0, p.life / p.max);
+    ctx.fillStyle = p.col;
+    ctx.fillRect(p.x - p.size / 2, p.y - p.size / 2, p.size, p.size);
+  }
+  ctx.globalAlpha = 1;
+  for (const r of rings){
+    ctx.globalAlpha = (r.life / r.max_life) * .6;
+    ctx.strokeStyle = r.col; ctx.lineWidth = 2.5;
+    ctx.beginPath(); ctx.arc(r.x, r.y, r.r, 0, 7); ctx.stroke();
+  }
+  ctx.globalAlpha = 1;
+}
+
+function drawAimHelper(t){
+  const a = t.angle * Math.PI / 180;
+  const ox = t.x + Math.cos(a) * 27, oy = t.y - 16 - Math.sin(a) * 27;
+  // power bar along the muzzle line
+  const len = 14 + (t.power / 100) * 46;
+  ctx.save();
+  ctx.globalAlpha = .8; ctx.strokeStyle = t.color; ctx.lineWidth = 2.5; ctx.lineCap = 'butt';
+  ctx.setLineDash([3, 4]);
+  ctx.beginPath(); ctx.moveTo(ox, oy);
+  ctx.lineTo(ox + Math.cos(a) * len, oy - Math.sin(a) * len); ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.globalAlpha = 1;
+  ctx.fillStyle = t.color;
+  ctx.beginPath(); ctx.arc(ox + Math.cos(a) * len, oy - Math.sin(a) * len, 2.6, 0, 7); ctx.fill();
+  ctx.restore();
+}
+
+function drawWindGauge(){
+  const cx = W / 2, cy = 34;
+  ctx.save();
+  ctx.font = '600 10px "Roboto Condensed", Arial, sans-serif';
+  ctx.textAlign = 'center'; ctx.fillStyle = 'rgba(199,208,220,.5)';
+  ctx.fillText('W I N D', cx, cy - 14);
+  const mag = Math.abs(wind), dir = Math.sign(wind) || 1;
+  const w = 8 + (mag / 100) * 66;
+  ctx.strokeStyle = mag > 55 ? '#FF6B35' : 'rgba(199,208,220,.75)';
+  ctx.lineWidth = 2; ctx.lineCap = 'round';
+  ctx.beginPath(); ctx.moveTo(cx - dir * w / 2, cy); ctx.lineTo(cx + dir * w / 2, cy); ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(cx + dir * w / 2, cy);
+  ctx.lineTo(cx + dir * (w / 2 - 6), cy - 4);
+  ctx.lineTo(cx + dir * (w / 2 - 6), cy + 4);
+  ctx.closePath(); ctx.fillStyle = ctx.strokeStyle; ctx.fill();
+  ctx.restore();
+}
+
+/* ---------- UI ---------- */
+const el = id => document.getElementById(id);
+const angRange = el('angRange'), powRange = el('powRange');
+
+function buildWeaponChips(){
+  const box = el('wep'); box.innerHTML = '';
+  WEAPONS.forEach((w, i) => {
+    const b = document.createElement('button');
+    b.className = 'chip'; b.dataset.i = i;
+    b.innerHTML = `<div class="k">${i+1}</div><div class="n">${w.name}</div><div class="a" data-ammo></div>`;
+    b.onclick = () => selectWeapon(i);
+    box.appendChild(b);
+  });
+}
+
+function selectWeapon(i){
+  if (phase !== 'aim' || winner) return;
+  const t = tanks[turnIdx];
+  if (t.ammo[i] <= 0) return;
+  t.wep = i; syncUI();
+}
+
+function displayAngle(t){ return t.dir > 0 ? t.angle : 180 - t.angle; }
+function setDisplayAngle(t, v){
+  v = Math.max(0, Math.min(90, v));
+  t.angle = t.dir > 0 ? v : 180 - v;
+}
+
+function syncUI(){
+  const t = tanks[turnIdx];
+  if (!t) return;
+
+  el('card1').classList.toggle('idle', turnIdx !== 0);
+  el('card2').classList.toggle('idle', turnIdx !== 1);
+  el('turnNum').textContent = turnCount;
+
+  el('hp1').style.width = tanks[0].hp + '%';
+  el('hp2').style.width = tanks[1].hp + '%';
+  el('hpn1').textContent = tanks[0].hp + ' / 100';
+  el('hpn2').textContent = tanks[1].hp + ' / 100';
+
+  const da = Math.round(displayAngle(t));
+  el('angVal').textContent = da + '\u00B0';
+  el('powVal').textContent = Math.round(t.power);
+  angRange.value = da; powRange.value = Math.round(t.power);
+
+  const deck = document.querySelector('.deck');
+  deck.style.color = t.color;
+  angRange.style.color = t.color; powRange.style.color = t.color;
+
+  el('windVal').textContent = (wind === 0 ? '0' : (wind > 0 ? '\u25B6 ' + wind : wind * -1 + ' \u25C0'));
+  el('windVal').style.color = Math.abs(wind) > 55 ? 'var(--hot)' : 'var(--text)';
+
+  document.querySelectorAll('.chip').forEach((c, i) => {
+    const ammo = t.ammo[i];
+    c.classList.toggle('sel', i === t.wep);
+    c.classList.toggle('out', ammo <= 0);
+    c.style.color = i === t.wep ? t.color : '';
+    c.querySelector('[data-ammo]').textContent = ammo === Infinity ? 'UNLIMITED' : ammo + ' LEFT';
+  });
+
+  el('fireBtn').disabled = (phase !== 'aim' || !!winner);
+}
+
+function showWin(){
+  el('ovTitle').textContent = winner.name + ' wins';
+  el('ovTitle').style.color = winner.color;
+  el('ovSub').textContent = winReason + ' \u00B7 turn ' + turnCount;
+  el('ovl').classList.add('on');
+  el('fireBtn').disabled = true;
+}
+
+/* ---------- input ---------- */
+function adjAngle(d){ if (phase!=='aim'||winner) return; const t=tanks[turnIdx]; setDisplayAngle(t, displayAngle(t)+d); syncUI(); }
+function adjPower(d){ if (phase!=='aim'||winner) return; const t=tanks[turnIdx]; t.power=Math.max(10,Math.min(100,t.power+d)); syncUI(); }
+
+angRange.oninput = e => { if (phase!=='aim'||winner){syncUI();return;} setDisplayAngle(tanks[turnIdx], +e.target.value); syncUI(); };
+powRange.oninput = e => { if (phase!=='aim'||winner){syncUI();return;} tanks[turnIdx].power = +e.target.value; syncUI(); };
+el('angStep').querySelectorAll('button').forEach(b => b.onclick = () => adjAngle(+b.dataset.d));
+el('powStep').querySelectorAll('button').forEach(b => b.onclick = () => adjPower(+b.dataset.d));
+el('fireBtn').onclick = fire;
+el('againBtn').onclick = newBattle;
+
+addEventListener('keydown', e => {
+  const big = e.shiftKey ? 5 : 1;
+  if (e.key === 'ArrowLeft')  { adjAngle(-big); e.preventDefault(); }
+  if (e.key === 'ArrowRight') { adjAngle( big); e.preventDefault(); }
+  if (e.key === 'ArrowUp')    { adjPower( big); e.preventDefault(); }
+  if (e.key === 'ArrowDown')  { adjPower(-big); e.preventDefault(); }
+  if (e.key === ' ')          { fire(); e.preventDefault(); }
+  if (e.key >= '1' && e.key <= '6') selectWeapon(+e.key - 1);
+  if (e.key.toLowerCase() === 'r' && winner) newBattle();
+});
+
+// drag-to-aim
+let dragging = false;
+function aimFromPointer(ev){
+  if (phase !== 'aim' || winner) return;
+  const r = cv.getBoundingClientRect();
+  const mx = (ev.clientX - r.left) * (W / r.width);
+  const my = (ev.clientY - r.top)  * (H / r.height);
+  const t = tanks[turnIdx];
+  const dx = mx - t.x, dy = (t.y - 16) - my;
+  let ang = Math.atan2(dy, dx) * 180 / Math.PI;
+  if (ang < 0) ang = 0; if (ang > 180) ang = 180;
+  const disp = t.dir > 0 ? ang : 180 - ang;
+  setDisplayAngle(t, disp);
+  t.power = Math.max(10, Math.min(100, Math.hypot(dx, dy) * 0.30));
+  syncUI();
+}
+cv.addEventListener('pointerdown', e => { dragging = true; cv.setPointerCapture(e.pointerId); aimFromPointer(e); });
+cv.addEventListener('pointermove', e => { if (dragging) aimFromPointer(e); });
+addEventListener('pointerup',   () => dragging = false);
+
+/* ---------- boot ---------- */
+buildWeaponChips();
+newBattle();
+
+let last = performance.now(), acc = 0;
+const DT = 1000 / 60;
+function frame(now){
+  acc += Math.min(now - last, 250); last = now;
+  while (acc >= DT){ step(); acc -= DT; }
+  draw();
+  requestAnimationFrame(frame);
+}
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>

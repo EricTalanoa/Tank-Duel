@@ -1,0 +1,26 @@
+{
+  "midpoint": { "points": 256, "displacementDecay": 0.55 },
+  "generators": [
+    { "id": "hills", "seamless": false, "note": "Midpoint displacement plus two sine overlays. Neutral baseline.", "midpoint": { "low": 0.50, "high": 0.66, "roughness": 0.30 }, "sines": [{ "frequency": 0.011, "amplitude": 8, "phase": 0 }, { "frequency": 0.029, "amplitude": 4, "phase": 1.3 }], "clamp": { "ceilingFraction": 0.34, "floorMargin": 50 } },
+    { "id": "canyon", "seamless": false, "note": "Gaussian trench through gentle terrain. Spawns must sit on the rims.", "midpoint": { "low": 0.42, "high": 0.52, "roughness": 0.14 }, "gaussianDivisor": 0.028, "targetHeightFraction": 0.62, "clamp": { "ceilingFraction": 0.30, "floorMargin": 8 } },
+    { "id": "craters", "seamless": false, "note": "6-10 overlapping depressions with raised rims. Every wall is a ramp.", "midpoint": { "low": 0.52, "high": 0.60, "roughness": 0.10 }, "count": { "base": 6, "spread": 5 }, "radius": { "baseFraction": 0.035, "spreadFraction": 0.075 }, "depth": { "base": 0.5, "spread": 0.4, "bowlScale": 0.95 }, "rim": { "start": 0.86, "end": 1, "scale": 0.28 }, "clamp": { "ceilingFraction": 0.36, "floorMargin": 40 } },
+    { "id": "plates", "seamless": false, "note": "Midpoint displacement quantised to height steps. Flat tops, vertical faces.", "midpoint": { "low": 0.48, "high": 0.62, "roughness": 0.26 }, "stepFraction": 0.075, "clamp": { "ceilingFraction": 0.36, "floorMargin": 45 } },
+    { "id": "spires", "seamless": false, "note": "High floor with 5-8 narrow gaussian columns. Worst case for tunnelling. Heights scale down on maps narrower than the reference width so low-gravity arcs retain a valid route.", "midpoint": { "low": 0.62, "high": 0.72, "roughness": 0.10 }, "count": { "base": 5, "spread": 4 }, "centre": { "baseFraction": 0.08, "spreadFraction": 0.84 }, "width": { "baseFraction": 0.018, "spreadFraction": 0.028, "extent": 2 }, "height": { "baseFraction": 0.16, "spreadFraction": 0.26, "referenceWidthPx": 1000 }, "gaussianScale": 1.6, "clamp": { "ceilingFraction": 0.16, "floorMargin": 40 } },
+    { "id": "ring", "seamless": true, "note": "Five sinusoids with integer periods over the width. Required for wrap worlds. Task 10.", "harmonicCount": 5, "frequencyStart": 1, "baseHeightFraction": 0.56, "amplitudeNumeratorFraction": 0.09, "amplitudeDecayFactor": 0.6, "phaseRangeRadians": 6.283185307179586, "clamp": { "ceilingFraction": 0.34, "floorMargin": 50 } }
+  ],
+  "validation": {
+    "spawnSampleWidthPx": 50,
+    "spawnFlatnessTolerancePx": 16,
+    "testAngleDeg": 45,
+    "maxAttempts": 20,
+    "fallbackSeeds": {
+      "terra:hills": 2, "terra:canyon": 1, "terra:craters": 6, "terra:plates": 11, "terra:spires": 1318,
+      "vesper:hills": 13, "vesper:canyon": 3, "vesper:craters": 45, "vesper:plates": 9, "vesper:spires": 981,
+      "rust:hills": 3, "rust:canyon": 1, "rust:craters": 11, "rust:plates": 1, "rust:spires": 11,
+      "selene:hills": 1, "selene:canyon": 1, "selene:craters": 1, "selene:plates": 1, "selene:spires": 1,
+      "ferrum:hills": 11, "ferrum:canyon": 1, "ferrum:craters": 5, "ferrum:plates": 5, "ferrum:spires": 1135,
+      "terra:ring": 1, "vesper:ring": 63, "rust:ring": 2, "selene:ring": 1, "ferrum:ring": 123,
+      "hollow:ring": 6
+    }
+  }
+}

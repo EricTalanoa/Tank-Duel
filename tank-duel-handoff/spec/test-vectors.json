@@ -1,0 +1,109 @@
+{
+  "$comment": "Golden values produced by the reference implementation. Assert against these.",
+  "terraFlatGroundRange45NoWind": {
+    "30": {
+      "rangePx": 109,
+      "flightFrames": 33
+    },
+    "40": {
+      "rangePx": 190,
+      "flightFrames": 43
+    },
+    "50": {
+      "rangePx": 300,
+      "flightFrames": 54
+    },
+    "60": {
+      "rangePx": 434,
+      "flightFrames": 65
+    },
+    "70": {
+      "rangePx": 586,
+      "flightFrames": 75
+    },
+    "80": {
+      "rangePx": 769,
+      "flightFrames": 86
+    }
+  },
+  "windDriftAtPower70": {
+    "0": 0,
+    "50": 52,
+    "100": 104,
+    "-100": -104,
+    "-50": -52
+  },
+  "angleSweepAtPower75": {
+    "20": {
+      "rangePx": 440,
+      "flightFrames": 40
+    },
+    "30": {
+      "rangePx": 582,
+      "flightFrames": 57
+    },
+    "45": {
+      "rangePx": 670,
+      "flightFrames": 80
+    },
+    "60": {
+      "rangePx": 582,
+      "flightFrames": 98
+    },
+    "75": {
+      "rangePx": 335,
+      "flightFrames": 109
+    },
+    "85": {
+      "rangePx": 117,
+      "flightFrames": 113
+    }
+  },
+  "worldRanges": {
+    "terra": {
+      "atPower75": 670,
+      "atPower100": 1199,
+      "flightFramesAtPower100": 107
+    },
+    "vesper": {
+      "atPower75": 428,
+      "atPower100": 657,
+      "flightFramesAtPower100": 100
+    },
+    "rust": {
+      "atPower75": 1086,
+      "atPower100": 1923,
+      "flightFramesAtPower100": 171
+    },
+    "selene": {
+      "atPower75": 1493,
+      "atPower100": 2647,
+      "flightFramesAtPower100": 235
+    },
+    "ferrum": {
+      "atPower75": 382,
+      "atPower100": 690,
+      "flightFramesAtPower100": 62
+    },
+    "hollow": {
+      "atPower75": 2232,
+      "atPower100": 3971,
+      "flightFramesAtPower100": 352
+    }
+  },
+  "shellMaxRangeOnTerra": {
+    "he": 1191,
+    "mortar": 768,
+    "cluster": 1191,
+    "buster": 821,
+    "roller": 1082,
+    "sand": 992,
+    "skipper": 1191,
+    "airburst": 1082,
+    "drill": 882,
+    "mirv": 1191,
+    "napalm": 1134
+  },
+  "spawnGapPx": 700,
+  "$assertion": "Every value in shellMaxRangeOnTerra must exceed spawnGapPx."
+}

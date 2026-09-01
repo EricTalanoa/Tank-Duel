@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+  <title>airburst</title>
+  <path d="M7.4 6.4 12 2.2l4.6 4.2"/>
+  <path d="M6 9.4v6.2M12 8.4v7.2M18 9.4v6.2"/>
+  <path d="M4.4 14 6 15.8 7.6 14M10.4 14 12 15.8 13.6 14M16.4 14 18 15.8 19.6 14"/>
+  <path d="M2.5 19.5h19"/>
+</svg>

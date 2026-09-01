@@ -1,0 +1,57 @@
+{
+  "$comment": "Tuned by measurement, not guessed. Changing any of these invalidates test-vectors.json.",
+  "baseGravity": 0.215,
+  "muzzleCoefficient": 0.16,
+  "windCoefficient": 0.00038,
+  "substeps": 8,
+  "fieldHeight": 560,
+  "defaultFieldWidth": 1000,
+  "spawnInsetPx": 150,
+  "camera": {
+    "aimPaddingPx": 80
+  },
+  "simHz": 60,
+  "power": {
+    "min": 10,
+    "max": 100,
+    "coarseStep": 5,
+    "fineStep": 1
+  },
+  "elevation": {
+    "minDisplay": 0,
+    "maxDisplay": 90,
+    "coarseStep": 5,
+    "fineStep": 1,
+    "$comment": "Stored 0-180 absolute. Player 2's display is mirrored: display = 180 - internal."
+  },
+  "tank": {
+    "hullHalfWidth": 15,
+    "hullTop": -22,
+    "hullBottom": 3,
+    "turretPivotY": -16,
+    "muzzleOffset": 24,
+    "damageOriginY": -9
+  },
+  "damage": {
+    "falloff": "linear",
+    "minFractionAtEdge": 0.25,
+    "edgePadding": 12,
+    "fallDamageThresholdPx": 40,
+    "fallDamagePerPx": 0.5,
+    "startingHealth": 100
+  },
+  "settle": {
+    "gravityPerFrame": 0.42,
+    "maxFallSpeed": 8,
+    "quietFrames": 22,
+    "particleThreshold": 22,
+    "hardExitFrames": 600,
+    "collisionGraceSubsteps": 14
+  },
+  "loadout": {
+    "points": 10,
+    "slots": 5,
+    "freeShell": "he",
+    "players": 2
+  }
+}

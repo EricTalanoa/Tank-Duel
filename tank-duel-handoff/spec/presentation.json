@@ -1,0 +1,9 @@
+{
+  "targetDevice": "iPad",
+  "requiredOrientation": "landscape",
+  "minimumLandscapeWidthPx": 900,
+  "players": [
+    { "id": 0, "label": "Player 1", "color": "#4DA3FF" },
+    { "id": 1, "label": "Player 2", "color": "#FF5CA8" }
+  ]
+}

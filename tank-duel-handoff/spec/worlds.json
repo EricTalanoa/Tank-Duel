@@ -1,0 +1,182 @@
+[
+  {
+    "id": "terra",
+    "name": "Terra",
+    "kind": "Temperate baseline",
+    "gravity": 1,
+    "airDrag": 0,
+    "width": 1000,
+    "windRange": 100,
+    "windMode": "reroll",
+    "flightTimeScale": 1,
+    "wrap": false,
+    "generator": "hills",
+    "palette": {
+      "sky": [
+        "#171E2B",
+        "#2B3A52",
+        "#6A6E7C",
+        "#C9A87C"
+      ],
+      "ground": "#4A5540",
+      "edge": "#5E6B52",
+      "accent": "#7BD389"
+    },
+    "derived": {
+      "rangeAtPower75": 670,
+      "rangeAtPower100": 1199,
+      "flightFramesAtPower100": 107,
+      "watchedSeconds": 1.78
+    }
+  },
+  {
+    "id": "vesper",
+    "name": "Vesper",
+    "kind": "Thick atmosphere",
+    "gravity": 0.9,
+    "airDrag": 0.012,
+    "width": 620,
+    "windRange": 60,
+    "windMode": "fixed",
+    "flightTimeScale": 1,
+    "wrap": false,
+    "generator": "spires",
+    "palette": {
+      "sky": [
+        "#2A1420",
+        "#5C2438",
+        "#A8553C",
+        "#E0A070"
+      ],
+      "ground": "#6B4238",
+      "edge": "#7E5245",
+      "accent": "#FF8C6B"
+    },
+    "derived": {
+      "rangeAtPower75": 428,
+      "rangeAtPower100": 657,
+      "flightFramesAtPower100": 100,
+      "watchedSeconds": 1.67
+    }
+  },
+  {
+    "id": "rust",
+    "name": "Rust",
+    "kind": "Thin atmosphere",
+    "gravity": 0.62,
+    "airDrag": 0,
+    "width": 1620,
+    "windRange": 40,
+    "windMode": "reroll",
+    "flightTimeScale": 1.6,
+    "wrap": false,
+    "generator": "canyon",
+    "palette": {
+      "sky": [
+        "#1C1614",
+        "#4A2E22",
+        "#8A5A3C",
+        "#D9A878"
+      ],
+      "ground": "#7A4A32",
+      "edge": "#8E5A3E",
+      "accent": "#E8B33C"
+    },
+    "derived": {
+      "rangeAtPower75": 1086,
+      "rangeAtPower100": 1923,
+      "flightFramesAtPower100": 171,
+      "watchedSeconds": 1.78
+    }
+  },
+  {
+    "id": "selene",
+    "name": "Selene",
+    "kind": "Vacuum",
+    "gravity": 0.45,
+    "airDrag": 0,
+    "width": 2220,
+    "windRange": 0,
+    "windMode": "none",
+    "flightTimeScale": 2.1,
+    "wrap": false,
+    "generator": "craters",
+    "palette": {
+      "sky": [
+        "#05070C",
+        "#0C121C",
+        "#1A2230",
+        "#4A4E58"
+      ],
+      "ground": "#5A5E62",
+      "edge": "#6E7276",
+      "accent": "#B8C4D4"
+    },
+    "derived": {
+      "rangeAtPower75": 1493,
+      "rangeAtPower100": 2647,
+      "flightFramesAtPower100": 235,
+      "watchedSeconds": 1.87
+    }
+  },
+  {
+    "id": "ferrum",
+    "name": "Ferrum",
+    "kind": "Crushing gravity",
+    "gravity": 1.75,
+    "airDrag": 0,
+    "width": 580,
+    "windRange": 80,
+    "windMode": "reroll",
+    "flightTimeScale": 1,
+    "wrap": false,
+    "generator": "plates",
+    "palette": {
+      "sky": [
+        "#0A0A0E",
+        "#241A22",
+        "#4A2A2A",
+        "#7A4038"
+      ],
+      "ground": "#3E3A3E",
+      "edge": "#524C52",
+      "accent": "#FF5C5C"
+    },
+    "derived": {
+      "rangeAtPower75": 382,
+      "rangeAtPower100": 690,
+      "flightFramesAtPower100": 62,
+      "watchedSeconds": 1.03
+    }
+  },
+  {
+    "id": "hollow",
+    "name": "Hollow",
+    "kind": "Micro-gravity, wraps",
+    "gravity": 0.3,
+    "airDrag": 0,
+    "width": 1200,
+    "windRange": 20,
+    "windMode": "reroll",
+    "flightTimeScale": 3,
+    "wrap": true,
+    "generator": "ring",
+    "palette": {
+      "sky": [
+        "#02040A",
+        "#080E1A",
+        "#101A2A",
+        "#243040"
+      ],
+      "ground": "#3A4450",
+      "edge": "#4E5A68",
+      "accent": "#4FC3D9"
+    },
+    "derived": {
+      "rangeAtPower75": 2232,
+      "rangeAtPower100": 3971,
+      "flightFramesAtPower100": 352,
+      "watchedSeconds": 1.96
+    }
+  }
+]

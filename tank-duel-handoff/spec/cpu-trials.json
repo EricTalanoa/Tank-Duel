@@ -1,0 +1,27 @@
+{
+  "schemaVersion": 1,
+  "seedRange": { "start": 0, "end": 499 },
+  "trialCount": 500,
+  "cpuSeat": {
+    "strategy": "seed-parity",
+    "evenPlayer": 0,
+    "oddPlayer": 1
+  },
+  "world": {
+    "id": "terra",
+    "terrain": "real-seeded",
+    "spawns": "production"
+  },
+  "sequence": {
+    "wind": "production",
+    "handoff": "production-skip-non-cpu-action"
+  },
+  "shellId": "he",
+  "shotCap": 15,
+  "failureAccounting": "include-cap-shot",
+  "tiers": [
+    { "id": "recruit", "meanShotsToHit": 4.5, "medianShotsToHit": 3, "failedTrialCount": 6 },
+    { "id": "gunner", "meanShotsToHit": 2.904, "medianShotsToHit": 2, "failedTrialCount": 1 },
+    { "id": "veteran", "meanShotsToHit": 2.194, "medianShotsToHit": 2, "failedTrialCount": 3 }
+  ]
+}

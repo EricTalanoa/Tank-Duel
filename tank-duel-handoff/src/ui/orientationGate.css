@@ -1,0 +1,48 @@
+.orientation-gate {
+  position: fixed;
+  z-index: 20;
+  inset: 0;
+  display: grid;
+  place-content: center;
+  gap: 0.75rem;
+  box-sizing: border-box;
+  min-height: 100dvh;
+  padding:
+    calc(1.5rem + env(safe-area-inset-top))
+    calc(1.5rem + env(safe-area-inset-right))
+    calc(1.5rem + env(safe-area-inset-bottom))
+    calc(1.5rem + env(safe-area-inset-left));
+  color: #e8edf2;
+  text-align: center;
+  background:
+    linear-gradient(135deg, rgb(6 10 15 / 96%), rgb(24 31 40 / 98%)),
+    repeating-linear-gradient(0deg, transparent 0 2px, rgb(255 255 255 / 3%) 2px 3px);
+  border: 0.25rem solid #7e8b95;
+}
+
+.orientation-gate__icon {
+  margin-inline: auto;
+  border: 0.2rem solid #d1a34a;
+  border-radius: 0.75rem;
+  padding: 0.2rem 0.7rem;
+  color: #d1a34a;
+  font-size: clamp(3rem, 10vmin, 6rem);
+  line-height: 1;
+}
+
+.orientation-gate h1,
+.orientation-gate p {
+  margin: 0;
+}
+
+.orientation-gate h1 {
+  font-size: clamp(1.5rem, 5vmin, 2.5rem);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.orientation-gate p {
+  max-inline-size: 30rem;
+  color: #b9c5ce;
+  font-size: clamp(1rem, 3vmin, 1.25rem);
+}

@@ -1,0 +1,653 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tank Duel — Ammunition Demo</title>
+<style>
+:root{
+  --void:#0E1219;--panel:#141A24;--panel2:#1B2330;--rule:#252F3D;--rule2:#323E4F;
+  --text:#C7D0DC;--dim:#6E7A8A;--bright:#E6ECF4;--hot:#FF6B35;--ok:#7BD389;--warn:#FFD166;
+  --p1:#E8B33C;--p2:#4FC3D9;
+  --mono:ui-monospace,"SF Mono","JetBrains Mono",Menlo,Consolas,monospace;
+  --sans:"Roboto Condensed","Arial Narrow",Inter,system-ui,sans-serif;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--void);color:var(--text);font-family:var(--sans);font-size:15px;line-height:1.6;
+  -webkit-font-smoothing:antialiased;padding:26px 20px 90px}
+.wrap{max-width:1060px;margin:0 auto}
+.hdr{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap;margin-bottom:6px}
+h1{font-size:27px;color:var(--bright);font-weight:700;letter-spacing:.01em}
+.hdr .s{font-family:var(--mono);font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:var(--dim)}
+.sub{color:#8E9AAA;font-size:14px;margin-bottom:26px;max-width:70ch}
+h2{font-size:12px;letter-spacing:.2em;text-transform:uppercase;color:var(--dim);font-weight:400;
+  margin:34px 0 12px;padding-bottom:8px;border-bottom:1px solid var(--rule)}
+
+/* ---- stage ---- */
+.stage{border:1px solid var(--rule);border-radius:3px 3px 0 0;overflow:hidden;background:#0A0E15;line-height:0;position:relative}
+canvas{width:100%;height:auto;display:block}
+.badge{position:absolute;left:12px;top:11px;font-family:var(--mono);font-size:10px;letter-spacing:.14em;
+  text-transform:uppercase;color:var(--dim);background:rgba(10,14,21,.72);padding:4px 8px;border-radius:2px}
+.badge b{font-weight:400}
+
+/* ---- deck ---- */
+.deck{background:var(--panel);border:1px solid var(--rule);border-top:none;border-radius:0 0 3px 3px;padding:12px}
+.strip{display:grid;grid-template-columns:repeat(7,1fr);gap:6px}
+.chip{background:var(--panel2);border:1px solid var(--rule);border-radius:2px;padding:8px 6px 7px;
+  cursor:pointer;color:var(--text);font-family:var(--sans);text-align:left;transition:border-color .12s,background .12s}
+.chip:hover{border-color:var(--rule2)}
+.chip.sel{border-color:currentColor;background:#222C3B}
+.chip .ico{display:flex;justify-content:space-between;align-items:center;color:var(--dim)}
+.chip.sel .ico{color:inherit}
+.chip .k{font-family:var(--mono);font-size:9px}
+.chip .n{font-size:10.5px;line-height:1.2;margin-top:5px;letter-spacing:.02em;color:var(--text)}
+.chip.sel .n{color:inherit}
+.chip .m{font-family:var(--mono);font-size:8.5px;color:var(--warn);margin-top:2px}
+
+.row{display:grid;grid-template-columns:auto auto auto auto 1fr auto auto;gap:11px;align-items:center;
+  margin-top:12px;padding-top:12px;border-top:1px solid var(--rule)}
+.tel{min-width:62px}
+.tel .k{font-family:var(--mono);font-size:8.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--dim)}
+.tel .v{font-family:var(--mono);font-size:16px;color:var(--bright);font-variant-numeric:tabular-nums;margin-top:1px}
+.note{font-family:var(--mono);font-size:10.5px;color:var(--dim);line-height:1.45;padding-left:6px}
+.note b{color:var(--text);font-weight:400}
+button.act{border:none;font-family:var(--sans);font-weight:700;font-size:12.5px;letter-spacing:.16em;
+  text-transform:uppercase;padding:0 22px;height:40px;border-radius:2px;cursor:pointer}
+.fire{background:var(--hot);color:#0E1219}
+.fire:disabled{background:var(--rule);color:var(--dim);cursor:default}
+.ghost{background:transparent;border:1px solid var(--rule);color:var(--text);height:40px;padding:0 16px;
+  border-radius:2px;font-family:var(--sans);font-size:11.5px;letter-spacing:.14em;text-transform:uppercase;cursor:pointer}
+.ghost:hover{border-color:var(--rule2)}
+
+/* ---- info card ---- */
+.info{background:var(--panel);border:1px solid var(--rule);border-radius:3px;padding:14px 16px;margin-top:12px}
+.info .t{display:flex;align-items:center;gap:10px;margin-bottom:8px}
+.info .t .nm{font-size:15px;letter-spacing:.07em;text-transform:uppercase;font-weight:700}
+.info .t .tag{font-family:var(--mono);font-size:9px;letter-spacing:.12em;text-transform:uppercase;
+  padding:2px 6px;border:1px solid currentColor;border-radius:2px}
+.info p{font-size:13.5px;color:#B4BFCC;margin-bottom:7px}
+.info p:last-child{margin-bottom:0}
+.info .lbl{font-family:var(--mono);font-size:9.5px;letter-spacing:.13em;text-transform:uppercase;color:var(--dim);margin-right:6px}
+
+/* ---- loadout ---- */
+.load{background:#0A0E15;border:1px solid var(--rule2);border-radius:4px;padding:16px}
+.loadbar{display:flex;align-items:baseline;gap:12px;margin-bottom:13px;padding-bottom:11px;border-bottom:1px solid var(--rule)}
+.loadbar .t{font-size:13px;letter-spacing:.16em;text-transform:uppercase;color:var(--bright);font-weight:700}
+.loadbar .s{font-family:var(--mono);font-size:10px;color:var(--dim);letter-spacing:.09em}
+.lgrid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+.lc{background:var(--panel);border:1px solid var(--rule);border-radius:3px;padding:10px 11px;position:relative;cursor:pointer;
+  transition:border-color .12s,background .12s}
+.lc:hover{border-color:var(--rule2)}
+.lc.on{border-color:currentColor;background:#1B2330}
+.lc.locked{cursor:default;opacity:.75}
+.lc.over{opacity:.34}
+.lc .pt{position:absolute;top:9px;right:10px;font-family:var(--mono);font-size:10px;color:var(--dim)}
+.lc.on .pt{color:inherit}
+.lc .ic{color:var(--dim);margin-bottom:6px}
+.lc.on .ic{color:inherit}
+.lc .n{font-size:12px;letter-spacing:.03em;line-height:1.25;font-weight:600;color:var(--text)}
+.lc.on .n{color:inherit}
+.lc .m{font-family:var(--mono);font-size:8.5px;color:var(--dim);margin-top:4px}
+.budget{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-top:13px;padding-top:12px;border-top:1px solid var(--rule)}
+.budget .g{font-family:var(--mono);font-size:10.5px;color:var(--dim)}
+.budget .g b{color:var(--text);font-weight:400}
+.bar{height:5px;background:#05080D;border-radius:3px;overflow:hidden;width:180px}
+.bar i{display:block;height:100%;background:var(--hot);transition:width .2s}
+
+/* ---- icon sheet ---- */
+.isheet{display:grid;grid-template-columns:repeat(auto-fill,minmax(232px,1fr));gap:9px}
+.icard{background:var(--panel);border:1px solid var(--rule);border-radius:3px;padding:12px;display:flex;gap:12px;align-items:flex-start}
+.icard .big{flex:none}
+.icard .nm{font-size:12px;color:var(--bright);letter-spacing:.03em;line-height:1.25}
+.icard .fn{font-family:var(--mono);font-size:9px;color:var(--dim);margin:3px 0 6px}
+.icard .de{font-size:11px;color:#8E9AAA;line-height:1.4}
+.icard .sz{display:flex;gap:7px;align-items:flex-end;margin-top:8px;opacity:.9}
+
+@media(max-width:860px){
+  .strip{grid-template-columns:repeat(4,1fr)}
+  .row{grid-template-columns:1fr 1fr 1fr;gap:9px}
+  .note{grid-column:1/-1;padding-left:0}
+  .lgrid{grid-template-columns:repeat(2,1fr)}
+  button.act,.ghost{width:100%}
+}
+@media(prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="hdr"><h1>Ammunition demo</h1><span class="s">13 shells · live physics</span></div>
+  <p class="sub">Pick a shell and fire it. Every trajectory is the real integrator at
+  <span style="font-family:var(--mono);font-size:13px">GRAVITY 0.215 · MUZZLE 0.160 · 8 substeps</span> —
+  the same numbers the build uses. Terrain deforms and persists until you reset.</p>
+
+  <div class="stage">
+    <canvas id="cv" width="1000" height="560"></canvas>
+    <div class="badge" id="badge">SEED <b>1597</b> · WIND <b>0</b></div>
+  </div>
+
+  <div class="deck">
+    <div class="strip" id="strip"></div>
+    <div class="row">
+      <div class="tel"><div class="k">Elev</div><div class="v" id="tEl">—</div></div>
+      <div class="tel"><div class="k">Power</div><div class="v" id="tPw">—</div></div>
+      <div class="tel"><div class="k">Mass</div><div class="v" id="tMs">—</div></div>
+      <div class="tel"><div class="k">Damage</div><div class="v" id="tDm">—</div></div>
+      <div class="note" id="note"></div>
+      <button class="ghost" id="reset">Reset terrain</button>
+      <button class="act fire" id="fire">Fire</button>
+    </div>
+  </div>
+
+  <div class="info" id="info"></div>
+
+  <h2>Loadout — 10 points, 5 slots</h2>
+  <div class="load">
+    <div class="loadbar"><span class="t">Select loadout</span><span class="s">MATCH SETUP · 3 / 3</span>
+      <span class="s" style="margin-left:auto">HE SHELL ALWAYS EQUIPPED · FREE</span></div>
+    <div class="lgrid" id="lgrid"></div>
+    <div class="budget">
+      <span class="g">POINTS <b id="pUsed">0 / 10</b></span>
+      <div class="bar"><i id="pBar" style="width:0"></i></div>
+      <span class="g">SLOTS <b id="sUsed">0 / 5</b></span>
+      <span class="g" id="warn" style="color:var(--hot)"></span>
+    </div>
+  </div>
+
+  <h2>Icon set — 24×24, stroke only, currentColor</h2>
+  <div class="isheet" id="isheet"></div>
+
+</div>
+
+<script>
+"use strict";
+/* ===================== icons ===================== */
+const ICONS={
+  he:`<path d="M12 2.5c2.1 2.4 3.1 4.9 3.1 7.4v6.4H8.9V9.9c0-2.5 1-5 3.1-7.4z"/><path d="M8.9 16.3 6.2 20.5M15.1 16.3l2.7 4.2"/><path d="M9.4 20.5h5.2"/>`,
+  mortar:`<path d="M12 3.4c2.6 2.4 3.9 4.7 3.9 7.1v5.8H8.1v-5.8c0-2.4 1.3-4.7 3.9-7.1z"/><path d="M8.1 16.3 5.2 20.5M15.9 16.3l2.9 4.2"/><path d="M9.6 9.6 12 12l2.4-2.4"/><path d="M9.6 13 12 15.4l2.4-2.4"/>`,
+  cluster:`<circle cx="12" cy="4.6" r="1.7"/><path d="M10.7 6.1 6.6 15.6M11.5 6.4 9.6 16.4M12 6.4v10.2M12.5 6.4l1.9 10M13.3 6.1l4.1 9.5"/><path d="M2.5 19.8h19"/>`,
+  buster:`<path d="M12 2.2v5.6"/><path d="M8.8 6.6 12 10l3.2-3.4"/><path d="M2.5 11.4h6.4M15.1 11.4h6.4"/><path d="M12 12.8v2.6M12 17.4v3"/>`,
+  roller:`<path d="M2.5 7.4 21.5 18.6"/><circle cx="15.2" cy="13.3" r="2.7"/><path d="M7.4 9.4 9.8 10.8M10.2 7.6 12.3 8.8"/>`,
+  sand:`<rect x="3.4" y="13.7" width="8.1" height="4.7" rx="2.35"/><rect x="12.5" y="13.7" width="8.1" height="4.7" rx="2.35"/><rect x="7.9" y="8.5" width="8.1" height="4.7" rx="2.35"/><path d="M2.5 20.4h19"/>`,
+  skipper:`<path d="M2.5 19.5h19"/><path d="M3 19.5C4.3 9.2 7.6 9.2 8.9 19.5"/><path d="M8.9 19.5C10 12.6 12.7 12.6 13.8 19.5"/><path d="M13.8 19.5C14.7 15.2 16.8 15.2 17.7 19.5"/>`,
+  airburst:`<path d="M7.4 6.4 12 2.2l4.6 4.2"/><path d="M6 9.4v6.2M12 8.4v7.2M18 9.4v6.2"/><path d="M4.4 14 6 15.8 7.6 14M10.4 14 12 15.8 13.6 14M16.4 14 18 15.8 19.6 14"/><path d="M2.5 19.5h19"/>`,
+  drill:`<path d="M12 2.2v4.6"/><path d="M9.8 5 12 7.2 14.2 5"/><path d="M2.5 9.6h7M14.5 9.6h7"/><path d="M9.6 9.6v7.8l2.4 4.2 2.4-4.2V9.6"/><path d="M9.6 12.7h4.8M9.6 15.4h4.8"/>`,
+  mirv:`<circle cx="12" cy="3" r="1.4"/><path d="M12 4.5 7.4 8.8M12 4.5v4.3M12 4.5l4.6 4.3"/><path d="M7.4 8.8 5 15.4M7.4 8.8v6.6M7.4 8.8 9.8 15.4"/><path d="M12 8.8 9.8 15.4M12 8.8v6.6M12 8.8l2.2 6.6"/><path d="M16.6 8.8 14.2 15.4M16.6 8.8v6.6M16.6 8.8 19 15.4"/><path d="M2.5 19.5h19"/>`,
+  napalm:`<path d="M12 2.8c3.1 3.5 4.6 6.1 4.6 8.4a4.6 4.6 0 0 1-9.2 0c0-1.7.7-3.2 2.1-4.7.4 1.4 1 2.3 2 2.8-.3-2.2.5-4.4 2.5-6.5z"/><path d="M5.6 19.6c0-1.6.9-2.8 2.2-3.4M18.4 19.6c0-1.6-.9-2.8-2.2-3.4"/><path d="M2.5 19.6h19"/>`,
+  repair:`<rect x="2.8" y="7.4" width="18.4" height="12.2" rx="2.2"/><path d="M8.8 7.4V6a1.6 1.6 0 0 1 1.6-1.6h3.2A1.6 1.6 0 0 1 15.2 6v1.4"/><path d="M12 10.4v6.2M8.9 13.5h6.2"/>`,
+  anvil:`<path d="M4.4 11.2h13.1c1.9 0 3.2 1.2 4 3-2.6-.6-4.2.1-5.6 1.4H8.6c-2.6 0-4.2-1.7-4.2-4.4z"/>
+         <path d="M10.2 15.6v2.4M13.8 15.6v2.4"/>
+         <path d="M7.6 18h8.8"/>
+         <path d="M8.4 6.2v-3M12 5v-2.6M15.6 6.2v-3"/>`
+};
+const ICON_META={
+  he:'Shell silhouette with fins — the baseline everything else is read against',
+  mortar:'Same silhouette, heavier body, two descending chevrons for mass 1.55',
+  cluster:'Apex node fanning into five diverging submunitions',
+  buster:'Nose entering a broken ground line, shaft continuing below',
+  roller:'A ball on a slope with motion marks up-hill behind it',
+  sand:'Three stacked bags on the ground line — the only additive shell',
+  skipper:'Three diminishing hops along the ground line',
+  airburst:'Burst chevron above, three bomblets falling vertically',
+  drill:'Drill bit with flutes and a pointed tip below a broken ground line',
+  mirv:'A two-stage fork: one node to three, three to nine',
+  napalm:'Flame with side flares sitting on the ground line',
+  repair:'Field case with a cross — the only non-ordnance item',
+  anvil:'An anvil on its base with speed marks above — the only shell that falls vertically'
+};
+const icon=(id,s)=>`<svg viewBox="0 0 24 24" width="${s||18}" height="${s||18}" fill="none"
+  stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"
+  aria-hidden="true" style="flex:none;display:block">${ICONS[id]}</svg>`;
+
+/* ===================== sim ===================== */
+const FW=1000,FH=560,G=0.215,MUZZLE=0.160,SUB=8;
+function mulberry32(a){return function(){a|=0;a=(a+0x6D2B79F5)|0;let t=Math.imul(a^(a>>>15),1|a);
+  t=(t+Math.imul(t^(t>>>7),61|t))^t;return((t^(t>>>14))>>>0)/4294967296;};}
+function genHeights(seed){
+  const r=mulberry32(seed),N=256,p=new Float32Array(N+1);
+  p[0]=FH*(.55+r()*.1);p[N]=FH*(.55+r()*.1);
+  let st=N,d=FH*.26;
+  while(st>1){const h=st>>1;for(let i=h;i<N;i+=st)p[i]=(p[i-h]+p[i+h])/2+(r()*2-1)*d;st=h;d*=.55;}
+  const o=new Float32Array(FW);
+  for(let x=0;x<FW;x++){const t=x*N/FW,i=Math.floor(t),f=t-i;
+    o[x]=Math.max(FH*.40,Math.min(FH-60,p[i]*(1-f)+p[Math.min(N,i+1)]*f+Math.sin(x*.012)*7));}
+  return o;
+}
+const SEED=1597;
+let H=genHeights(SEED);
+const hAt=(h,x)=>x<0?h[0]:x>=FW?h[FW-1]:h[(x|0)];
+const TX1=150,TX2=850;
+
+function fly(h,x,y,vx,vy,mass,stopAlt,grace,vertical){
+  const pts=[{x,y}];let armed=!stopAlt,g=grace||0;
+  for(let f=0;f<900;f++){
+    for(let s=0;s<SUB;s++){
+      if(g>0)g--;
+      vy+=G*mass/SUB; if(!vertical) x+=vx/SUB; y+=vy/SUB;
+      if(stopAlt&&!armed&&(hAt(h,x)-y)>stopAlt+30)armed=true;
+      if(x<-90||x>FW+90||y>FH+140){pts.push({x,y});return{pts,imp:null,vx,vy};}
+      if(stopAlt&&armed&&(hAt(h,x)-y)<=stopAlt){pts.push({x,y});return{pts,imp:{x,y},vx,vy,air:1};}
+      if(g<=0&&y>=hAt(h,x)){pts.push({x,y});return{pts,imp:{x,y},vx,vy};}
+    }
+    pts.push({x,y});
+  }
+  return{pts,imp:null,vx,vy};
+}
+const launch=(h,ox,oy,ang,pow,mass,stopAlt)=>{const a=ang*Math.PI/180,v=pow*MUZZLE;
+  return fly(h,ox,oy,Math.cos(a)*v,-Math.sin(a)*v,mass,stopAlt,0,false);};
+const apexIdx=p=>{let b=0;for(let i=1;i<p.length;i++)if(p[i].y<p[b].y)b=i;return b;};
+
+/* ===================== shells ===================== */
+const S=[
+{id:'he',name:'HE Shell',tier:'Core',cost:0,ammo:'∞',mass:1.00,r:26,dmg:34,terrain:'carve',col:'#FF6B35',ang:46,pow:76,
+ body:'The reference. Mass 1.00, so its range table is the one players memorise and every other shell is a deviation from it.',
+ good:'Every ranging shot, and any turn where nothing special is needed.',
+ bad:'Never truly wasted — but at low enemy health a bigger shell ends it a turn sooner.'},
+{id:'mortar',name:'Heavy Mortar',tier:'Standard',cost:3,ammo:4,mass:1.55,r:44,dmg:52,terrain:'carve',col:'#FF8C42',ang:46,pow:96,
+ body:'Heaviest shell in the roster. Mass 1.55 caps its range near the spawn gap, so it is a full-power weapon at typical distance.',
+ good:'The finishing blow — a 44 px radius does not need a direct hit.',
+ bad:'Any turn where the player has not re-solved for its mass. Same power flies far shorter.'},
+{id:'cluster',name:'Cluster Bomb',tier:'Standard',cost:2,ammo:3,mass:1.00,r:20,dmg:18,terrain:'carve',col:'#FFD166',ang:50,pow:78,apex:5,
+ body:'Splits at apex into five. Highest drag in the roster, so wind moves it more than anything else.',
+ good:'A target on flat open ground — five submunitions mean near-misses still connect.',
+ bad:'A target in a crater or behind a ridge; submunitions hit the rim and nothing reaches.'},
+{id:'buster',name:'Bunker Buster',tier:'Standard',cost:2,ammo:3,mass:1.45,r:32,dmg:44,terrain:'carve',col:'#C77DFF',ang:46,pow:90,dig:36,
+ body:'Burrows 36 px along its incoming vector before detonating. The only shell that reliably beats a Sandbag wall.',
+ good:'A target behind sandbags or dug into a hillside.',
+ bad:'An exposed target — it buries itself under the tank and loses splash to soil.'},
+{id:'roller',name:'Roller',tier:'Standard',cost:2,ammo:3,mass:1.10,r:28,dmg:38,terrain:'carve',col:'#7BD389',ang:52,pow:82,roll:true,
+ body:'Lands, then travels downhill until it hits something. The only shell where terrain reading substitutes for arithmetic.',
+ good:'A target at the bottom of a slope — aim at the hillside above them.',
+ bad:'A target uphill or on a plateau; it stops and detonates harmlessly.'},
+{id:'sand',name:'Sandbags',tier:'Standard',cost:1,ammo:3,mass:1.20,r:34,dmg:0,terrain:'fill',col:'#C9A87C',ang:62,pow:40,fill:true,
+ body:'Adds terrain instead of removing it. The wall is symmetrical — it blocks the builder&rsquo;s own low shots just as thoroughly.',
+ good:'Denying a firing lane the opponent has already proved works. Costs a turn, buys a turn.',
+ bad:'Before the opponent has found the range — you are defending against a shot they cannot make yet.'},
+{id:'skipper',name:'Skipper',tier:'Exotic',cost:2,ammo:3,mass:1.00,r:22,dmg:26,terrain:'carve',col:'#8FD6FF',ang:30,pow:62,skip:3,
+ body:'Skips three times, shedding 18% of horizontal speed each time. Deliberately not physical — it ignores the surface normal so it can actually be aimed.',
+ good:'Reaching a target behind a low ridge at a flat angle nothing else manages.',
+ bad:'Broken ground — each skip is a chance to land in a hole and stop early.'},
+{id:'airburst',name:'Airburst',tier:'Exotic',cost:3,ammo:2,mass:1.10,r:18,dmg:22,terrain:'carve',col:'#FF9FD4',ang:46,pow:86,burst:90,
+ body:'Detonates 90 px above the surface and releases three bomblets vertically. The only shell whose damage arrives from directly overhead.',
+ good:'A target in a crater or trench — the bomblets ignore the rim entirely.',
+ bad:'A target under an overhang; the bomblets hit the roof.'},
+{id:'drill',name:'Drill Charge',tier:'Exotic',cost:2,ammo:2,mass:1.35,r:30,dmg:30,terrain:'column',col:'#B0A0FF',ang:46,pow:92,drill:80,
+ body:'Cuts a narrow 80 px shaft straight down. The only shell that reshapes terrain vertically rather than spherically.',
+ good:'Terrain sculpting — drop a tank off a plateau and let fall damage do the work.',
+ bad:'Direct damage. Thirty for two points is poor value if you only wanted a hit.'},
+{id:'mirv',name:'MIRV',tier:'Exotic',cost:4,ammo:2,mass:1.00,r:16,dmg:12,terrain:'carve',col:'#FFD9F0',ang:52,pow:80,mirv:true,
+ body:'Splits at apex into three, and each splits again into three — nine submunitions. The swingiest shell and the most expensive.',
+ good:'Wide open ground with no cover anywhere; nine impacts across ~300 px is unavoidable.',
+ bad:'Anything with cover. Nine small blasts against a dug-in target is nine wasted blasts.'},
+{id:'napalm',name:'Napalm',tier:'Exotic',cost:3,ammo:2,mass:1.05,r:24,dmg:14,terrain:'scorch',col:'#FF7043',ang:46,pow:78,burn:70,
+ body:'Spreads fire ±70 px along the surface. Ten damage per round for two rounds — the only shell whose damage arrives on someone else&rsquo;s turn.',
+ good:'Area denial over time.',
+ bad:'A finishing blow — 14 impact damage is the lowest in the roster.'},
+{id:'anvil',name:'Anvil Round',tier:'Exotic',cost:3,ammo:2,mass:0.55,r:14,dmg:'25–64',terrain:'column',col:'#9FB3C8',ang:50,pow:80.2,anvil:true,
+ body:'At apex the canister converts and an anvil drops straight down, immune to wind for the rest of its fall. Damage is impact speed × 3, so elevation and power stop being one combined range solve and become independent dials: flat and fast is weak, high and slow crushes.',
+ good:'Any target behind terrain — it falls vertically, so nothing between you and them matters.',
+ bad:'Long range, where the elevation ceiling forces a low apex and the damage drops toward 25.'},
+{id:'repair',name:'Repair Kit',tier:'Utility',cost:2,ammo:1,mass:0,r:0,dmg:'+30',terrain:'none',col:'#4FC3D9',noFlight:true,
+ body:'Heals 30 and ends the turn. No flight, no aiming, no terrain change, and it cannot be used on consecutive turns.',
+ good:'Below about 35 health, when surviving one more exchange wins the round.',
+ bad:'Early — spending a turn not shooting at full health hands the opponent free tempo.'}
+];
+
+/* ===================== resolve into an animatable timeline ===================== */
+const OX=a=>TX1+Math.cos(a*Math.PI/180)*24, OY=a=>hAt(H,TX1)-16-Math.sin(a*Math.PI/180)*24;
+
+function resolve(sh){
+  const tracks=[],blasts=[],zones=[],fills=[];
+  if(sh.noFlight) return {tracks,blasts,zones,fills,total:70,heal:true};
+  const ox=OX(sh.ang),oy=OY(sh.ang);
+  const push=(pts,t0,col,w,dash)=>tracks.push({pts,t0,col:col||sh.col,w:w||2.6,dash:dash||0});
+  const boom=(x,y,t,small)=>blasts.push({x,y,t,r:sh.r*(small?.55:1),small});
+
+  if(sh.skip){
+    const a=sh.ang*Math.PI/180,v=sh.pow*MUZZLE;
+    let vx=Math.cos(a)*v,vy=-Math.sin(a)*v,x=ox,y=oy,t=0;
+    for(let i=0;i<=sh.skip;i++){
+      const f=fly(H,x,y,vx,vy,sh.mass,0,i>0?14:0,false);
+      push(f.pts,t,null,i?2.2:2.6);
+      if(!f.imp) break;
+      t+=f.pts.length;
+      if(i===sh.skip){boom(f.imp.x,f.imp.y,t);break;}
+      boom(f.imp.x,f.imp.y,t,true);
+      vx=f.vx*0.82; vy=-Math.abs(vx)*0.52;
+      x=f.imp.x; y=Math.min(f.imp.y,hAt(H,f.imp.x))-7;
+    }
+    return done(tracks,blasts,zones,fills);
+  }
+
+  const f=launch(H,ox,oy,sh.ang,sh.pow,sh.mass,sh.burst||0);
+
+  if(sh.anvil){
+    const bi=apexIdx(f.pts),ap=f.pts[bi];
+    push(f.pts.slice(0,bi+1),0);
+    const drop=fly(H,ap.x,ap.y,0,0,1.0,0,0,true);
+    push(drop.pts,bi,null,3.2);
+    const t=bi+drop.pts.length;
+    const h=hAt(H,ap.x)-ap.y;
+    if(drop.imp) boom(drop.imp.x,drop.imp.y,t);
+    return done(tracks,blasts,zones,fills,{dropH:h,impactV:Math.sqrt(2*G*Math.max(0,h))});
+  }
+  if(sh.burst&&f.imp){
+    push(f.pts,0); const t=f.pts.length;
+    boom(f.imp.x,f.imp.y,t,true);
+    [-46,0,46].forEach(dx=>{
+      const bx=f.imp.x+dx, d=fly(H,bx,f.imp.y,0,0,1.0,0,0,true);
+      push(d.pts,t,null,2.0,1);
+      if(d.imp) boom(d.imp.x,d.imp.y,t+d.pts.length,true);
+    });
+    return done(tracks,blasts,zones,fills);
+  }
+  if(sh.drill&&f.imp){
+    push(f.pts,0); const t=f.pts.length;
+    const end={x:f.imp.x,y:Math.min(FH-4,f.imp.y+sh.drill)};
+    push([f.imp,end],t,'#FFD166',5,1); boom(end.x,end.y,t+10);
+    return done(tracks,blasts,zones,fills);
+  }
+  if(sh.dig&&f.imp){
+    push(f.pts,0); const t=f.pts.length;
+    const L=f.pts.length,A=f.pts[L-1],B=f.pts[L-2]||A,len=Math.hypot(A.x-B.x,A.y-B.y)||1;
+    const end={x:A.x+(A.x-B.x)/len*sh.dig,y:A.y+(A.y-B.y)/len*sh.dig};
+    push([A,end],t,'#FFD166',3.2,1); boom(end.x,end.y,t+8);
+    return done(tracks,blasts,zones,fills);
+  }
+  if(sh.roll&&f.imp){
+    push(f.pts,0); const t=f.pts.length;
+    const pts=[{x:f.imp.x,y:hAt(H,f.imp.x)}];
+    let x=f.imp.x,dir=hAt(H,x+8)>hAt(H,x-8)?1:-1;
+    for(let i=0;i<300;i++){
+      const nx=x+2*dir; if(nx<4||nx>FW-4)break;
+      if(hAt(H,nx)<hAt(H,x)-5)break;
+      x=nx; pts.push({x,y:hAt(H,x)});
+      if(Math.abs(x-TX2)<15||Math.abs(x-TX1)<15)break;
+      if(Math.abs(hAt(H,x+6)-hAt(H,x-6))<0.6&&i>30)break;
+    }
+    push(pts,t,'#FFD166',3.2,1);
+    boom(pts[pts.length-1].x,pts[pts.length-1].y,t+pts.length);
+    return done(tracks,blasts,zones,fills);
+  }
+  if(sh.apex&&f.imp!==undefined){
+    const bi=apexIdx(f.pts),ap=f.pts[bi],pv=f.pts[Math.max(0,bi-1)];
+    push(f.pts.slice(0,bi+1),0);
+    for(let k=0;k<sh.apex;k++){
+      const sp=(k-(sh.apex-1)/2)*0.9;
+      const c=fly(H,ap.x,ap.y,(ap.x-pv.x)+sp,(ap.y-pv.y)-0.6+Math.abs(sp)*0.12,sh.mass,0,10,false);
+      push(c.pts,bi,null,1.7);
+      if(c.imp) boom(c.imp.x,c.imp.y,bi+c.pts.length,true);
+    }
+    return done(tracks,blasts,zones,fills);
+  }
+  if(sh.mirv){
+    const bi=apexIdx(f.pts),ap=f.pts[bi],pv=f.pts[Math.max(0,bi-1)];
+    push(f.pts.slice(0,bi+1),0);
+    for(let k=0;k<3;k++){
+      const sp=(k-1)*1.5;
+      const c=fly(H,ap.x,ap.y,(ap.x-pv.x)+sp,(ap.y-pv.y)-0.5,sh.mass,0,10,false);
+      const si=Math.min(26,c.pts.length-1),s2=c.pts[si],p2=c.pts[Math.max(0,si-1)];
+      push(c.pts.slice(0,si+1),bi,null,1.9);
+      for(let j=0;j<3;j++){
+        const s3=(j-1)*1.1;
+        const d=fly(H,s2.x,s2.y,(s2.x-p2.x)+s3,(s2.y-p2.y),sh.mass,0,10,false);
+        push(d.pts,bi+si,null,1.3);
+        if(d.imp) boom(d.imp.x,d.imp.y,bi+si+d.pts.length,true);
+      }
+    }
+    return done(tracks,blasts,zones,fills);
+  }
+  if(sh.burn&&f.imp){
+    push(f.pts,0); const t=f.pts.length;
+    boom(f.imp.x,f.imp.y,t); zones.push({x0:f.imp.x-sh.burn,x1:f.imp.x+sh.burn,t});
+    return done(tracks,blasts,zones,fills);
+  }
+  if(sh.fill&&f.imp){
+    push(f.pts,0); const t=f.pts.length;
+    fills.push({x:f.imp.x,y:f.imp.y,r:sh.r,t});
+    return done(tracks,blasts,zones,fills);
+  }
+  push(f.pts,0);
+  if(f.imp) boom(f.imp.x,f.imp.y,f.pts.length);
+  return done(tracks,blasts,zones,fills);
+}
+function done(tracks,blasts,zones,fills,extra){
+  let total=0;
+  tracks.forEach(t=>total=Math.max(total,t.t0+t.pts.length));
+  blasts.forEach(b=>total=Math.max(total,b.t));
+  return Object.assign({tracks,blasts,zones,fills,total:total+46},extra||{});
+}
+
+/* ===================== terrain edit ===================== */
+function carve(h,cx,cy,r){for(let x=Math.max(0,cx-r|0);x<Math.min(FW,cx+r|0);x++){
+  const dx=x-cx,d=Math.sqrt(Math.max(0,r*r-dx*dx));h[x]=Math.max(h[x],cy+d*.85);}}
+function fillT(h,cx,cy,r){for(let x=Math.max(0,cx-r|0);x<Math.min(FW,cx+r|0);x++){
+  const dx=x-cx,d=Math.sqrt(Math.max(0,r*r-dx*dx));h[x]=Math.min(h[x],cy-d*.9);}}
+function column(h,cx,depth){for(let x=Math.max(0,cx-11|0);x<Math.min(FW,cx+11|0);x++)
+  h[x]=Math.min(FH-4,h[x]+depth*.55);}
+
+/* ===================== render ===================== */
+const cv=document.getElementById('cv'),ctx=cv.getContext('2d');
+let sky=null;
+function buildSky(){sky=ctx.createLinearGradient(0,0,0,FH);
+  sky.addColorStop(0,'#171E2B');sky.addColorStop(.45,'#2B3A52');
+  sky.addColorStop(.8,'#6A6E7C');sky.addColorStop(1,'#C9A87C');}
+buildSky();
+
+let cur=S[0], shot=null, frame=0, playing=false, parts=[], zonesOn=[], shake=0;
+
+function drawTerrain(){
+  ctx.beginPath(); ctx.moveTo(-20,FH); ctx.lineTo(-20,H[0]);
+  for(let x=0;x<FW;x+=3) ctx.lineTo(x,H[x]);
+  ctx.lineTo(FW-1,H[FW-1]); ctx.lineTo(FW+20,H[FW-1]); ctx.lineTo(FW+20,FH); ctx.closePath();
+  ctx.fillStyle='#4A5540'; ctx.fill();
+  ctx.strokeStyle='#5E6B52'; ctx.lineWidth=2.5; ctx.stroke();
+}
+function drawTank(x,col,ang){
+  const y=hAt(H,x),a=ang*Math.PI/180;
+  ctx.save(); ctx.translate(x,y);
+  ctx.fillStyle='rgba(0,0,0,.28)'; ctx.beginPath(); ctx.ellipse(0,0,17,3.5,0,0,7); ctx.fill();
+  ctx.fillStyle='#2A313C'; rr(-15,-7,30,7,3); ctx.fill();
+  ctx.fillStyle=col; rr(-13,-15,26,9,2.5); ctx.fill();
+  ctx.beginPath(); ctx.arc(0,-16,6,Math.PI,0); ctx.fill();
+  ctx.strokeStyle=col; ctx.lineWidth=4; ctx.lineCap='round';
+  ctx.beginPath(); ctx.moveTo(0,-16); ctx.lineTo(Math.cos(a)*25,-16-Math.sin(a)*25); ctx.stroke();
+  ctx.restore();
+}
+function rr(x,y,w,h,r){ctx.beginPath();ctx.moveTo(x+r,y);ctx.arcTo(x+w,y,x+w,y+h,r);
+  ctx.arcTo(x+w,y+h,x,y+h,r);ctx.arcTo(x,y+h,x,y,r);ctx.arcTo(x,y,x+w,y,r);ctx.closePath();}
+
+function draw(){
+  ctx.save();
+  if(shake>.4) ctx.translate((Math.random()-.5)*shake,(Math.random()-.5)*shake);
+  ctx.fillStyle=sky; ctx.fillRect(-24,-24,FW+48,FH+48);
+  ctx.globalAlpha=.18; ctx.fillStyle='#0E1219'; ctx.beginPath(); ctx.moveTo(-20,FH);
+  for(let x=-20;x<=FW+20;x+=26) ctx.lineTo(x,FH*.60+Math.sin(x*.0055)*34+Math.sin(x*.017)*12);
+  ctx.lineTo(FW+20,FH); ctx.closePath(); ctx.fill(); ctx.globalAlpha=1;
+  drawTerrain();
+
+  zonesOn.forEach(z=>{
+    ctx.strokeStyle='rgba(255,107,53,.34)'; ctx.lineWidth=10; ctx.lineCap='round';
+    ctx.beginPath(); ctx.moveTo(z.x0,hAt(H,z.x0));
+    for(let x=z.x0;x<=z.x1;x+=6) ctx.lineTo(x,hAt(H,x)); ctx.stroke();
+    ctx.strokeStyle='rgba(255,209,102,.85)'; ctx.lineWidth=3.5; ctx.stroke();
+  });
+
+  if(shot){
+    shot.tracks.forEach(tr=>{
+      const n=Math.max(0,Math.min(tr.pts.length,frame-tr.t0));
+      if(n<2) return;
+      ctx.strokeStyle=tr.col; ctx.lineWidth=tr.w; ctx.lineCap='round'; ctx.lineJoin='round';
+      ctx.setLineDash(tr.dash?[7,5]:[]);
+      ctx.beginPath(); ctx.moveTo(tr.pts[0].x,tr.pts[0].y);
+      for(let i=1;i<n;i++) ctx.lineTo(tr.pts[i].x,tr.pts[i].y);
+      ctx.stroke(); ctx.setLineDash([]);
+      if(n<tr.pts.length){const p=tr.pts[n-1];
+        ctx.fillStyle=tr.col; ctx.beginPath(); ctx.arc(p.x,p.y,3.4,0,7); ctx.fill();
+        ctx.globalAlpha=.32; ctx.beginPath(); ctx.arc(p.x,p.y,8,0,7); ctx.fill(); ctx.globalAlpha=1;}
+    });
+  }
+
+  drawTank(TX1,'#E8B33C',cur.noFlight?45:cur.ang);
+  drawTank(TX2,'#4FC3D9',135);
+
+  parts.forEach(p=>{ctx.globalAlpha=Math.max(0,p.life/p.max);ctx.fillStyle=p.col;
+    ctx.fillRect(p.x-p.s/2,p.y-p.s/2,p.s,p.s);});
+  ctx.globalAlpha=1;
+
+  if(shot&&shot.heal&&frame>12){
+    const y=hAt(H,TX1); ctx.globalAlpha=Math.max(0,1-(frame-12)/50);
+    ctx.strokeStyle='#4FC3D9'; ctx.lineWidth=2.5;
+    ctx.beginPath(); ctx.arc(TX1,y-14,16+(frame-12)*.7,0,7); ctx.stroke();
+    ctx.font='700 22px ui-monospace,monospace'; ctx.fillStyle='#4FC3D9'; ctx.textAlign='center';
+    ctx.fillText('+30',TX1,y-42-(frame-12)*.35); ctx.globalAlpha=1; ctx.textAlign='left';
+  }
+  ctx.restore();
+}
+
+function stepFX(){
+  for(let i=parts.length-1;i>=0;i--){const p=parts[i];
+    p.vy+=p.g;p.x+=p.vx;p.y+=p.vy;p.vx*=.985;p.life--;
+    if(p.life<=0)parts.splice(i,1);}
+  if(shake>0)shake*=.86;
+}
+function burst(x,y,r,col){
+  const n=20+Math.round(r*.8);
+  for(let i=0;i<n;i++){const a=Math.random()*7,s=Math.random()*(2+r*.12);
+    parts.push({x,y,vx:Math.cos(a)*s,vy:Math.sin(a)*s-.6,life:16+Math.random()*20,max:36,
+      s:1.6+Math.random()*3,col:Math.random()<.55?col:(Math.random()<.5?'#FFE1A8':'#6C7686'),g:.13});}
+  shake=Math.max(shake,Math.min(13,r*.3));
+}
+
+/* ===================== playback ===================== */
+function fire(){
+  if(playing) return;
+  shot=resolve(cur); frame=0; playing=true; parts=[]; shake=0;
+  shot._fired=new Set();
+  document.getElementById('fire').disabled=true;
+  updateTel();
+}
+function tick(){
+  if(playing&&shot){
+    frame++;
+    shot.blasts.forEach((b,i)=>{
+      if(!shot._fired.has(i)&&frame>=b.t){
+        shot._fired.add(i);
+        burst(b.x,b.y,b.r,cur.col);
+        if(cur.terrain==='carve') carve(H,b.x,b.y,b.r);
+        else if(cur.terrain==='column') column(H,b.x,cur.id==='drill'?80:34);
+        else if(cur.terrain==='scorch') carve(H,b.x,b.y,cur.r*.7);
+      }
+    });
+    shot.fills.forEach((f,i)=>{const k='f'+i;
+      if(!shot._fired.has(k)&&frame>=f.t){shot._fired.add(k);fillT(H,f.x,f.y,f.r);
+        burst(f.x,f.y,18,'#C9A87C');}});
+    shot.zones.forEach((z,i)=>{const k='z'+i;
+      if(!shot._fired.has(k)&&frame>=z.t){shot._fired.add(k);zonesOn.push(z);}});
+    if(frame>shot.total){playing=false;document.getElementById('fire').disabled=false;}
+  }
+  stepFX(); draw(); requestAnimationFrame(tick);
+}
+
+/* ===================== UI ===================== */
+const el=id=>document.getElementById(id);
+function updateTel(){
+  el('tEl').textContent=cur.noFlight?'—':cur.ang+'°';
+  el('tPw').textContent=cur.noFlight?'—':Math.round(cur.pow);
+  el('tMs').textContent=cur.mass?cur.mass.toFixed(2):'—';
+  if(cur.anvil&&shot&&shot.impactV!==undefined){
+    el('tDm').textContent=Math.round(shot.impactV*3.0);
+    el('tDm').style.color='var(--warn)';
+  } else { el('tDm').textContent=cur.dmg; el('tDm').style.color='var(--bright)'; }
+  let n='';
+  if(cur.anvil) n=`<b>Damage is impact speed × 3.</b> Raise elevation and re-solve power for the same landing point — the drop gets taller and the number goes up. 25 at 25°, 61 at 70°.`;
+  else if(cur.mass>1) n=`<b>Mass ${cur.mass.toFixed(2)}</b> multiplies gravity. The same power that works for HE flies far shorter.`;
+  else if(cur.fill) n=`<b>Adds terrain.</b> Fired here in front of the firer — and it blocks the firer&rsquo;s own low shots too.`;
+  else if(cur.noFlight) n=`<b>No flight.</b> Heals 30 and ends the turn.`;
+  else n=`<b>${cur.tier}</b> · ${cur.ammo} ammo · ${cur.cost?cur.cost+' pts':'free'} · blast ${cur.r}`;
+  el('note').innerHTML=n;
+}
+function renderInfo(){
+  el('info').innerHTML=`<div class="t">
+      <span style="color:${cur.col};display:flex">${icon(cur.id,24)}</span>
+      <span class="nm" style="color:${cur.col}">${cur.name}</span>
+      <span class="tag" style="color:${cur.col}">${cur.tier}</span></div>
+    <p>${cur.body}</p>
+    <p><span class="lbl">Built for</span>${cur.good}</p>
+    <p><span class="lbl">Wasted on</span>${cur.bad}</p>`;
+}
+function renderStrip(){
+  el('strip').innerHTML=S.map((s,i)=>`<button class="chip ${s.id===cur.id?'sel':''}" data-i="${i}"
+      style="${s.id===cur.id?'color:'+s.col:''}">
+      <div class="ico"><span class="k">${i+1}</span>${icon(s.id,17)}</div>
+      <div class="n">${s.name}</div>
+      ${s.mass>1?`<div class="m">×${s.mass.toFixed(2)}</div>`:(s.mass&&s.mass<1?`<div class="m" style="color:var(--ok)">×${s.mass.toFixed(2)}</div>`:'<div class="m">&nbsp;</div>')}
+    </button>`).join('');
+  [...el('strip').children].forEach(b=>b.onclick=()=>{
+    if(playing) return;
+    cur=S[+b.dataset.i]; shot=null; zonesOn=[]; parts=[];
+    renderStrip(); renderInfo(); updateTel(); draw();
+  });
+}
+
+/* loadout */
+let chosen=new Set(['mortar','cluster','anvil','buster']);
+function renderLoad(){
+  const pool=S.filter(s=>s.cost>0);
+  const used=[...chosen].reduce((n,id)=>n+S.find(s=>s.id===id).cost,0);
+  el('lgrid').innerHTML=
+    `<div class="lc on locked" style="color:#FF6B35">
+       <span class="pt">FREE</span><div class="ic">${icon('he',20)}</div>
+       <div class="n">HE Shell</div><div class="m">∞ AMMO · SLOT 1</div></div>`+
+    pool.map(s=>{
+      const on=chosen.has(s.id);
+      const wouldExceed=!on&&(used+s.cost>10||chosen.size>=4);
+      return `<div class="lc ${on?'on':''} ${wouldExceed?'over':''}" data-id="${s.id}"
+        style="${on?'color:'+s.col:''}">
+        <span class="pt">${s.cost}</span>
+        <div class="ic">${icon(s.id,20)}</div>
+        <div class="n">${s.name}</div>
+        <div class="m">${s.ammo} AMMO · ${typeof s.dmg==='number'?s.dmg+' DMG':s.dmg}</div></div>`;
+    }).join('');
+  el('pUsed').textContent=used+' / 10';
+  el('sUsed').textContent=(chosen.size+1)+' / 5';
+  el('pBar').style.width=Math.min(100,used/10*100)+'%';
+  el('warn').textContent = chosen.size>=4?'Deck full — HE holds slot 1':
+    (used>=9?'1 point left':'');
+  [...el('lgrid').querySelectorAll('.lc[data-id]')].forEach(c=>c.onclick=()=>{
+    const id=c.dataset.id,s=S.find(x=>x.id===id);
+    if(chosen.has(id)) chosen.delete(id);
+    else{
+      const u=[...chosen].reduce((n,i)=>n+S.find(x=>x.id===i).cost,0);
+      if(u+s.cost>10||chosen.size>=4) return;
+      chosen.add(id);
+    }
+    renderLoad();
+  });
+}
+
+function renderIcons(){
+  el('isheet').innerHTML=S.map(s=>`<div class="icard" style="color:${s.col}">
+    <span class="big">${icon(s.id,40)}</span>
+    <div style="min-width:0">
+      <div class="nm">${s.name}</div>
+      <div class="fn">${s.id}.svg</div>
+      <div class="de">${ICON_META[s.id]}</div>
+      <div class="sz">${icon(s.id,20)}${icon(s.id,16)}${icon(s.id,12)}
+        <span style="font-family:var(--mono);font-size:8.5px;color:var(--dim)">20/16/12</span></div>
+    </div></div>`).join('');
+}
+
+el('fire').onclick=fire;
+el('reset').onclick=()=>{H=genHeights(SEED);shot=null;zonesOn=[];parts=[];frame=0;
+  playing=false;el('fire').disabled=false;updateTel();draw();};
+addEventListener('keydown',e=>{
+  if(e.key===' '){e.preventDefault();fire();}
+  const n=parseInt(e.key,10);
+  if(!isNaN(n)&&n>=1&&n<=9&&!playing){cur=S[n-1];shot=null;renderStrip();renderInfo();updateTel();draw();}
+});
+
+renderStrip(); renderInfo(); renderLoad(); renderIcons(); updateTel(); tick();
+</script>
+</body>
+</html>
