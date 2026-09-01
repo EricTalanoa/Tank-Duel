@@ -1,9 +1,10 @@
 import { describe, it, expect } from 'vitest';
 import { paintColumns, paintRanges } from './terrainLayer';
-import { TERRAIN_BANDS } from './palette';
+import { TERRAIN_BANDS, terrainBandsFor } from './palette';
 import { carve, carveWrapped, createTerrain, generate, surfaceY, type Terrain } from '../sim/terrain';
 import { createRng } from '../sim/rng';
 import { CONSTANTS } from '../sim/constants';
+import { SHIPPED_WORLDS } from '../sim/worlds';
 
 const W = CONSTANTS.defaultFieldWidth;
 const H = CONSTANTS.fieldHeight;
@@ -120,6 +121,25 @@ describe('terrain repaint bounds', () => {
     expect(near(red(0), TERRAIN_BANDS.scrub[0])).toBe(true);
     expect(near(red(20), TERRAIN_BANDS.dirt[0])).toBe(true);
     expect(near(red(399), TERRAIN_BANDS.bedrock[0])).toBe(true);
+  });
+
+  it('digs through the world\'s own ground colour, not Terra\'s, on every world', () => {
+    // Break caught: TERRAIN_BANDS going back to a module constant, so Selene's grey and
+    // Ferrum's near-black soil both come out brown.
+    const near = (a: number, b: number) => Math.abs(a - b) <= 8; // the grain is +/-8
+
+    for (const world of SHIPPED_WORLDS) {
+      const terrain = createTerrain(4, 400);
+      terrain.mask.fill(1);
+      const pixels = new Uint8ClampedArray(4 * 400 * 4);
+      paintColumns(pixels, terrain, 0, 4, terrainBandsFor(world));
+
+      const red = (y: number) => pixels[(y * 4 + 0) * 4] as number;
+      const bands = terrainBandsFor(world);
+      expect(near(red(0), bands.scrub[0])).toBe(true);
+      expect(near(red(20), bands.dirt[0])).toBe(true);
+      expect(near(red(399), bands.bedrock[0])).toBe(true);
+    }
   });
 
   it('paints the same pixels for the same terrain — grain is stable across repaints', () => {

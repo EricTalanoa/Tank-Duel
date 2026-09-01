@@ -5,7 +5,7 @@
  * and the sky bands are read from there. Nothing here is a tuned physics value.
  */
 import type { PlayerIndex } from '../sim/playerLoadouts';
-import { worldById, type WorldId } from '../sim/worlds';
+import { worldById, type WorldId, type WorldPhysics } from '../sim/worlds';
 import { PRESENTATION } from './presentation';
 
 export const PALETTE = {
@@ -30,15 +30,43 @@ export function functionalAccent(world: WorldId): string {
   return worldById(world).palette.accent;
 }
 
+export type Rgb = readonly [number, number, number];
+
+export interface TerrainBands {
+  readonly scrub: Rgb;
+  readonly dirt: Rgb;
+  readonly bedrock: Rgb;
+}
+
 /**
  * Terrain bands as RGB, matching the hex above. Depth from the surface picks the band, so
  * a crater exposes darker soil with no extra work.
+ *
+ * These are Terra's colours and stay as the fallback for callers with no world in hand.
+ * Everything that has one goes through `terrainBandsFor`.
  */
-export const TERRAIN_BANDS = {
+export const TERRAIN_BANDS: TerrainBands = {
   scrub: [74, 85, 64],
   dirt: [92, 74, 54],
   bedrock: [52, 41, 31],
-} as const;
+};
+
+/** How far bedrock sits below the world's own ground colour. */
+export const BEDROCK_SHADE = 0.5;
+
+/**
+ * Terrain bands derived from a world's own palette, so Selene's grey and Ferrum's
+ * near-black ground are the ground you dig through rather than Terra's brown everywhere.
+ * Band depths and the grain do not move — only the three colours.
+ */
+export function terrainBandsFor(world: WorldPhysics): TerrainBands {
+  const ground = parseHex(world.palette.ground);
+  return {
+    scrub: parseHex(world.palette.edge),
+    dirt: ground,
+    bedrock: [ground[0] * BEDROCK_SHADE, ground[1] * BEDROCK_SHADE, ground[2] * BEDROCK_SHADE],
+  };
+}
 
 /** Monospace with tabular figures: telemetry digits must not jitter as they change. */
 export const TELEMETRY_FONT = '12px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace';

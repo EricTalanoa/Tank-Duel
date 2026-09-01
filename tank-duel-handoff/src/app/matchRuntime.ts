@@ -76,6 +76,7 @@ export interface MatchRuntimeDependencies {
     canvas: HTMLCanvasElement,
     terrain: GameState['terrain'],
     effects: EffectsEngine,
+    world: GameState['world'],
   ): Renderer;
   attachControls(options: AimControlsOptions): Controls;
 }
@@ -139,7 +140,7 @@ export function createMatchRuntime(options: CreateMatchRuntimeOptions): MatchRun
   );
   effectsForMotionChange = effects;
   const audio = dependencies.createAudio();
-  const renderer = dependencies.createRenderer(options.canvas, state.terrain, effects);
+  const renderer = dependencies.createRenderer(options.canvas, state.terrain, effects, state.world);
   const spentShellIdsByPlayer = [new Set<string>(), new Set<string>()] as const;
   let cpuMemory: CpuMemory = createCpuMemory();
   let lastCpuCommand: CpuCommand | null = null;
