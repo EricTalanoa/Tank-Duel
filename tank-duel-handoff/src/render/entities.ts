@@ -1,8 +1,15 @@
 import { CONSTANTS } from '../sim/constants';
 import type { GameState, Tank } from '../sim/world';
-import { PALETTE, playerColor } from './palette';
+import { playerColor, tankTones } from './palette';
 import { surfaceY } from '../sim/terrain';
 import { wrapX } from '../sim/wrap';
+
+/** Neutral running gear: the tracks read as machinery, not as the player's colour. */
+const TANK_RUNNING_GEAR = '#161C25';
+const TANK_RAIL_BED = '#0A0E14';
+const TANK_RAIL_TICK = 'rgba(14,18,25,0.85)';
+const TANK_RAIL_HEIGHT = 3.5;
+const ACTION_ACCENT = '#FF8C42';
 
 export function drawEntities(ctx: CanvasRenderingContext2D, state: GameState): void {
   drawWorldEntities(ctx, state);
@@ -64,42 +71,145 @@ function drawTrails(ctx: CanvasRenderingContext2D, tank: Tank): void {
   ctx.setLineDash([]);
 }
 
+/**
+ * Flat-vector tank inside the unchanged 30x25 hull box.
+ *
+ * Every coordinate below is inside `CONSTANTS.tank`'s box and nothing here feeds collision,
+ * damage origin or ballistics - this is a silhouette, not a shape the simulation reads.
+ * The body is drawn under `scale(tank.direction, 1)` so it mirrors for player 2; the barrel
+ * is drawn after the restore, from the real pivot and muzzle offset, so it is not mirrored
+ * twice.
+ */
 function drawTank(ctx: CanvasRenderingContext2D, state: GameState, tank: Tank): void {
-  const color = playerColor(tank.player);
+  const { base, dark, light } = tankTones(tank.player);
   const pivotY = tank.y + CONSTANTS.tank.turretPivotY;
   const angle = (tank.aim.angleDeg * Math.PI) / 180;
   const muzzleX = tank.x + Math.cos(angle) * CONSTANTS.tank.muzzleOffset * tank.direction;
   const muzzleY = pivotY - Math.sin(angle) * CONSTANTS.tank.muzzleOffset;
-  const hullX = tank.x - CONSTANTS.tank.hullHalfWidth;
-  const hullY = tank.y + CONSTANTS.tank.hullTop;
-  const hullWidth = CONSTANTS.tank.hullHalfWidth * 2;
-  const hullHeight = CONSTANTS.tank.hullBottom - CONSTANTS.tank.hullTop;
 
   ctx.globalAlpha = tank.health > 0 ? 1 : 0.35;
-  ctx.fillStyle = color;
-  ctx.fillRect(hullX, hullY, hullWidth, hullHeight);
-  ctx.strokeStyle = color;
-  ctx.lineWidth = 4;
-  ctx.beginPath();
-  ctx.moveTo(tank.x, pivotY);
-  ctx.lineTo(muzzleX, muzzleY);
-  ctx.stroke();
+  ctx.save();
+  ctx.translate(tank.x, tank.y);
+  ctx.scale(tank.direction, 1);
 
-  if (state.activePlayer === tank.player && state.phase === 'aim') {
-    ctx.strokeStyle = color;
-    ctx.lineWidth = 1;
-    ctx.strokeRect(hullX - 3, hullY - 3, hullWidth + 6, hullHeight + 6);
+  // Contact shadow: without it the silhouette floats above the ground it is standing on.
+  ctx.fillStyle = 'rgba(0,0,0,0.34)';
+  ctx.beginPath();
+  ctx.ellipse(0, 3.5, 16, 2.4, 0, 0, Math.PI * 2);
+  ctx.fill();
+
+  ctx.fillStyle = TANK_RUNNING_GEAR;
+  fillPolygon(ctx, [[-14.5, -3], [14.5, -3], [15, 0.5], [13, 3], [-13, 3], [-15, 0.5]]);
+  ctx.fillStyle = dark;
+  for (let wheel = 0; wheel < 5; wheel++) {
+    ctx.beginPath();
+    ctx.arc(-10.5 + wheel * 5.25, 0.2, 1.7, 0, Math.PI * 2);
+    ctx.fill();
   }
+  ctx.fillRect(-14.5, -3.6, 29, 1.2);
+
+  // Hull. The sloped glacis is the whole read: it says which way the tank points even with
+  // the barrel vertical.
+  ctx.fillStyle = base;
+  fillPolygon(ctx, [[-13.5, -3.4], [-13.5, -9], [-9, -12.4], [6.5, -12.4], [14, -7.4], [14, -3.4]]);
+  ctx.fillStyle = light;
+  ctx.fillRect(-9, -12.4, 15.5, 1.1);
+  ctx.fillStyle = dark;
+  fillPolygon(ctx, [[6.5, -12.4], [14, -7.4], [14, -3.4], [9.5, -3.4]]);
+
+  // Turret peaks at -19.4, inside hullTop -22.
+  ctx.fillStyle = base;
+  fillPolygon(ctx, [[-5.5, -12.4], [-3.5, -19.4], [3.5, -19.4], [5.5, -12.4]]);
+  ctx.fillStyle = light;
+  ctx.fillRect(-3.5, -19.4, 7, 1);
+  ctx.restore();
+
+  // Barrel: three passes along the real pivot-to-muzzle line, ending in a muzzle brake.
+  ctx.lineCap = 'butt';
+  ctx.strokeStyle = dark;
+  ctx.lineWidth = 4.4;
+  strokeSegment(ctx, tank.x, pivotY, muzzleX, muzzleY);
+  ctx.strokeStyle = base;
+  ctx.lineWidth = 2.4;
+  strokeSegment(ctx, tank.x, pivotY, muzzleX, muzzleY);
+  ctx.strokeStyle = light;
+  ctx.lineWidth = 4.6;
+  const brakeLength = CONSTANTS.tank.muzzleOffset - 3.5;
+  strokeSegment(
+    ctx,
+    tank.x + Math.cos(angle) * brakeLength * tank.direction,
+    pivotY - Math.sin(angle) * brakeLength,
+    muzzleX,
+    muzzleY,
+  );
 
   ctx.globalAlpha = 1;
-  const healthY = hullY - 8;
-  ctx.fillStyle = PALETTE.void;
-  ctx.fillRect(hullX, healthY, hullWidth, 4);
-  ctx.fillStyle = color;
+  drawHealthRail(ctx, tank, base);
+  if (state.activePlayer === tank.player && state.phase === 'aim') drawTurnBrackets(ctx, tank);
+}
+
+/** Quarter ticks so a player reads "about half" without doing arithmetic. */
+function drawHealthRail(ctx: CanvasRenderingContext2D, tank: Tank, base: string): void {
+  const width = CONSTANTS.tank.hullHalfWidth * 2;
+  const x = tank.x - CONSTANTS.tank.hullHalfWidth;
+  const y = tank.y + CONSTANTS.tank.hullTop - 8;
+  ctx.fillStyle = TANK_RAIL_BED;
+  ctx.fillRect(x, y, width, TANK_RAIL_HEIGHT);
+  ctx.fillStyle = base;
   ctx.fillRect(
-    hullX,
-    healthY,
-    hullWidth * (Math.max(0, tank.health) / CONSTANTS.damage.startingHealth),
-    4,
+    x,
+    y,
+    width * (Math.max(0, tank.health) / CONSTANTS.damage.startingHealth),
+    TANK_RAIL_HEIGHT,
   );
+  ctx.fillStyle = TANK_RAIL_TICK;
+  for (let tick = 1; tick < 4; tick++) ctx.fillRect(x + (tick * width) / 4, y, 1, TANK_RAIL_HEIGHT);
+}
+
+/** A reticle rather than a selection box, so it does not compete with the hull outline. */
+function drawTurnBrackets(ctx: CanvasRenderingContext2D, tank: Tank): void {
+  const length = 5;
+  const left = tank.x - 20;
+  const right = tank.x + 20;
+  const top = tank.y + CONSTANTS.tank.hullTop - 2;
+  const bottom = tank.y + 6;
+  ctx.strokeStyle = ACTION_ACCENT;
+  ctx.lineWidth = 1.5;
+  const corners: readonly (readonly [number, number, number, number])[] = [
+    [left, top, 1, 1],
+    [right, top, -1, 1],
+    [left, bottom, 1, -1],
+    [right, bottom, -1, -1],
+  ];
+  for (const [x, y, towardX, towardY] of corners) {
+    ctx.beginPath();
+    ctx.moveTo(x + towardX * length, y);
+    ctx.lineTo(x, y);
+    ctx.lineTo(x, y + towardY * length);
+    ctx.stroke();
+  }
+}
+
+function fillPolygon(
+  ctx: CanvasRenderingContext2D,
+  points: readonly (readonly [number, number])[],
+): void {
+  ctx.beginPath();
+  ctx.moveTo(points[0]![0], points[0]![1]);
+  for (let index = 1; index < points.length; index++) ctx.lineTo(points[index]![0], points[index]![1]);
+  ctx.closePath();
+  ctx.fill();
+}
+
+function strokeSegment(
+  ctx: CanvasRenderingContext2D,
+  x0: number,
+  y0: number,
+  x1: number,
+  y1: number,
+): void {
+  ctx.beginPath();
+  ctx.moveTo(x0, y0);
+  ctx.lineTo(x1, y1);
+  ctx.stroke();
 }
