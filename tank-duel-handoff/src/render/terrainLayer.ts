@@ -8,7 +8,7 @@
  * the repaint bounds are testable headlessly.
  */
 import type { DirtyRange, DirtyRanges, Terrain } from '../sim/terrain';
-import { TERRAIN_BANDS } from './palette';
+import { TERRAIN_BANDS, type TerrainBands } from './palette';
 
 /** Depth-from-surface bands, transcribed from `reference/prototype.html` → `paintColumns`. */
 const BANDS = {
@@ -41,11 +41,12 @@ export function paintColumns(
   terrain: Terrain,
   x0: number,
   x1: number,
+  bands: TerrainBands = TERRAIN_BANDS,
 ): void {
   const { mask, width, height } = terrain;
   const from = Math.max(0, x0 | 0);
   const to = Math.min(width, x1 | 0);
-  const { scrub, dirt, bedrock } = TERRAIN_BANDS;
+  const { scrub, dirt, bedrock } = bands;
 
   for (let x = from; x < to; x++) {
     let depth = 0;
@@ -86,8 +87,9 @@ export function paintRanges(
   pixels: Uint8ClampedArray,
   terrain: Terrain,
   ranges: DirtyRanges,
+  bands: TerrainBands = TERRAIN_BANDS,
 ): void {
-  for (const range of ranges) paintColumns(pixels, terrain, range.x0, range.x1);
+  for (const range of ranges) paintColumns(pixels, terrain, range.x0, range.x1, bands);
 }
 
 export interface TerrainLayer {
@@ -101,7 +103,10 @@ export interface TerrainLayer {
   repaintAll(): void;
 }
 
-export function createTerrainLayer(terrain: Terrain): TerrainLayer {
+export function createTerrainLayer(
+  terrain: Terrain,
+  bands: TerrainBands = TERRAIN_BANDS,
+): TerrainLayer {
   const canvas = document.createElement('canvas');
   canvas.width = terrain.width;
   canvas.height = terrain.height;
@@ -112,7 +117,7 @@ export function createTerrainLayer(terrain: Terrain): TerrainLayer {
 
   function flush(x0: number, x1: number): void {
     if (x1 <= x0) return;
-    paintColumns(image.data, terrain, x0, x1);
+    paintColumns(image.data, terrain, x0, x1, bands);
     // Only the dirty rect is uploaded, not the whole image.
     ctx!.putImageData(image, 0, 0, x0, 0, x1 - x0, terrain.height);
   }

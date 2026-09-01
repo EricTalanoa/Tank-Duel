@@ -5,6 +5,7 @@ import type { PresentationEvent } from '../sim/presentation';
 import { HE_SHELL } from '../sim/shells';
 import { PRESENTATION } from './presentation';
 import * as palette from './palette';
+const { tankTones } = palette;
 import { drawFlightEntities, drawWorldEntities } from './entities';
 import { drawHud } from './hud';
 import { createEffects } from './effects';
@@ -28,6 +29,12 @@ class RecordingContext {
 
   save(): void {}
   restore(): void {}
+  createLinearGradient(): CanvasGradient {
+    return { addColorStop(): void {} } as unknown as CanvasGradient;
+  }
+  translate(): void {}
+  scale(): void {}
+  ellipse(): void { this.fills.push({ color: this.fillStyle, width: 0, height: 0 }); }
   beginPath(): void {}
   moveTo(): void {}
   lineTo(): void {}
@@ -75,22 +82,36 @@ test('maps each player index to its presentation color', () => {
 });
 
 test('renders every player-owned combat surface with its owner color', () => {
-  // Break caught: a body, health fill, active marker, aim, projectile, or trail uses a shell/shared color.
+  // Break caught: a body, health fill, aim, projectile, or trail uses a shell/shared color.
   const colors = PRESENTATION.players.map((player) => player.color);
   const playerZero = new RecordingContext();
   drawWorldEntities(playerZero as unknown as CanvasRenderingContext2D, combatState(0));
   drawFlightEntities(playerZero as unknown as CanvasRenderingContext2D, combatState(0));
-  const playerOne = new RecordingContext();
-  drawWorldEntities(playerOne as unknown as CanvasRenderingContext2D, combatState(1));
 
-  for (const color of colors) {
-    expect(playerZero.fills.some((fill) => fill.color === color && fill.height > 4)).toBe(true);
-    expect(playerZero.fills.some((fill) => fill.color === color && fill.height === 4)).toBe(true);
-    expect(playerZero.strokes).toContain(color);
-    expect(playerZero.arcs).toContain(color);
+  for (const player of [0, 1] as const) {
+    const { base, dark, light } = tankTones(player);
+    // Hull and turret in the base tone, their shading and highlight derived from it.
+    expect(playerZero.fills.some((fill) => fill.color === base)).toBe(true);
+    expect(playerZero.fills.some((fill) => fill.color === dark)).toBe(true);
+    expect(playerZero.fills.some((fill) => fill.color === light)).toBe(true);
+    // Health rail fill.
+    expect(playerZero.fills.some((fill) => fill.color === base && fill.height === 3.5)).toBe(true);
+    // Barrel passes and the projectile.
+    expect(playerZero.strokes).toContain(base);
+    expect(playerZero.arcs).toContain(base);
   }
-  expect(playerZero.strokeRects).toContain(colors[0]);
-  expect(playerOne.strokeRects).toContain(colors[1]);
+  expect(colors).toEqual([tankTones(0).base, tankTones(1).base]);
+});
+
+test('brackets only the active tank, in the shared action accent', () => {
+  // Break caught: the turn marker returning to a per-player colour, or marking both tanks.
+  for (const active of [0, 1] as const) {
+    const context = new RecordingContext();
+    drawWorldEntities(context as unknown as CanvasRenderingContext2D, combatState(active));
+    // Four corner brackets, one stroked path each, on exactly one tank.
+    expect(context.strokes.filter((color) => color === '#FF8C42')).toHaveLength(4);
+    expect(context.strokeRects).toHaveLength(0);
+  }
 });
 
 test('keeps shell feedback functional while player muzzle and HUD feedback follow player identity', () => {

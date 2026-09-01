@@ -47,6 +47,7 @@ const controller = createAppController({
   ),
   createMatchRuntime: ({ config, playerLoadoutIds, onComplete }) => createMatchRuntime({
     canvas,
+    hudChrome: { showTelemetry: devTelemetryEnabled() },
     config: {
       seed: config.seed,
       worldId: config.worldId,
@@ -67,6 +68,11 @@ globalThis.addEventListener('pagehide', () => {
   orientationGate.dispose();
   controller.dispose();
 }, { once: true });
+
+/** Loop telemetry is a dev aid, so it ships off and opts in through `?telemetry=1`. */
+function devTelemetryEnabled(): boolean {
+  return new URLSearchParams(globalThis.location.search).get('telemetry') === '1';
+}
 
 function sceneOptions(scene: 'title' | 'howto'): SceneAnimationOptions {
   return {

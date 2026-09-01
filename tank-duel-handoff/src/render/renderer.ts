@@ -7,13 +7,14 @@
  */
 import type { Terrain, DirtyRanges } from '../sim/terrain';
 import type { GameState } from '../sim/world';
-import { drawHud, type LoopTelemetry } from './hud';
-import { PALETTE } from './palette';
+import { drawHud, type HudChrome, type LoopTelemetry } from './hud';
+import { CHROME, monoFont, shade, terrainBandsFor } from './palette';
 import { createTerrainLayer } from './terrainLayer';
 import { drawFlightEntities, drawWorldEntities } from './entities';
 import type { EffectsEngine } from './effects';
 import { PLAYABLE_WEAPONS } from '../sim/weapons';
 import { cameraForState, type CameraView } from './camera';
+import { TERRA, type WorldPhysics } from '../sim/worlds';
 import { worldCopyOffsets } from './worldCopies';
 import { CONSTANTS } from '../sim/constants';
 import { EFFECTS } from './effectConfig';
@@ -88,15 +89,24 @@ function persistentOverflowPx(state: GameState, effects?: EffectsEngine): number
     + EFFECTS.shake.amplitudePx;
 }
 
+/** How far the world's own sky is darkened to make the letterbox read as a bezel. */
+const SURROUND_SHADE = 0.55;
+/** Keeps the crop caption clear of the canvas edge when the frame reaches it. */
+const CAPTION_INSET = 10;
+
 export function createRenderer(
   canvas: HTMLCanvasElement,
   terrain: Terrain,
   effects?: EffectsEngine,
+  world: WorldPhysics = TERRA,
+  chrome: HudChrome = {},
 ): Renderer {
   const ctx = canvas.getContext('2d', { alpha: false });
   if (!ctx) throw new Error('Canvas 2D context unavailable');
 
-  const terrainLayer = createTerrainLayer(terrain);
+  const terrainLayer = createTerrainLayer(terrain, terrainBandsFor(world));
+  // Derived from the world's own sky, so the dead bars are right on all six worlds.
+  const surround = shade(world.palette.sky[0] ?? TERRA.palette.sky[0]!, SURROUND_SHADE);
   const icons = new Map<string, HTMLImageElement>();
   for (const { shell } of PLAYABLE_WEAPONS) {
     const image = new Image();
@@ -123,12 +133,42 @@ export function createRenderer(
     return { width, height, dpr };
   }
 
-  function drawSky(field: GameState['field'], cameraView: CameraView): void {
+  /**
+   * When the view does not fill the canvas, frame the play area and print the crop. It
+   * turns the dead bars into an instrument bezel and makes the camera legible.
+   */
+  function drawLetterboxFrame(width: number, height: number): void {
+    const frameWidth = view.width * scale;
+    const frameHeight = view.height * scale;
+    if (frameWidth >= width - 1 && frameHeight >= height - 1) return;
+
+    ctx!.strokeStyle = CHROME.hairline;
+    ctx!.lineWidth = 1;
+    ctx!.strokeRect(offsetX + 0.5, offsetY + 0.5, frameWidth - 1, frameHeight - 1);
+
+    ctx!.font = monoFont(9);
+    ctx!.fillStyle = 'rgba(201,168,124,0.5)';
+    ctx!.textAlign = 'right';
+    ctx!.textBaseline = 'top';
+    // A horizontal letterbox leaves no room below the frame, so the caption moves inside.
+    const below = offsetY + frameHeight + 8;
+    const outside = below + 10 <= height;
+    ctx!.fillText(
+      `VIEW ${Math.round(view.width)} × ${Math.round(view.height)}  ·  ${scale.toFixed(2)}×`,
+      offsetX + frameWidth - CAPTION_INSET,
+      outside ? below : offsetY + frameHeight - 20,
+    );
+    ctx!.textAlign = 'left';
+  }
+
+  /** The world's own four sky stops, at the stop positions this scene has always used. */
+  function drawSky(field: GameState['field'], cameraView: CameraView, stops: readonly string[]): void {
     const sky = ctx!.createLinearGradient(0, 0, 0, field.height);
-    sky.addColorStop(0, PALETTE.skyTop);
-    sky.addColorStop(0.45, PALETTE.skyUpper);
-    sky.addColorStop(0.82, PALETTE.skyMid);
-    sky.addColorStop(1, PALETTE.horizonHaze);
+    const positions = [0, 0.45, 0.82, 1];
+    positions.forEach((position, index) => {
+      const color = stops[index] ?? stops[stops.length - 1];
+      if (color) sky.addColorStop(position, color);
+    });
     ctx!.fillStyle = sky;
     ctx!.fillRect(cameraView.x, 0, cameraView.width, field.height);
   }
@@ -145,7 +185,7 @@ export function createRenderer(
       offsetY = (height - view.height * scale) / 2;
 
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-      ctx.fillStyle = PALETTE.void;
+      ctx.fillStyle = surround;
       ctx.fillRect(0, 0, width, height);
 
       ctx.save();
@@ -156,7 +196,7 @@ export function createRenderer(
       ctx.clip();
 
       ctx.translate(-view.x, -view.y);
-      drawSky(field, view);
+      drawSky(field, view, state.world.palette.sky);
       ctx.save();
       const shake = effects?.shakeOffset ?? { x: 0, y: 0 };
       ctx.translate(shake.x, shake.y);
@@ -181,11 +221,9 @@ export function createRenderer(
       ctx.restore();
       ctx.restore();
 
-      ctx.save();
-      ctx.translate(offsetX, offsetY);
-      ctx.scale(scale, scale);
-      drawHud(ctx, state, telemetry, icons, view);
-      ctx.restore();
+      drawLetterboxFrame(width, height);
+      // Outside the camera transform: the HUD is viewport-sized on every world.
+      drawHud(ctx, state, telemetry, icons, { width, height }, chrome);
     },
 
     terrainChanged(ranges) {

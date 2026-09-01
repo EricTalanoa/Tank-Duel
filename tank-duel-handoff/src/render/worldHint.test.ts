@@ -1,15 +1,18 @@
 import { describe, expect, it } from 'vitest';
 import rawWorlds from '../../spec/worlds.json';
-import { createWorld } from '../sim/world';
-import { worldRangeHint } from './hud';
+import { SHIPPED_WORLDS } from '../sim/worlds';
+import { worldStripText } from './hud';
 
-describe('first-round world hint', () => {
-  it.each(['terra', 'vesper', 'ferrum'] as const)('shows %s own imported range only in round one', (worldId) => {
-    const source = rawWorlds.find((world) => world.id === worldId)!;
-    const state = createWorld(8, { worldId });
-    expect(worldRangeHint(state)).toContain(source.name);
-    expect(worldRangeHint(state)).toContain(String(source.derived.rangeAtPower75));
-    state.turn++;
-    expect(worldRangeHint(state)).toBeNull();
+describe('world strip', () => {
+  it.each(SHIPPED_WORLDS)('builds $name\'s strip from its own spec entry', (world) => {
+    // Break caught: gravity, width or kind being retyped into the HUD instead of read
+    // from spec/worlds.json, or the strip losing the figures the player is choosing between.
+    const source = rawWorlds.find((entry) => entry.id === world.id)!;
+    const strip = worldStripText(world).replace(/ /g, '');
+
+    expect(strip).toContain(source.name.toUpperCase());
+    expect(strip).toContain(source.kind.toUpperCase().replace(/ /g, ''));
+    expect(strip).toContain(`G${source.gravity.toFixed(2)}`);
+    expect(strip).toContain(`${source.width}PX`);
   });
 });

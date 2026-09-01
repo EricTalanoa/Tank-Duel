@@ -1,23 +1,186 @@
-.loadout-overlay { position: fixed; inset: 0; z-index: 10; display: grid; grid-template-rows: minmax(0, 1fr) auto; gap: 18px; padding: calc(24px + env(safe-area-inset-top)) calc(24px + env(safe-area-inset-right)) calc(24px + env(safe-area-inset-bottom)) calc(24px + env(safe-area-inset-left)); overflow: auto; background: radial-gradient(circle at 50% 15%, #29384b, #0e1219 65%); color: #eef7ff; font: 14px system-ui, sans-serif; }
-.loadout-panels { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; min-height: 0; }
-.loadout-panels.is-cpu { grid-template-columns: minmax(0, 1fr) minmax(16rem, 0.7fr); }
-.loadout-panel { min-width: 0; overflow: auto; padding: 16px; border: 1px solid #405165; background: #151d28; }
-.cpu-loadout-summary { border: 1px solid #536273; background: #18212d; }
-.loadout-panel header { display: flex; align-items: end; gap: 12px; margin-bottom: 14px; }
-.loadout-panel h1 { margin: 0; font-size: clamp(22px, 3vw, 38px); text-transform: uppercase; }
-.loadout-panel p, .loadout-panel output { color: #b8c8d7; letter-spacing: .12em; }
-.loadout-panel output { margin-left: auto; text-align: right; }
-.loadout-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 10px; }
-.loadout-card { min-width: 44px; min-height: 96px; display: grid; grid-template-columns: 42px 1fr; gap: 4px 12px; align-items: center; padding: 12px; border: 1px solid #405165; background: #151d28; color: #9eabb8; text-align: left; cursor: pointer; }
-.loadout-card strong { color: #eef7ff; }
-.loadout-card small { grid-column: 2; }
-.loadout-card.is-selected { border-color: #ff8c42; background: #28221e; color: #ffc39d; }
-.loadout-card:focus-visible:not(:disabled) { outline: 3px solid #ffd166; outline-offset: 3px; }
-.loadout-card:disabled { cursor: not-allowed; opacity: .75; }
-.cpu-deck-list { display: grid; gap: 10px; margin: 0; padding: 0; list-style: none; }
-.cpu-deck-list li { display: grid; grid-template-columns: 38px 1fr; gap: 3px 12px; align-items: center; min-height: 44px; padding: 10px; border: 1px solid #405165; color: #c9d4df; }
-.cpu-deck-list small { grid-column: 2; color: #aebdcb; }
-.shell-icon { grid-row: 1 / 3; width: 38px; height: 38px; background: currentColor; mask: var(--icon) center / contain no-repeat; -webkit-mask: var(--icon) center / contain no-repeat; }
-.deploy { min-width: 44px; min-height: 44px; width: 100%; padding: 15px; border: 0; background: #ff6b35; color: #10141b; font-weight: 900; letter-spacing: .14em; cursor: pointer; }
-.deploy:focus-visible:not(:disabled) { outline: 3px solid #ffd166; outline-offset: 3px; }
-@media (max-width: 620px) { .loadout-overlay { gap: 12px; } .loadout-panel { padding: 12px; } .loadout-panel header { display: block; } .loadout-panel output { display: block; margin-top: 8px; } .loadout-grid { grid-template-columns: 1fr 1fr; } .loadout-card { grid-template-columns: 28px 1fr; min-height: 78px; padding: 8px; } .shell-icon { width: 28px; height: 28px; } }
+/**
+ * Loadout — the same "field instrument" chrome as the menu screens, with the title promoted
+ * out of the panel header.
+ *
+ * Two things were broken before: `.loadout-panel h1` was a `clamp(22px, 3vw, 38px)` heading
+ * inside a flex header ~532px wide, so "Choose your arsenal" collapsed into three wrapped
+ * lines; and the card metadata `3 PT · 4 AMMO · MASS 1.55` wrapped inside a 42px + 1fr grid.
+ * The title is now the screen's, and the metadata is short and nowrap.
+ */
+.loadout-overlay {
+  --void: #0e1219;
+  --panel: #131922;
+  --panel-recessed: #0f141c;
+  --panel-readonly: #101620;
+  --panel-selected: #1b1712;
+  --paper: #f6eadc;
+  --sand: #c9a87c;
+  --muted: #8fa0b8;
+  --dim: #7f8b9c;
+  --disabled: #5c6672;
+  --menu-accent: #ff8c42;
+  --menu-deploy: #ff6b35;
+  --hairline: rgb(201 168 124 / 18%);
+  --hairline-strong: rgb(201 168 124 / 26%);
+  --hairline-faint: rgb(201 168 124 / 12%);
+  --mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+
+  position: fixed;
+  inset: 0;
+  z-index: 10;
+  box-sizing: border-box;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  gap: 22px;
+  padding:
+    calc(40px + env(safe-area-inset-top))
+    calc(56px + env(safe-area-inset-right))
+    calc(40px + env(safe-area-inset-bottom))
+    calc(56px + env(safe-area-inset-left));
+  background: var(--void);
+  color: var(--paper);
+  font-family: Archivo, system-ui, sans-serif;
+}
+
+.loadout-overlay .screen-header { display: flex; flex-direction: column; gap: 14px; }
+.loadout-overlay .header-row { display: flex; align-items: baseline; justify-content: space-between; gap: 24px; }
+.loadout-overlay .menu-kicker { margin: 0; color: var(--sand); font-family: var(--mono); font-size: 12px; letter-spacing: 0.32em; text-transform: uppercase; white-space: nowrap; }
+.loadout-overlay .menu-step { margin: 0; color: var(--dim); font-family: var(--mono); font-size: 11px; letter-spacing: 0.2em; text-transform: uppercase; white-space: nowrap; }
+.loadout-overlay h1 { margin: 0; font-size: 48px; font-weight: 800; line-height: 0.94; letter-spacing: -0.028em; text-transform: uppercase; }
+.loadout-overlay h1[tabindex='-1']:focus { outline: none; }
+.loadout-overlay .rule { block-size: 1px; margin: 0; border: 0; background: var(--hairline-strong); }
+
+.loadout-panels { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 22px; min-block-size: 0; }
+/* `minmax(0, …)` on both tracks, so the read-only panel cannot blow the split out. */
+.loadout-panels.is-cpu { grid-template-columns: minmax(0, 1fr) minmax(0, 0.7fr); }
+
+.loadout-panel {
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  min-inline-size: 0;
+  padding: 24px;
+  border: 1px solid var(--hairline);
+  background: var(--panel);
+  overflow: auto;
+}
+
+.cpu-loadout-summary { border: 1px solid var(--hairline-faint); background: var(--panel-readonly); }
+
+.loadout-panel header { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+.panel-identity { display: flex; align-items: center; gap: 12px; min-inline-size: 0; }
+
+.player-tag {
+  padding: 5px 10px;
+  background: var(--player-color, var(--sand));
+  color: var(--void);
+  font-family: var(--mono);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+}
+
+.panel-label { font-size: 19px; font-weight: 700; letter-spacing: 0.01em; text-transform: uppercase; white-space: nowrap; }
+.cpu-loadout-summary .panel-label { color: #b9c4d2; }
+.cpu-loadout-summary .player-tag { background: #3a4450; color: #c7d0dc; }
+
+.panel-budget { display: flex; align-items: center; gap: 10px; }
+.loadout-panel output { color: var(--sand); font-family: var(--mono); font-size: 12px; white-space: nowrap; }
+.cpu-loadout-summary output { color: var(--disabled); font-size: 10px; letter-spacing: 0.2em; text-transform: uppercase; }
+
+/* Ten pips: the budget is legible at a glance rather than as a fraction to parse. */
+.panel-pips { display: flex; gap: 3px; }
+.panel-pips span { inline-size: 7px; block-size: 14px; background: var(--hairline); }
+.panel-pips span.is-spent { background: var(--menu-accent); }
+
+.loadout-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; align-content: start; }
+
+.loadout-card {
+  display: grid;
+  grid-template-columns: 38px 1fr;
+  gap: 4px 14px;
+  align-items: center;
+  min-inline-size: 44px;
+  min-block-size: 44px;
+  padding: 14px;
+  border: 1px solid var(--hairline);
+  background: var(--panel-recessed);
+  color: var(--paper);
+  font-family: inherit;
+  text-align: start;
+  cursor: pointer;
+}
+
+.loadout-card strong { grid-column: 2; font-size: 16px; font-weight: 700; }
+.loadout-card small { grid-column: 2; color: var(--dim); font-family: var(--mono); font-size: 11px; letter-spacing: 0.06em; white-space: nowrap; }
+.loadout-card .shell-icon { grid-row: 1 / 3; inline-size: 34px; block-size: 34px; opacity: 0.7; }
+.loadout-card.is-selected { border-color: var(--menu-accent); background: var(--panel-selected); }
+.loadout-card.is-selected strong { color: #ffc39d; }
+.loadout-card.is-selected small { color: rgb(255 195 157 / 72%); }
+.loadout-card.is-selected .shell-icon { opacity: 1; }
+.loadout-card:focus-visible:not(:disabled) { outline: 3px solid var(--menu-accent); outline-offset: 3px; }
+.loadout-card:disabled { cursor: not-allowed; opacity: 0.75; }
+
+.cpu-deck-list { display: flex; flex-direction: column; margin: 0; padding: 0; list-style: none; }
+
+.cpu-deck-list li {
+  display: grid;
+  grid-template-columns: 30px 1fr auto;
+  align-items: center;
+  gap: 14px;
+  padding-block: 14px;
+  border-block-end: 1px solid rgb(201 168 124 / 10%);
+}
+
+.cpu-deck-list strong { font-size: 15px; font-weight: 600; color: #9eabb8; }
+.cpu-deck-list small { color: var(--disabled); font-family: var(--mono); font-size: 12px; white-space: nowrap; }
+.cpu-deck-list .shell-icon { inline-size: 26px; block-size: 26px; opacity: 0.6; }
+
+/* The tier's measured performance, read from spec/cpu.json — it differs per tier. */
+.cpu-tier-stats {
+  margin-block-start: auto;
+  padding-block-start: 16px;
+  border-block-start: 1px solid var(--hairline-faint);
+  color: var(--disabled);
+  font-family: var(--mono);
+  font-size: 11px;
+  line-height: 1.8;
+  text-transform: uppercase;
+}
+
+.cpu-tier-stats span { display: block; }
+
+/*
+ * Masked span, not an `<img>`: the icons are `fill="none" stroke="currentColor"`, and an
+ * SVG loaded as an image gets no inheritable colour — `currentColor` resolves to black and
+ * the icon disappears on these panels.
+ */
+.loadout-overlay .shell-icon {
+  display: block;
+  inline-size: 26px;
+  block-size: 26px;
+  background: currentcolor;
+  mask: var(--icon) center / contain no-repeat;
+  -webkit-mask: var(--icon) center / contain no-repeat;
+}
+
+.deploy {
+  inline-size: 100%;
+  min-inline-size: 44px;
+  min-block-size: 44px;
+  padding: 20px;
+  border: 0;
+  border-radius: 0;
+  background: var(--menu-deploy);
+  color: #10141b;
+  font-family: inherit;
+  font-size: 16px;
+  font-weight: 800;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.deploy:disabled { opacity: 0.48; cursor: not-allowed; }
+.deploy:focus-visible:not(:disabled) { outline: 3px solid var(--menu-accent); outline-offset: 3px; }

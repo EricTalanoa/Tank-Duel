@@ -147,10 +147,11 @@ describe('loadout UI model', () => {
   it('sets 44px minimum targets and landscape two-panel/safe-area layout in CSS', () => {
     const stylesheet = readFileSync(fileURLToPath(new URL('./loadout.css', import.meta.url)), 'utf8');
 
-    expect(stylesheet).toMatch(/\.loadout-card[^{]*\{[^}]*min-height:\s*(?:96|44)px/i);
-    expect(stylesheet).toMatch(/\.loadout-card[^{]*\{[^}]*min-width:\s*44px/i);
-    expect(stylesheet).toMatch(/\.deploy[^{]*\{[^}]*min-height:\s*44px/i);
-    expect(stylesheet).toMatch(/\.deploy[^{]*\{[^}]*min-width:\s*44px/i);
+    // Logical or physical: the rule is a 44px minimum target, not a property spelling.
+    expect(stylesheet).toMatch(/\.loadout-card[^{]*\{[^}]*min-(?:block-size|height):\s*(?:96|44)px/i);
+    expect(stylesheet).toMatch(/\.loadout-card[^{]*\{[^}]*min-(?:inline-size|width):\s*44px/i);
+    expect(stylesheet).toMatch(/\.deploy[^{]*\{[^}]*min-(?:block-size|height):\s*44px/i);
+    expect(stylesheet).toMatch(/\.deploy[^{]*\{[^}]*min-(?:inline-size|width):\s*44px/i);
     expect(stylesheet).toMatch(/\.loadout-panels[^{]*\{[^}]*grid-template-columns:\s*repeat\(2,\s*minmax\(0,\s*1fr\)\)/i);
     expect(stylesheet).toMatch(/padding:\s*calc\([^)]*env\(safe-area-inset-top\)/i);
     expect(stylesheet).toMatch(/\.loadout-panels\.is-cpu[^{]*\{[^}]*grid-template-columns:/i);
@@ -183,9 +184,12 @@ describe('loadout UI model', () => {
     expect(heCards).toHaveLength(2);
     expect(heCards.every((card) => card.disabled)).toBe(true);
     expect(overlay.all('output').map((counter) => counter.textContent)).toEqual([
-      `5/${CONSTANTS.loadout.points} POINTS · 2/${CONSTANTS.loadout.slots} SLOTS`,
-      `1/${CONSTANTS.loadout.points} POINTS · 1/${CONSTANTS.loadout.slots} SLOTS`,
+      `5/${CONSTANTS.loadout.points} PTS · 2/${CONSTANTS.loadout.slots} SLOTS`,
+      `1/${CONSTANTS.loadout.points} PTS · 1/${CONSTANTS.loadout.slots} SLOTS`,
     ]);
+    // Ten pips per panel, one per point, filled to the points spent.
+    const pips = overlay.all('[data-player]').map((panel) => panel.first('.panel-pips'));
+    expect(pips.every((row) => row?.children.length === CONSTANTS.loadout.points)).toBe(true);
     expect(overlay.textContent).toContain(PRESENTATION.players[0].label);
     expect(overlay.textContent).toContain(PRESENTATION.players[1].label);
     expect(overlay.all('[data-deploy]')).toHaveLength(1);
@@ -207,9 +211,11 @@ describe('loadout UI model', () => {
     expect(overlay.all('[data-cpu-summary]')).toHaveLength(1);
     expect(overlay.all('[data-shell]')).not.toHaveLength(0);
     expect(summary.all('[data-shell]')).toHaveLength(0);
-    expect(summary.all('img').map((image) => image.src)).toEqual(
+    // Masked spans, not <img>: a `currentColor` SVG loaded as an image renders black.
+    expect(summary.all('[data-icon]').map((icon) => icon.getAttribute('data-icon'))).toEqual(
       STANDARD_SHELL_IDS.map((id) => `/assets/icons/${id}.svg`),
     );
+    expect(summary.all('img')).toHaveLength(0);
     expect(summary.textContent).toContain('Gunner');
     expect(overlay.all('[data-deploy]')).toHaveLength(1);
   });
@@ -393,5 +399,8 @@ function matchesLoadoutElement(element: LoadoutFakeElement, selector: string): b
     return selector.split(',').some((part) => matchesLoadoutElement(element, part.trim()));
   }
   const attribute = /^\[([^\]]+)\]$/.exec(selector);
-  return attribute ? element.hasAttribute(attribute[1]!) : element.tagName === selector;
+  if (attribute) return element.hasAttribute(attribute[1]!);
+  const className = /^\.([\w-]+)$/.exec(selector);
+  if (className) return element.className.split(/\s+/).includes(className[1]!);
+  return element.tagName === selector;
 }

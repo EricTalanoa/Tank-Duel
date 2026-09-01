@@ -1,6 +1,6 @@
 import { PRESENTATION } from '../render/presentation';
 import { CONSTANTS } from '../sim/constants';
-import { cpuTierById } from '../sim/cpu';
+import { cpuTierById, type CpuTier } from '../sim/cpu';
 import { createLoadout, toggleShell, validateLoadout, type Loadout, type LoadoutValidation } from '../sim/loadout';
 import { type PlayerIndex, makePlayerLoadouts, type PlayerLoadouts } from '../sim/playerLoadouts';
 import { PLAYABLE_SHELL_IDS, PLAYABLE_WEAPONS, STANDARD_SHELL_IDS } from '../sim/weapons';
@@ -20,11 +20,17 @@ export interface LoadoutCardModel {
 
 export interface PlayerLoadoutPanelModel {
   readonly label: string;
+  /** `P1` / `P2`, or `CPU` for the read-only panel. */
+  readonly tag: string;
+  /** The tag chip's fill: the player colour from `spec/presentation.json`. */
+  readonly color: string | null;
   readonly editable: boolean;
   readonly deploymentIds: readonly string[];
   readonly validation: LoadoutValidation;
   readonly cards: readonly LoadoutCardModel[];
   readonly cpuTierLabel?: string;
+  /** The tier's measured performance, straight from `spec/cpu.json`. */
+  readonly cpuTierStats?: readonly string[];
 }
 
 export interface PlayerLoadoutEditorOptions {
@@ -107,7 +113,7 @@ export function createPlayerLoadoutEditorModel(
   let players: [PlayerLoadoutPanelModel, PlayerLoadoutPanelModel] = [
     playerPanelModel(0, loadouts[0], enabledShellIds),
     mode === 'cpu'
-      ? cpuPanelModel(loadouts[1], cpuTier.name)
+      ? cpuPanelModel(loadouts[1], cpuTier)
       : playerPanelModel(1, loadouts[1], enabledShellIds),
   ];
 
@@ -159,17 +165,25 @@ export function mountLoadout(root: HTMLElement, options: MountLoadoutOptions): M
   overlay.setAttribute('aria-label', 'Choose loadouts');
   root.append(overlay);
 
+  const cpu = options.mode === 'cpu';
   const render = (): void => {
-    const panels = element(document, 'div', `loadout-panels${options.mode === 'cpu' ? ' is-cpu' : ''}`);
+    const panels = element(document, 'div', `loadout-panels${cpu ? ' is-cpu' : ''}`);
     model.players.forEach((player, index) => panels.append(
       player.editable ? renderPanel(document, player, index) : renderCpuSummary(document, player),
     ));
-    const deploy = textElement(document, 'button', 'DEPLOY BOTH LOADOUTS', 'deploy') as HTMLButtonElement;
+    const deploy = textElement(
+      document,
+      'button',
+      cpu ? 'Deploy' : 'Deploy both loadouts',
+      'deploy',
+    ) as HTMLButtonElement;
     deploy.setAttribute('type', 'button');
     deploy.setAttribute('data-deploy', '');
     deploy.disabled = !model.canDeploy;
-    overlay.replaceChildren(panels, deploy);
+    overlay.replaceChildren(renderHeader(document, cpu), panels, deploy);
+    focusHeading(overlay);
   };
+
 
   const onClick = (event: Event): void => {
     if (disposed) return;
@@ -206,6 +220,31 @@ export function mountLoadout(root: HTMLElement, options: MountLoadoutOptions): M
   return { dispose };
 }
 
+/** The screen's title, not a panel's: at ~564px a panel header cannot hold 48px display type. */
+function renderHeader(document: Document, cpu: boolean): HTMLElement {
+  const header = element(document, 'header', 'screen-header');
+  const row = element(document, 'div', 'header-row');
+  row.append(
+    textElement(document, 'p', cpu ? 'Loadout · 1 v CPU' : 'Loadout', 'menu-kicker'),
+    textElement(
+      document,
+      'p',
+      `${CONSTANTS.loadout.points} points · ${CONSTANTS.loadout.slots} optional slots · ${
+        CONSTANTS.loadout.freeShell.toUpperCase()} is free`,
+      'menu-step',
+    ),
+  );
+  header.append(row, textElement(document, 'h1', 'Choose your arsenal'), element(document, 'hr', 'rule'));
+  return header;
+}
+
+function focusHeading(overlay: HTMLElement): void {
+  const heading = overlay.querySelector?.<HTMLElement>('h1');
+  if (!heading) return;
+  heading.setAttribute('tabindex', '-1');
+  heading.focus?.();
+}
+
 function ownedLoadout(initialIds: readonly string[], enabledShellIds: readonly string[]): Loadout {
   const enabledSet = enabledShellSet(enabledShellIds);
   return createLoadout(initialIds.filter(
@@ -222,6 +261,8 @@ function playerPanelModel(
   const activeLoadout = createLoadout(deploymentIds.slice(1));
   return Object.freeze({
     label: PRESENTATION.players[player].label,
+    tag: `P${player + 1}`,
+    color: PRESENTATION.players[player].color,
     editable: true,
     deploymentIds: Object.freeze([...deploymentIds]),
     validation: Object.freeze(validateLoadout(activeLoadout)),
@@ -229,13 +270,19 @@ function playerPanelModel(
   });
 }
 
-function cpuPanelModel(loadout: Loadout, cpuTierLabel: string): PlayerLoadoutPanelModel {
+function cpuPanelModel(loadout: Loadout, tier: CpuTier): PlayerLoadoutPanelModel {
   const deploymentIds = deploymentShellIds(loadout, STANDARD_SHELL_IDS);
   const activeLoadout = createLoadout(deploymentIds.slice(1));
   return Object.freeze({
     label: 'CPU opponent',
+    tag: 'CPU',
+    color: null,
     editable: false,
-    cpuTierLabel,
+    cpuTierLabel: tier.name,
+    cpuTierStats: Object.freeze([
+      `Median ${tier.measuredMedianShotsToHit} shots to hit`,
+      `Jitter ${tier.jitter} · Wind skill ${tier.windSkill}`,
+    ]),
     deploymentIds: Object.freeze([...deploymentIds]),
     validation: Object.freeze(validateLoadout(activeLoadout)),
     cards: Object.freeze([...loadoutCardModels(activeLoadout, STANDARD_SHELL_IDS)]),
@@ -249,12 +296,8 @@ function renderPanel(
 ): HTMLElement {
   const panel = element(document, 'section', 'loadout-panel');
   panel.setAttribute('data-player', String(index));
-  const header = element(document, 'header');
-  header.append(
-    textElement(document, 'p', player.label),
-    textElement(document, 'h1', 'Choose your arsenal'),
-    textElement(document, 'output', `${player.validation.pointsUsed}/${CONSTANTS.loadout.points} POINTS · ${player.validation.optionalSlotsUsed}/${CONSTANTS.loadout.slots} SLOTS`),
-  );
+  panel.append(panelHeader(document, player, budget(document, player)));
+
   const grid = element(document, 'div', 'loadout-grid');
   for (const card of player.cards) {
     const button = element(document, 'button', `loadout-card${card.selected ? ' is-selected' : ''}`) as HTMLButtonElement;
@@ -265,24 +308,65 @@ function renderPanel(
     button.append(
       shellIcon(document, card.icon),
       textElement(document, 'strong', card.name),
-      textElement(document, 'small', `${card.locked ? 'FREE · LOCKED' : `${card.cost} PT`} · ${card.ammo === 'inf' ? '∞' : card.ammo} AMMO · MASS ${card.mass}`),
+      textElement(document, 'small', cardMeta(card)),
     );
     grid.append(button);
   }
-  panel.append(header, grid);
+  panel.append(grid);
   return panel;
+}
+
+/** Short and nowrap: `3 PT · 4 AMMO · MASS 1.55` wrapped inside a 38px + 1fr card. */
+function cardMeta(card: LoadoutCardModel): string {
+  const cost = card.locked ? 'FREE' : `${card.cost}PT`;
+  const ammo = card.ammo === 'inf' ? '∞' : `${card.ammo}×`;
+  return `${cost} · ${ammo} · M${card.mass}`;
+}
+
+function panelHeader(
+  document: Document,
+  player: PlayerLoadoutPanelModel,
+  aside: HTMLElement,
+): HTMLElement {
+  const header = element(document, 'header');
+  const identity = element(document, 'div', 'panel-identity');
+  const tag = textElement(document, 'span', player.tag, 'player-tag');
+  if (player.color) tag.setAttribute('style', `--player-color: ${player.color}`);
+  identity.append(tag, textElement(document, 'span', player.label, 'panel-label'));
+  header.append(identity, aside);
+  return header;
+}
+
+/**
+ * Points as a fraction and as ten pips. The pips are the reason the budget reads at a
+ * glance; the fraction keeps the slot count, which the pips do not show.
+ */
+function budget(document: Document, player: PlayerLoadoutPanelModel): HTMLElement {
+  const wrapper = element(document, 'div', 'panel-budget');
+  wrapper.append(textElement(
+    document,
+    'output',
+    `${player.validation.pointsUsed}/${CONSTANTS.loadout.points} PTS · ${player.validation.optionalSlotsUsed}/${CONSTANTS.loadout.slots} SLOTS`,
+  ));
+  const pips = element(document, 'span', 'panel-pips');
+  pips.setAttribute('aria-hidden', 'true');
+  for (let pip = 0; pip < CONSTANTS.loadout.points; pip++) {
+    pips.append(element(document, 'span', pip < player.validation.pointsUsed ? 'is-spent' : ''));
+  }
+  wrapper.append(pips);
+  return wrapper;
 }
 
 function renderCpuSummary(document: Document, player: PlayerLoadoutPanelModel): HTMLElement {
   const panel = element(document, 'section', 'loadout-panel cpu-loadout-summary');
   panel.setAttribute('data-cpu-summary', '');
   panel.setAttribute('aria-label', `${player.cpuTierLabel ?? 'CPU'} deck`);
-  const header = element(document, 'header');
-  header.append(
-    textElement(document, 'p', player.label),
-    textElement(document, 'h1', 'CPU arsenal'),
-    textElement(document, 'output', `${player.cpuTierLabel ?? 'CPU'} · READ ONLY`),
-  );
+  panel.append(panelHeader(
+    document,
+    { ...player, label: player.cpuTierLabel ?? 'CPU' },
+    textElement(document, 'output', 'Read only'),
+  ));
+
   const deck = element(document, 'ul', 'cpu-deck-list');
   for (const card of player.cards) {
     const item = element(document, 'li');
@@ -290,11 +374,17 @@ function renderCpuSummary(document: Document, player: PlayerLoadoutPanelModel): 
     item.append(
       shellIcon(document, card.icon),
       textElement(document, 'strong', card.name),
-      textElement(document, 'small', `${card.ammo === 'inf' ? '∞' : card.ammo} AMMO`),
+      textElement(document, 'small', `${card.ammo === 'inf' ? '∞' : card.ammo} ammo`),
     );
     deck.append(item);
   }
-  panel.append(header, deck);
+  panel.append(deck);
+
+  if (player.cpuTierStats) {
+    const stats = element(document, 'p', 'cpu-tier-stats');
+    for (const line of player.cpuTierStats) stats.append(textElement(document, 'span', line));
+    panel.append(stats);
+  }
   return panel;
 }
 
@@ -319,11 +409,15 @@ function textElement(document: Document, tagName: string, text: string, classNam
   return node;
 }
 
-function shellIcon(document: Document, path: string): HTMLImageElement {
-  const image = document.createElement('img');
-  image.className = 'shell-icon';
-  image.src = `/${path}`;
-  image.alt = '';
-  image.setAttribute('aria-hidden', 'true');
-  return image;
+/**
+ * A masked span, not an `<img>`. The icons are `fill="none" stroke="currentColor"`; loaded
+ * as an image the SVG has no inheritable colour, so `currentColor` resolves to black and
+ * the icon is invisible on these panels. Masking makes one file cover every state.
+ */
+function shellIcon(document: Document, path: string): HTMLElement {
+  const icon = element(document, 'span', 'shell-icon');
+  icon.setAttribute('data-icon', `/${path}`);
+  icon.setAttribute('style', `--icon: url("/${path}")`);
+  icon.setAttribute('aria-hidden', 'true');
+  return icon;
 }

@@ -82,6 +82,8 @@ test('draws a seam-crossing trail as one continuous unbounded polyline', () => {
     lineTo(x: number, y: number) { path.push(['lineTo', x, y]); },
     stroke() {},
     setLineDash() {},
+    arc(x: number, y: number) { path.push(['arc', x, y]); },
+    fill() {},
   } as unknown as CanvasRenderingContext2D;
   const trail = [{ x: 1100, y: 180 }, { x: 1210, y: 170 }, { x: 1300, y: 190 }];
   const state = {
@@ -98,5 +100,7 @@ test('draws a seam-crossing trail as one continuous unbounded polyline', () => {
     ['moveTo', 1100, 180],
     ['lineTo', 1210, 170],
     ['lineTo', 1300, 190],
+    // Impact dot at the unwrapped final point, not at the seam.
+    ['arc', 1300, 190],
   ]);
 });

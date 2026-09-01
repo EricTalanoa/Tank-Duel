@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import rawScreens from '../../spec/screens.json';
 import { CONSTANTS } from '../sim/constants';
+import { PRESENTATION } from './presentation';
 import { createRng } from '../sim/rng';
 import { HE_SHELL } from '../sim/shells';
 import type { WorldId } from '../sim/worlds';
@@ -26,6 +27,11 @@ function createCanvasContextDouble(): {
     fillStyle: '',
     strokeStyle: '',
     lineWidth: 1,
+    lineCap: 'butt' as CanvasLineCap,
+    createLinearGradient() { return { addColorStop() {} } as unknown as CanvasGradient; },
+    setLineDash() {},
+    scale() {},
+    ellipse() {},
     save() {},
     restore() {},
     fillRect: draw,
@@ -64,6 +70,9 @@ describe('HOWTO scene model', () => {
       fillStyle: '',
       strokeStyle: '',
       lineWidth: 1,
+      createLinearGradient() { return { addColorStop() {} } as unknown as CanvasGradient; },
+      setLineDash() {}, scale() {}, ellipse() {},
+      lineCap: 'butt' as CanvasLineCap,
       save() {}, restore() {}, fillRect() {}, beginPath() {}, closePath() {}, fill() {},
       moveTo() {}, lineTo() {}, arc() {}, translate() {},
       stroke(this: { strokeStyle: string }) { strokes.push(this.strokeStyle); },
@@ -86,11 +95,15 @@ describe('HOWTO scene model', () => {
       updateWork: 0,
     });
 
-    expect(strokes).toEqual([
+    // The three trajectory strokes come first; the two tanks drawn after them are the only
+    // player-owned colour in this scene.
+    expect(strokes.slice(0, 3)).toEqual([
       functionalAccent('rust'),
       functionalAccent('hollow'),
       HE_SHELL.accent,
     ]);
+    const playerColours = PRESENTATION.players.map((player) => player.color);
+    expect(strokes.slice(0, 3).some((stroke) => playerColours.includes(stroke))).toBe(false);
   });
 
   it('builds the three historical shots in short, long, hit sequence from spec-backed powers', () => {
@@ -103,7 +116,8 @@ describe('HOWTO scene model', () => {
     const specShots = readHowtoShotsFromScreenSpec();
 
     expect(model.shots.map(({ result, power }) => ({ result, power }))).toEqual(specShots);
-    expect(buildHowToScreenModel().shots).toEqual(specShots);
+    expect(buildHowToScreenModel().shots.map(({ result, power }) => ({ result, power })))
+      .toEqual(specShots);
     const [short, long, hit] = model.shots;
     expect(short?.rangePx).toBeLessThan(hit?.rangePx ?? 0);
     expect(hit?.rangePx).toBeLessThan(long?.rangePx ?? 0);

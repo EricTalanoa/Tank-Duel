@@ -30,33 +30,18 @@ body {
   display: block;
 }
 
+/*
+ * Screens are full-bleed on the void and own their own padding; the floating centred card
+ * with its drop shadow is gone. Title and How to play sit over their canvas scenes rather
+ * than in a panel on top of them, so nothing here draws a background.
+ */
 #app {
   z-index: 1;
   display: grid;
-  padding: clamp(0.75rem, 2.5vw, 2rem);
   box-sizing: border-box;
-}
-
-#app [data-screen='TITLE'],
-#app [data-screen='HOWTO'] {
-  inline-size: min(34rem, 100%);
-  margin-inline: 0 auto;
-  align-self: end;
-  box-shadow: 0 1rem 4rem rgb(0 0 0 / 55%);
 }
 
 #app [data-screen='LOADOUT'],
 #app [data-screen='MATCH'] {
   display: none;
-}
-
-@media (max-width: 36rem) {
-  #app {
-    padding: 0;
-  }
-
-  #app [data-screen='TITLE'],
-  #app [data-screen='HOWTO'] {
-    inline-size: 100%;
-  }
 }

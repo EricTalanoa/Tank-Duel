@@ -24,6 +24,7 @@ import { CONSTANTS } from '../sim/constants';
 import { HE_SHELL } from '../sim/shells';
 import type { PlayerLoadouts } from '../sim/playerLoadouts';
 import { createRenderer, type Renderer } from '../render/renderer';
+import type { HudChrome } from '../render/hud';
 import {
   attachAimControls,
   type AimControlsOptions,
@@ -76,6 +77,8 @@ export interface MatchRuntimeDependencies {
     canvas: HTMLCanvasElement,
     terrain: GameState['terrain'],
     effects: EffectsEngine,
+    world: GameState['world'],
+    chrome: HudChrome,
   ): Renderer;
   attachControls(options: AimControlsOptions): Controls;
 }
@@ -86,6 +89,8 @@ export interface CreateMatchRuntimeOptions {
   /** Both players' complete decks, already validated by `makePlayerLoadouts`. */
   readonly playerLoadoutIds: PlayerLoadouts;
   readonly onComplete: (recap: RoundOverRecap) => void;
+  /** HUD chrome the simulation does not own: rounds, turn timer, the dev telemetry flag. */
+  readonly hudChrome?: HudChrome;
   readonly dependencies?: Partial<MatchRuntimeDependencies>;
 }
 
@@ -139,8 +144,16 @@ export function createMatchRuntime(options: CreateMatchRuntimeOptions): MatchRun
   );
   effectsForMotionChange = effects;
   const audio = dependencies.createAudio();
-  const renderer = dependencies.createRenderer(options.canvas, state.terrain, effects);
-  const spentShellIdsByPlayer = [new Set<string>(), new Set<string>()] as const;
+  const renderer = dependencies.createRenderer(
+    options.canvas,
+    state.terrain,
+    effects,
+    state.world,
+    options.hudChrome ?? {},
+  );
+  // One entry per shot, in order: the round-over recap counts shells, and a Set would
+  // silently collapse three mortars into one row.
+  const spentShellIdsByPlayer: readonly string[][] = [[], []];
   let cpuMemory: CpuMemory = createCpuMemory();
   let lastCpuCommand: CpuCommand | null = null;
   let lastCpuCommandWind: number | null = null;
@@ -170,7 +183,7 @@ export function createMatchRuntime(options: CreateMatchRuntimeOptions): MatchRun
       unlockAudio();
       const player = state.activePlayer;
       const shellId = state.arsenals[player].selectedShellId;
-      if (fire(state)) spentShellIdsByPlayer[player].add(shellId);
+      if (fire(state)) spentShellIdsByPlayer[player]!.push(shellId);
     },
     onShell: (slot) => {
       if (disposed || paused) return;
@@ -201,6 +214,8 @@ export function createMatchRuntime(options: CreateMatchRuntimeOptions): MatchRun
       spentShellIdsByPlayer: Object.freeze(
         spentShellIdsByPlayer.map((shellIds) => Object.freeze([...shellIds])),
       ),
+      result: state.roundResult,
+      turns: state.turn,
     });
     options.onComplete(recap);
   };
@@ -236,7 +251,7 @@ export function createMatchRuntime(options: CreateMatchRuntimeOptions): MatchRun
     adjustPower(state, command.power - state.aim.power);
     if (!selectShell(state, heSlot) || !fire(state)) return;
 
-    spentShellIdsByPlayer[1].add(HE_SHELL.id);
+    spentShellIdsByPlayer[1]!.push(HE_SHELL.id);
     lastCpuCommand = command;
     lastCpuCommandWind = state.wind;
   };

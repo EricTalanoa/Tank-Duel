@@ -16,12 +16,15 @@ describe('application DOM view', () => {
     view.render(title);
 
     expect(root.first('[aria-label="Tank Duel"]')?.tagName).toBe('SECTION');
-    expect(root.all('button').map((button) => button.textContent)).toEqual([
+    // The row index and the trailing arrow are decoration, so the accessible name is the
+    // label alone — "01 Quick Start →" is not what a screen reader should announce.
+    expect(root.all('button').map((button) => button.getAttribute('aria-label') ?? button.textContent)).toEqual([
       'Quick Start',
       'Custom Game',
       'How to Play',
       'Settings',
     ]);
+    expect(root.all('button')[0]?.textContent).toBe('01Quick Start→');
     expect(root.all('button').at(-1)?.disabled).toBe(true);
     expect(root.ownerDocument.activeElement?.tagName).toBe('H1');
     root.click(root.all('button')[0]!);
@@ -64,7 +67,7 @@ describe('application DOM view', () => {
     expect(heToggle?.disabled).toBe(true);
     expect(heCount?.disabled).toBe(true);
     expect(heCount?.value).toBe('∞');
-    expect(root.first('img[src="/assets/icons/he.svg"]')).not.toBeNull();
+    expect(root.first('[data-icon="/assets/icons/he.svg"]')?.tagName).toBe('SPAN');
     expect(root.all('label').some((label) => label.textContent.includes('HE Shell'))).toBe(true);
   });
 
@@ -81,7 +84,13 @@ describe('application DOM view', () => {
     view.render(cpuMap);
 
     const tiers = root.all('button').filter((button) => button.getAttribute('data-cpu-tier') !== null);
-    expect(tiers.map((button) => button.textContent)).toEqual(['Recruit', 'Gunner', 'Veteran']);
+    expect(tiers.map((button) => button.getAttribute('aria-label'))).toEqual(['Recruit', 'Gunner', 'Veteran']);
+    // Each tier shows the median it was measured at, from spec/cpu.json.
+    expect(tiers.map((button) => button.textContent)).toEqual([
+      'Recruit5 shots',
+      'Gunner3 shots',
+      'Veteran2 shots',
+    ]);
     expect(tiers.map((button) => button.getAttribute('type'))).toEqual(['button', 'button', 'button']);
     expect(tiers.map((button) => button.getAttribute('aria-pressed'))).toEqual(['false', 'false', 'true']);
     expect(tiers.every((button) => !button.disabled)).toBe(true);
@@ -130,7 +139,7 @@ describe('application DOM view', () => {
     expect(onConfigChange).toHaveBeenCalledTimes(2);
     expect(onConfigChange.mock.calls[1]![0]).toMatchObject({ seed: 12345, path: 'custom' });
 
-    root.click(root.all('button').find((button) => button.textContent === 'Start match')!);
+    root.click(root.all('button').find((button) => button.getAttribute('aria-label') === 'Start match')!);
     expect(onAction).toHaveBeenLastCalledWith({ type: 'startCustom' });
   });
 
@@ -145,9 +154,12 @@ describe('application DOM view', () => {
     );
 
     view.render(intro);
-    expect(root.all('img').map((image) => image.getAttribute('src'))).toEqual(
+    // Masked spans, not <img>: a `currentColor` SVG loaded as an image renders black and
+    // vanishes on these panels.
+    expect(root.all('[data-icon]').map((icon) => icon.getAttribute('data-icon'))).toEqual(
       config.enabledShellIds.map((id) => `/${config.shells[id]!.icon}`),
     );
+    expect(root.all('img')).toHaveLength(0);
 
     const unsafeName = '<img src=x onerror=alert(1)>';
     const unsafeConfig = {
@@ -165,8 +177,8 @@ describe('application DOM view', () => {
     };
     view.render(roundOver);
     expect(root.textContent).toContain(unsafeName);
-    expect(root.all('img')).toHaveLength(1);
-    expect(root.all('img')[0]?.getAttribute('src')).toBe('/assets/icons/mortar.svg');
+    expect(root.all('[data-icon]')).toHaveLength(1);
+    expect(root.all('[data-icon]')[0]?.getAttribute('data-icon')).toBe('/assets/icons/mortar.svg');
   });
 
   it('disposes idempotently and removes delegated handlers', () => {
