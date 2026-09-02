@@ -6,7 +6,7 @@ import { createTitleScene, type SceneAnimationOptions } from './render/titleScen
 import { createRng, hashSeed } from './sim/rng';
 import { mountAppView } from './ui/appView';
 import { mountLoadout } from './ui/loadout';
-import { mountOrientationGate } from './ui/orientationGate';
+import { mountOrientationGate, type OrientationGate } from './ui/orientationGate';
 import './style.css';
 import './ui/loadout.css';
 import './ui/touchControls.css';
@@ -23,6 +23,19 @@ appSurface.append(canvas);
 const appRoot = document.createElement('main');
 appRoot.id = 'app';
 appSurface.append(appRoot);
+
+/**
+ * Only the match needs the full iPad width, so only the match is gated on it. The gate owns
+ * the overlay and the controller owns whether a match exists; this is where the two meet.
+ */
+let matchActive = false;
+let orientationGate: OrientationGate | null = null;
+
+function setMatchActive(active: boolean): void {
+  if (matchActive === active) return;
+  matchActive = active;
+  orientationGate?.refresh();
+}
 
 const controller = createAppController({
   storage: globalThis.localStorage,
@@ -47,28 +60,40 @@ const controller = createAppController({
       ...(initialPlayerLoadoutIds === undefined ? {} : { initialPlayerLoadoutIds }),
     },
   ),
-  createMatchRuntime: ({ config, playerLoadoutIds, onComplete }) => createMatchRuntime({
-    canvas,
-    controlRoot: appSurface,
-    hudChrome: { showTelemetry: devTelemetryEnabled() },
-    config: {
-      seed: config.seed,
-      worldId: config.worldId,
-      generatorId: config.generatorId,
-      mode: config.mode,
-      cpuTierId: config.cpuTierId,
-    },
-    playerLoadoutIds,
-    onComplete,
-  }),
+  createMatchRuntime: ({ config, playerLoadoutIds, onComplete }) => {
+    setMatchActive(true);
+    const runtime = createMatchRuntime({
+      canvas,
+      controlRoot: appSurface,
+      hudChrome: { showTelemetry: devTelemetryEnabled() },
+      config: {
+        seed: config.seed,
+        worldId: config.worldId,
+        generatorId: config.generatorId,
+        mode: config.mode,
+        cpuTierId: config.cpuTierId,
+      },
+      playerLoadoutIds,
+      onComplete,
+    });
+    return {
+      setPaused: (paused) => runtime.setPaused(paused),
+      dispose: () => {
+        setMatchActive(false);
+        runtime.dispose();
+      },
+    };
+  },
 });
 
-const orientationGate = mountOrientationGate(appSurface, globalThis, (blocked) => {
-  controller.setPresentationBlocked(blocked);
+orientationGate = mountOrientationGate(appSurface, globalThis, {
+  needsFullWidth: () => matchActive,
+  onBlockedChange: (blocked) => controller.setPresentationBlocked(blocked),
+  onLeave: () => controller.dispatch({ type: 'menu' }),
 });
 
 globalThis.addEventListener('pagehide', () => {
-  orientationGate.dispose();
+  orientationGate?.dispose();
   controller.dispose();
 }, { once: true });
 

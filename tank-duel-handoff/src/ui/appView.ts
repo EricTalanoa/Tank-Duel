@@ -900,7 +900,16 @@ function paintTileSilhouette(canvas: HTMLCanvasElement, spawnColors: readonly st
  * by `devicePixelRatio` the way `resizeSceneCanvas` in `src/main.ts` does. Silently does
  * nothing without a 2D context, which is the headless case.
  */
-const CREW_PREVIEW = { groundFraction: 0.74, scale: 2.6 } as const;
+const CREW_PREVIEW = {
+  groundFraction: 0.74,
+  scale: 2.6,
+  /**
+   * How far the silhouette reaches above its wheels, in tank units: the muzzle at the preview
+   * angle, plus a little air. The design's 2.6 is the scale at the design's 150px box; a
+   * shorter box on a phone scales down to it rather than beheading the tank.
+   */
+  reachAbove: 40,
+} as const;
 
 function paintCrewPreviews(surface: HTMLElement): void {
   const canvases = surface.querySelectorAll?.<HTMLCanvasElement>('canvas[data-crew-preview]');
@@ -929,9 +938,10 @@ function paintCrewPreview(canvas: HTMLCanvasElement): void {
   ctx.fillStyle = 'rgba(201,168,124,0.24)';
   ctx.fillRect(0, groundY, width, 1);
 
+  const scale = Math.min(CREW_PREVIEW.scale, groundY / CREW_PREVIEW.reachAbove);
   ctx.save();
   ctx.translate(width / 2, groundY);
-  ctx.scale(CREW_PREVIEW.scale, CREW_PREVIEW.scale);
+  ctx.scale(scale, scale);
   drawTankSilhouette(ctx, {
     x: 0,
     y: 0,

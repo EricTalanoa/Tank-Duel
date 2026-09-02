@@ -56,6 +56,8 @@ export interface AppControllerDependencies {
 export interface AppController {
   readonly state: AppFlowState;
   readonly resolvedConfig: ResolvedMatchConfig | null;
+  /** For chrome that lives outside the view, such as the presentation gate's way out. */
+  dispatch(action: FlowAction): void;
   setPresentationBlocked(blocked: boolean): void;
   dispose(): void;
 }
@@ -224,6 +226,9 @@ export function createAppController(dependencies: AppControllerDependencies): Ap
     },
     get resolvedConfig() {
       return resolvedConfig;
+    },
+    dispatch(action: FlowAction): void {
+      transition(action);
     },
     setPresentationBlocked(blocked: boolean): void {
       if (disposed || presentationBlocked === blocked) return;

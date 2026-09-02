@@ -46,3 +46,24 @@
   color: #b9c5ce;
   font-size: clamp(1rem, 3vmin, 1.25rem);
 }
+
+/* Only the width wall carries this; a rotation wall clears itself. */
+.orientation-gate__leave {
+  justify-self: center;
+  min-block-size: 44px;
+  min-inline-size: 44px;
+  margin-block-start: 0.5rem;
+  padding: 0.75rem 1.5rem;
+  border: 1px solid #7e8b95;
+  border-radius: 0;
+  background: transparent;
+  color: #d1a34a;
+  font-family: inherit;
+  font-size: 0.9375rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.orientation-gate__leave:focus-visible { outline: 3px solid #d1a34a; outline-offset: 3px; }

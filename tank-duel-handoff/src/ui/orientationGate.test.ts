@@ -3,16 +3,68 @@ import { describe, expect, it } from 'vitest';
 import {
   isPresentationBlocked,
   mountOrientationGate,
+  presentationFit,
 } from './orientationGate';
 
 describe('orientation gate', () => {
   it.each([
+    [{ width: 768, height: 1024 }, 'portrait'],
+    [{ width: 1194, height: 834 }, 'ok'],
+    [{ width: 1200, height: 800 }, 'ok'],
+    // Landscape but under the iPad floor: the menus reflow to this, the match does not.
+    [{ width: 800, height: 600 }, 'compact'],
+    [{ width: 852, height: 393 }, 'compact'],
+    [{ width: 932, height: 430 }, 'ok'],
+  ] as const)('reads %o as its presentation fit', (size, fit) => {
+    expect(presentationFit(size)).toBe(fit);
+  });
+
+  it.each([
     [{ width: 768, height: 1024 }, true],
     [{ width: 1194, height: 834 }, false],
-    [{ width: 800, height: 600 }, true],
-    [{ width: 1200, height: 800 }, false],
-  ] as const)('blocks %o exactly when the presentation cannot be shown', (size, blocked) => {
+    // Break caught: a narrow landscape phone walled out of the menus it can now render.
+    [{ width: 800, height: 600 }, false],
+  ] as const)('blocks %o outright only when nothing can be shown', (size, blocked) => {
     expect(isPresentationBlocked(size)).toBe(blocked);
+  });
+
+  it('walls off only the match on a narrow landscape screen, and says which wall it is', () => {
+    // Break caught: a phone in landscape being told to rotate a device it has already turned,
+    // or the menus being gated on a width only the match actually needs.
+    const root = createRoot();
+    const viewport = new FakeViewport(852, 393);
+    const changes: boolean[] = [];
+    let matchActive = false;
+
+    const gate = mountOrientationGate(root as unknown as HTMLElement, viewport as unknown as Window, {
+      needsFullWidth: () => matchActive,
+      onBlockedChange: (blocked) => changes.push(blocked),
+    });
+
+    expect(changes).toEqual([false]);
+    expect(root.children).toHaveLength(0);
+
+    matchActive = true;
+    gate.refresh();
+    expect(changes).toEqual([false, true]);
+    expect(root.children[0]?.getAttribute('data-gate')).toBe('compact');
+    expect(root.children[0]?.textContent).toContain('Screen too narrow');
+    expect(root.children[0]?.textContent).toContain('900px wide');
+    expect(root.children[0]?.textContent).not.toContain('Rotate');
+
+    // Turning the phone upright swaps which wall is up without a second notification: the
+    // game is already paused, and nothing downstream cares which message is showing.
+    viewport.resize(393, 852);
+    expect(changes).toEqual([false, true]);
+    expect(root.children).toHaveLength(1);
+    expect(root.children[0]?.getAttribute('data-gate')).toBe('portrait');
+    expect(root.children[0]?.textContent).toContain('Rotate your device');
+
+    matchActive = false;
+    viewport.resize(852, 393);
+    expect(changes).toEqual([false, true, false]);
+    expect(root.children).toHaveLength(0);
+    gate.dispose();
   });
 
   it('notifies once per blocked-state change and restores the exact underlying surface state', () => {
@@ -22,8 +74,8 @@ describe('orientation gate', () => {
     const viewport = new FakeViewport(1200, 800);
     const changes: boolean[] = [];
 
-    mountOrientationGate(root as unknown as HTMLElement, viewport as unknown as Window, (blocked) => {
-      changes.push(blocked);
+    mountOrientationGate(root as unknown as HTMLElement, viewport as unknown as Window, {
+      onBlockedChange: (blocked) => changes.push(blocked),
     });
 
     expect(changes).toEqual([false]);
@@ -37,8 +89,8 @@ describe('orientation gate', () => {
     expect(root.getAttribute('aria-hidden')).toBe('true');
     expect(root.children).toHaveLength(1);
     expect(root.children[0]?.getAttribute('role')).toBe('alertdialog');
-    expect(root.children[0]?.textContent).toContain('Rotate your iPad');
-    expect(root.children[0]?.textContent).toContain('Rotate your device to landscape');
+    expect(root.children[0]?.textContent).toContain('Rotate your device');
+    expect(root.children[0]?.textContent).toContain('Turn your device sideways');
 
     viewport.resize(1200, 800);
     expect(changes).toEqual([false, true, false]);
@@ -51,8 +103,8 @@ describe('orientation gate', () => {
     const root = createRoot();
     const viewport = new FakeViewport(768, 1024);
     const changes: boolean[] = [];
-    const gate = mountOrientationGate(root as unknown as HTMLElement, viewport as unknown as Window, (blocked) => {
-      changes.push(blocked);
+    const gate = mountOrientationGate(root as unknown as HTMLElement, viewport as unknown as Window, {
+      onBlockedChange: (blocked) => changes.push(blocked),
     });
 
     expect(changes).toEqual([true]);

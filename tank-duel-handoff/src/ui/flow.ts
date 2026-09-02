@@ -164,7 +164,11 @@ export function reduceFlow(state: AppFlowState, action: FlowAction): AppFlowStat
     case 'changeLoadout':
       return state.screen === 'ROUND_OVER' ? createState('LOADOUT', state.config) : state;
     case 'menu':
-      return state.screen === 'ROUND_OVER' ? createState('TITLE', state.config) : state;
+      // Also valid mid-match: a screen too narrow to draw the HUD walls the match off, and
+      // that wall needs a way out that is not a page reload.
+      return state.screen === 'ROUND_OVER' || state.screen === 'MATCH'
+        ? createState('TITLE', state.config)
+        : state;
     default:
       return assertNever(action);
   }
