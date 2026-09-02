@@ -575,3 +575,104 @@
  * row and the footer stay put.
  */
 .ammunition-rows { overflow: auto; }
+
+/* ── Short viewports ───────────────────────────────────────────────────────────── */
+
+/*
+ * The design is 1194x834. A phone in landscape gives ~390px of height — under half — and
+ * the menus used to run straight off the bottom, taking the footer's Back and Continue with
+ * them and leaving no way to scroll to either.
+ *
+ * The fix is structural rather than a smaller copy of the design: the header and footer stay
+ * put and the body between them scrolls, so the primary action is always on screen. Type,
+ * padding and the preview canvases come down to match; 44px hit targets do not, because a
+ * small screen is exactly where they matter.
+ *
+ * Height, not width, is what runs out first, so that is what this keys on — a short desktop
+ * window gets the same treatment.
+ */
+@media (max-height: 620px) {
+  .app-screen,
+  .app-screen[data-screen='CUSTOM'],
+  .app-screen[data-screen='CREW'],
+  .app-screen[data-screen='MAP'],
+  .app-screen[data-screen='ROUND_OVER'] { gap: 14px; padding: 16px 22px; }
+
+  .screen-header { gap: 8px; }
+  .screen-body { overflow: auto; }
+  .screen-footer { padding-block-start: 12px; }
+
+  .menu-kicker { font-size: 10px; letter-spacing: 0.22em; }
+  .menu-step { font-size: 10px; }
+  .footer-status { font-size: 10px; letter-spacing: 0.14em; }
+
+  .app-screen .screen-title,
+  .app-screen[data-screen='CUSTOM'] .screen-title,
+  .app-screen[data-screen='CREW'] .screen-title,
+  .app-screen[data-screen='LOADOUT'] .screen-title,
+  .app-screen[data-screen='ROUND_OVER'] .screen-title { font-size: 26px; line-height: 1; }
+
+  .menu-button { padding: 10px 18px; font-size: 12px; letter-spacing: 0.12em; }
+  .menu-button.is-secondary { padding: 10px 16px; }
+  .menu-button.is-wide { padding: 12px 18px; font-size: 13px; }
+
+  /* 01 Title */
+  .app-screen[data-screen='TITLE'] { grid-template-columns: minmax(0, 1fr) auto; }
+  .title-column { gap: 14px; }
+  .title-intro { gap: 8px; }
+  .title-wordmark { font-size: 54px; }
+  .title-blurb { font-size: 10px; line-height: 1.6; }
+  .title-row { gap: 14px; min-block-size: 44px; padding: 10px 14px; }
+  .title-row .menu-label { font-size: 17px; }
+
+  /* 02b Crew setup */
+  .crew-panels { gap: 12px; }
+  .crew-panel { gap: 10px; padding: 14px; }
+  .crew-panel .panel-label { font-size: 15px; }
+  .crew-hex { font-size: 10px; }
+  .crew-preview { block-size: 88px; }
+  .crew-swatches { gap: 6px; }
+
+  /* 03 Battlefield */
+  .map-grid { gap: 10px; }
+  .map-tile { gap: 8px; padding: 12px; }
+  .tile-canvas { block-size: 44px; }
+  .tile-name { font-size: 16px; }
+  .tile-stats { gap: 2px 10px; padding-block-start: 8px; }
+
+  /* 04 Custom game */
+  .custom-fields { gap: 10px; }
+  .ammunition-row { gap: 10px; padding-block: 7px; }
+
+  /* 06 Ready to deploy. The footer is auto-placed into a second row, so that row has to be
+     a track rather than an implicit one, or it lands on top of Choose loadout. */
+  .app-screen[data-screen='ROUND_INTRO'] {
+    grid-template-rows: minmax(0, 1fr) auto;
+    grid-template-columns: minmax(0, 1fr) 280px;
+    gap: 12px 20px;
+  }
+
+  .app-screen[data-screen='ROUND_INTRO'] .screen-footer { grid-column: 1 / -1; }
+  .intro-main { gap: 12px; }
+  .match-summary { min-block-size: 0; overflow: auto; }
+  .match-summary div { grid-template-columns: 120px 1fr; gap: 12px; padding-block: 8px; }
+  .match-summary dt { font-size: 10px; letter-spacing: 0.14em; }
+  .match-summary dd { font-size: 15px; }
+  .shell-panel { gap: 12px; padding: 16px; overflow: auto; }
+  .shell-summary li { gap: 12px; padding-block: 8px; }
+  .shell-summary li span:nth-child(2) { font-size: 14px; }
+
+  /* 05 How to play */
+  .app-screen[data-screen='HOWTO'] .screen-header { max-inline-size: 460px; }
+  .howto-lede { font-size: 11px; line-height: 1.6; }
+  .app-screen[data-screen='HOWTO'] .screen-footer { gap: 18px; }
+  .howto-shots { gap: 10px; }
+  .howto-shots li { gap: 6px; min-inline-size: 120px; padding: 10px 14px; }
+  .howto-result { font-size: 20px; }
+  .howto-power { font-size: 10px; }
+
+  /* 09 Round over */
+  .recap-grid { gap: 12px; }
+  .player-recap { gap: 12px; padding: 16px; overflow: auto; }
+  .player-recap h2 { font-size: 16px; }
+}

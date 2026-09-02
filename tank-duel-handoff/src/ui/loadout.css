@@ -187,3 +187,42 @@
 
 .deploy:disabled { opacity: 0.48; cursor: not-allowed; }
 .deploy:focus-visible:not(:disabled) { outline: 3px solid var(--menu-accent); outline-offset: 3px; }
+
+/*
+ * Short viewports. The overlay is its own grid rather than an `.app-screen`, so it needs the
+ * same treatment separately: header and Deploy stay put, the two panels scroll — which they
+ * already did, they just had no room left to scroll in.
+ */
+@media (max-height: 620px) {
+  .loadout-overlay {
+    gap: 12px;
+    padding:
+      calc(14px + env(safe-area-inset-top))
+      calc(22px + env(safe-area-inset-right))
+      calc(14px + env(safe-area-inset-bottom))
+      calc(22px + env(safe-area-inset-left));
+  }
+
+  .loadout-overlay .screen-header { gap: 8px; }
+  .loadout-overlay .menu-kicker { font-size: 10px; letter-spacing: 0.22em; }
+  .loadout-overlay .menu-step { font-size: 10px; }
+  .loadout-overlay h1 { font-size: 26px; line-height: 1; }
+
+  .loadout-panels { gap: 12px; }
+  .loadout-panel { gap: 12px; padding: 14px; }
+  .panel-label { font-size: 15px; }
+  .loadout-panel output { font-size: 10px; }
+  .panel-pips span { block-size: 10px; inline-size: 5px; }
+
+  .loadout-grid { gap: 8px; }
+  .loadout-card { grid-template-columns: 26px 1fr; gap: 2px 10px; padding: 9px 10px; }
+  .loadout-card strong { font-size: 13px; }
+  .loadout-card small { font-size: 10px; }
+  .loadout-card .shell-icon { block-size: 24px; inline-size: 24px; }
+
+  .cpu-deck-list li { gap: 10px; padding-block: 8px; }
+  .cpu-deck-list strong { font-size: 13px; }
+  .cpu-tier-stats { padding-block-start: 10px; font-size: 10px; line-height: 1.6; }
+
+  .deploy { min-block-size: 44px; padding: 12px; font-size: 13px; }
+}

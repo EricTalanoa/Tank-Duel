@@ -213,6 +213,8 @@ describe('app flow', () => {
 
     expect(rematch.screen).toBe('MATCH');
     expect(rematch.config).toEqual({ ...roundOver.config, seed: 99 });
+    // Leaving mid-match is what the too-narrow-screen wall offers instead of a page reload.
+    expect(reduceFlow({ ...roundOver, screen: 'MATCH' }, { type: 'menu' }).screen).toBe('TITLE');
     expect(loadout.screen).toBe('LOADOUT');
     expect(loadout.config).toEqual(roundOver.config);
     expect(menu.screen).toBe('TITLE');

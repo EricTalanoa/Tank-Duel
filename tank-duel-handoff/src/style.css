@@ -36,9 +36,16 @@ body {
  * with its drop shadow is gone. Title and How to play sit over their canvas scenes rather
  * than in a panel on top of them, so nothing here draws a background.
  */
+/*
+ * `minmax(0, 1fr)` rather than the default `auto` row: a content-sized row leaves the
+ * screen's own `block-size: 100%` indefinite, so its `1fr` body track cannot shrink and a
+ * screen taller than the viewport overflows off the bottom — taking the footer's actions
+ * with it. Pinning the row is what lets `.screen-body` scroll instead.
+ */
 #app {
   z-index: 1;
   display: grid;
+  grid-template-rows: minmax(0, 1fr);
   box-sizing: border-box;
 }
 
