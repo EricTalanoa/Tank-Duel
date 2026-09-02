@@ -28,9 +28,9 @@ describe('world', () => {
     expect(state.tanks[1].x - state.tanks[0].x).toBe(vectors.spawnGapPx);
   });
   it.each([
-    ['terra', 1000],
-    ['vesper', 620],
-    ['ferrum', 580],
+    ['terra', 1200],
+    ['vesper', 1200],
+    ['ferrum', 1200],
   ] as const)('creates the %s field from its selected world profile', (worldId, width) => {
     const state = createWorld(3, { worldId });
     expect(state.world.id).toBe(worldId);

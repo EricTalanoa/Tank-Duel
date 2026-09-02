@@ -20,8 +20,8 @@
   "shotCap": 15,
   "failureAccounting": "include-cap-shot",
   "tiers": [
-    { "id": "recruit", "meanShotsToHit": 4.5, "medianShotsToHit": 3, "failedTrialCount": 6 },
-    { "id": "gunner", "meanShotsToHit": 2.904, "medianShotsToHit": 2, "failedTrialCount": 1 },
-    { "id": "veteran", "meanShotsToHit": 2.194, "medianShotsToHit": 2, "failedTrialCount": 3 }
+    { "id": "recruit", "meanShotsToHit": 6, "medianShotsToHit": 4, "failedTrialCount": 56 },
+    { "id": "gunner", "meanShotsToHit": 3.798, "medianShotsToHit": 3, "failedTrialCount": 7 },
+    { "id": "veteran", "meanShotsToHit": 2.654, "medianShotsToHit": 2, "failedTrialCount": 2 }
   ]
 }

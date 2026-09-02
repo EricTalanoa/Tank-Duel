@@ -5,6 +5,7 @@ import { HE_SHELL, SHELLS, type Shell } from './shells';
 import { CONSTANTS } from './constants';
 import { createTerrain, solidAt } from './terrain';
 import { TERRA, worldById, type WorldPhysics } from './worlds';
+import { effectiveMassFor } from './worldValidation';
 
 interface ShotResult {
   readonly projectile: Projectile;
@@ -17,6 +18,7 @@ function flatGroundShot(
   wind = 0,
   world: WorldPhysics = TERRA,
   shell: Shell = HE_SHELL,
+  effectiveMass?: number,
 ): ShotResult {
   const projectile = launchProjectile({
     x: 0,
@@ -28,6 +30,7 @@ function flatGroundShot(
     direction: 1,
     shell,
     owner: 0,
+    ...(effectiveMass === undefined ? {} : { effectiveMass }),
   });
 
   for (let flightFrames = 1; flightFrames < 10_000; flightFrames++) {
@@ -68,7 +71,17 @@ describe('Terra ballistics', () => {
       if (!shell) throw new Error(`${id} is missing from spec/shells.json`);
       const actual = flatGroundShot(CONSTANTS.power.max, 45, 0, TERRA, shell).projectile.x;
       expect(Math.abs(actual - goldenRange)).toBeLessThanOrEqual(10);
-      expect(goldenRange).toBeGreaterThan(vectors.spawnGapPx);
+      // Terra's widened gap outruns a few base-mass shells, so reach is asserted at
+      // the effective mass the world actually ships.
+      const shipped = flatGroundShot(
+        CONSTANTS.power.max,
+        45,
+        0,
+        TERRA,
+        shell,
+        effectiveMassFor(TERRA, shell),
+      ).projectile.x;
+      expect(shipped).toBeGreaterThan(vectors.spawnGapPx);
     },
   );
 
