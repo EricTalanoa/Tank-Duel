@@ -53,8 +53,8 @@ describe('loadout UI model', () => {
 
     expect(model.players[0].deploymentIds).toEqual(['he', 'mortar', 'cluster']);
     expect(model.players[1].deploymentIds).toEqual(beforePlayerTwo);
-    expect(model.players[0].validation.pointsUsed).toBe(5);
-    expect(model.players[1].validation.pointsUsed).toBe(3);
+    expect(model.players[0].validation.optionalSlotsUsed).toBe(2);
+    expect(model.players[1].validation.optionalSlotsUsed).toBe(2);
   });
 
   it('keeps Player 1 untouched when Player 2 changes its independently owned deck', () => {
@@ -129,8 +129,8 @@ describe('loadout UI model', () => {
       ['he', 'mortar', 'sand'],
     ]);
     expect(model.players.map((player) => player.cards[0])).toEqual([
-      expect.objectContaining({ id: 'he', locked: true, selected: true, cost: 0 }),
-      expect.objectContaining({ id: 'he', locked: true, selected: true, cost: 0 }),
+      expect.objectContaining({ id: 'he', locked: true, selected: true, ammo: 'inf' }),
+      expect.objectContaining({ id: 'he', locked: true, selected: true, ammo: 'inf' }),
     ]);
     expect(model.canDeploy).toBe(model.players.every((player) => player.validation.valid));
   });
@@ -184,12 +184,13 @@ describe('loadout UI model', () => {
     expect(heCards).toHaveLength(2);
     expect(heCards.every((card) => card.disabled)).toBe(true);
     expect(overlay.all('output').map((counter) => counter.textContent)).toEqual([
-      `5/${CONSTANTS.loadout.points} PTS · 2/${CONSTANTS.loadout.slots} SLOTS`,
-      `1/${CONSTANTS.loadout.points} PTS · 1/${CONSTANTS.loadout.slots} SLOTS`,
+      `2/${CONSTANTS.loadout.slots} SHELLS`,
+      `1/${CONSTANTS.loadout.slots} SHELLS`,
     ]);
     // Ten pips per panel, one per point, filled to the points spent.
     const pips = overlay.all('[data-player]').map((panel) => panel.first('.panel-pips'));
-    expect(pips.every((row) => row?.children.length === CONSTANTS.loadout.points)).toBe(true);
+    // One pip per slot now that there are no points to count.
+    expect(pips.every((row) => row?.children.length === CONSTANTS.loadout.slots)).toBe(true);
     expect(overlay.textContent).toContain(PRESENTATION.players[0].label);
     expect(overlay.textContent).toContain(PRESENTATION.players[1].label);
     expect(overlay.all('[data-deploy]')).toHaveLength(1);

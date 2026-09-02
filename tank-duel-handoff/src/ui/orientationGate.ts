@@ -86,10 +86,12 @@ function createOverlay(document: Document): HTMLElement {
   icon.textContent = '↻';
   const title = document.createElement('h1');
   title.id = 'orientation-gate-title';
-  title.textContent = 'Rotate your iPad';
+  // Device-neutral since the minimum landscape width came down to phone territory: an
+  // iPhone told to rotate its iPad has been given the wrong instruction.
+  title.textContent = 'Rotate your device';
   const instruction = document.createElement('p');
   instruction.id = 'orientation-gate-instruction';
-  instruction.textContent = 'Rotate your device to landscape to continue the duel.';
+  instruction.textContent = 'Turn it to landscape to continue the duel.';
   overlay.append(icon, title, instruction);
   return overlay;
 }

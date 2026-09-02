@@ -7,19 +7,20 @@ export interface Loadout {
 
 export interface LoadoutValidation {
   readonly valid: boolean;
-  readonly pointsUsed: number;
   readonly optionalSlotsUsed: number;
 }
 
+/**
+ * Slots are the only budget. Shells still carry a `cost` in `spec/shells.json` — it is a
+ * record of how the twelve were balanced against each other, not a currency the player
+ * spends, so any six of them make a legal deck.
+ */
 export function validateLoadout(loadout: Loadout): LoadoutValidation {
   const optional = loadout.ids.filter((id) => id !== CONSTANTS.loadout.freeShell);
-  const pointsUsed = optional.reduce((total, id) => total + weaponById(id).shell.cost, 0);
   return {
     valid: loadout.ids[0] === CONSTANTS.loadout.freeShell &&
       new Set(loadout.ids).size === loadout.ids.length &&
-      optional.length <= CONSTANTS.loadout.slots &&
-      pointsUsed <= CONSTANTS.loadout.points,
-    pointsUsed,
+      optional.length <= CONSTANTS.loadout.slots,
     optionalSlotsUsed: optional.length,
   };
 }
@@ -41,12 +42,8 @@ export function toggleShell(loadout: Loadout, id: string): void {
   }
 
   const candidate: Loadout = { ids: [...loadout.ids, weapon.shell.id] };
-  const validation = validateLoadout(candidate);
-  if (validation.optionalSlotsUsed > CONSTANTS.loadout.slots) {
+  if (validateLoadout(candidate).optionalSlotsUsed > CONSTANTS.loadout.slots) {
     throw new Error(`Loadout optional slot limit is ${CONSTANTS.loadout.slots}`);
-  }
-  if (validation.pointsUsed > CONSTANTS.loadout.points) {
-    throw new Error(`Loadout point limit is ${CONSTANTS.loadout.points}`);
   }
   loadout.ids.push(weapon.shell.id);
 }

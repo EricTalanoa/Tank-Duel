@@ -3,7 +3,7 @@ import { makePlayerLoadouts, type PlayerLoadouts } from '../sim/playerLoadouts';
 import { hashSeed } from '../sim/rng';
 import { STANDARD_SHELL_IDS } from '../sim/weapons';
 import { SHIPPED_WORLDS } from '../sim/worlds';
-import { createDefaultConfig, validateConfig, type MatchConfig } from '../ui/config';
+import { createDefaultConfig, validateConfig, withCrewName, type MatchConfig } from '../ui/config';
 import type { AppViewCallbacks } from '../ui/appView';
 import type { AppFlowState, FlowAction, RoundOverRecap } from '../ui/flow';
 import { loadLastConfig, saveLastConfig, type StorageLike } from '../ui/storage';
@@ -24,6 +24,19 @@ const PLAYER_LOADOUT_IDS: PlayerLoadouts = makePlayerLoadouts(
   PLAYER_ONE_SHELL_IDS,
   PLAYER_TWO_SHELL_IDS,
 );
+
+/**
+ * TITLE -> MODE -> CREW -> MAP. Quick Start lands on mode selection now; the crew names it
+ * types on the way through are optional, and are here so the later assertions have them.
+ */
+function quickStartToMap(harness: ReturnType<typeof createHarness>): void {
+  harness.dispatch({ type: 'quickStart' });
+  harness.dispatch({ type: 'confirmMode' });
+  harness.changeConfig(
+    withCrewName(withCrewName(harness.controller.state.config, 0, 'Ash'), 1, 'Vale'),
+  );
+  harness.dispatch({ type: 'confirmCrews' });
+}
 
 describe('application controller', () => {
   it('loads persisted choices, applies only explicit URL overrides once, and preserves later saved changes on reload', () => {
@@ -91,11 +104,11 @@ describe('application controller', () => {
     expect(harness.howtoScenes[0]?.disposeCount).toBe(1);
     expect(harness.titleScenes).toHaveLength(2);
 
-    harness.dispatch({ type: 'openMode' });
+    harness.dispatch({ type: 'quickStart' });
     const renderCount = harness.rendered.length;
     harness.dispatch({ type: 'selectMode', mode: 'cpu' });
 
-    expect(harness.controller.state.screen).toBe('MAP');
+    expect(harness.controller.state.screen).toBe('MODE');
     expect(harness.controller.state.config.mode).toBe('cpu');
     expect(harness.rendered).toHaveLength(renderCount + 1);
     expect(harness.runtimes).toHaveLength(0);
@@ -104,14 +117,15 @@ describe('application controller', () => {
 
   it('pins CPU deployment to the standard deck and ignores a stale loadout callback', () => {
     const harness = createHarness();
-    harness.dispatch({ type: 'openMode' });
+    harness.dispatch({ type: 'quickStart' });
     harness.dispatch({ type: 'selectMode', mode: 'cpu' });
     harness.dispatch({
       type: 'selectCpuTier',
       cpuTierId: 'veteran',
     });
+    harness.dispatch({ type: 'confirmMode' });
+    harness.dispatch({ type: 'confirmCrews' });
     harness.dispatch({ type: 'selectMap', worldId: 'terra' });
-    harness.dispatch({ type: 'openLoadout' });
 
     const firstLoadout = harness.loadouts[0]!;
     expect(firstLoadout.options).toMatchObject({ mode: 'cpu', cpuTierId: 'veteran' });
@@ -146,9 +160,8 @@ describe('application controller', () => {
     harness.controller.setPresentationBlocked(true);
     expect(harness.titleScenes[0]?.pauseStates).toEqual([true]);
 
-    harness.dispatch({ type: 'quickStart' });
+    quickStartToMap(harness);
     harness.dispatch({ type: 'selectMap', worldId: 'terra' });
-    harness.dispatch({ type: 'openLoadout' });
     const loadout = harness.loadouts[0];
     harness.controller.setPresentationBlocked(true);
     expect(harness.loadouts).toEqual([loadout]);
@@ -160,17 +173,18 @@ describe('application controller', () => {
     harness.controller.dispose();
   });
 
-  it('resolves Random at map selection, not earlier, and shows the concrete intro configuration', () => {
+  it('resolves Random at map selection, not earlier, and renders the concrete configuration', () => {
     const harness = createHarness();
 
     expect(harness.controller.resolvedConfig).toBeNull();
-    harness.dispatch({ type: 'quickStart' });
+    quickStartToMap(harness);
     expect(harness.controller.resolvedConfig).toBeNull();
 
     harness.dispatch({ type: 'selectMap', worldId: 'random' });
 
     const resolved = harness.controller.resolvedConfig;
-    expect(harness.controller.state.screen).toBe('ROUND_INTRO');
+    // Deploy opens the loadout directly; the briefing screen that sat here is gone.
+    expect(harness.controller.state.screen).toBe('LOADOUT');
     expect(resolved?.selectedWorldId).toBe('random');
     expect(SHIPPED_WORLDS.map((world) => world.id)).toContain(resolved?.worldId);
     expect(resolved?.worldId).not.toBe('random');
@@ -183,7 +197,7 @@ describe('application controller', () => {
     harness.controller.dispose();
   });
 
-  it('carries accepted Custom Game settings through intro and loadout into the runtime', () => {
+  it('carries accepted Custom Game settings through the loadout into the runtime', () => {
     const harness = createHarness();
     harness.dispatch({ type: 'openCustom' });
     const custom = configWith({
@@ -199,7 +213,7 @@ describe('application controller', () => {
 
     harness.changeConfig(custom);
     harness.dispatch({ type: 'startCustom' });
-    expect(harness.controller.state.screen).toBe('ROUND_INTRO');
+    expect(harness.controller.state.screen).toBe('LOADOUT');
     expect(harness.controller.resolvedConfig).toMatchObject({
       selectedWorldId: custom.selectedWorldId,
       worldId: custom.selectedWorldId,
@@ -210,7 +224,6 @@ describe('application controller', () => {
       turnTimer: custom.turnTimer,
     });
 
-    harness.dispatch({ type: 'openLoadout' });
     harness.loadouts[0]!.options.onDeploy(PLAYER_LOADOUT_IDS);
 
     expect(harness.controller.state.screen).toBe('MATCH');
@@ -224,9 +237,8 @@ describe('application controller', () => {
 
   it('keeps the deployed decks after the deploying caller mutates the arrays it passed', () => {
     const harness = createHarness();
-    harness.dispatch({ type: 'quickStart' });
+    quickStartToMap(harness);
     harness.dispatch({ type: 'selectMap', worldId: 'terra' });
-    harness.dispatch({ type: 'openLoadout' });
 
     const playerOne = [...PLAYER_ONE_SHELL_IDS];
     const playerTwo = [...PLAYER_TWO_SHELL_IDS];
@@ -245,9 +257,8 @@ describe('application controller', () => {
   it('disposes loadout on deploy, completes once, and rematches with deep-equal resolved settings except seed', () => {
     const storage = new MemoryStorage();
     const harness = createHarness({ storage });
-    harness.dispatch({ type: 'quickStart' });
+    quickStartToMap(harness);
     harness.dispatch({ type: 'selectMap', worldId: 'random' });
-    harness.dispatch({ type: 'openLoadout' });
 
     expect(harness.loadouts).toHaveLength(1);
     harness.loadouts[0]!.options.onDeploy(PLAYER_LOADOUT_IDS);
@@ -293,9 +304,8 @@ describe('application controller', () => {
 
   it('preserves settings and the previous deck for Change Loadout, then disposes its overlay on controller disposal', () => {
     const harness = createHarness();
-    harness.dispatch({ type: 'quickStart' });
+    quickStartToMap(harness);
     harness.dispatch({ type: 'selectMap', worldId: 'terra' });
-    harness.dispatch({ type: 'openLoadout' });
     harness.loadouts[0]!.options.onDeploy(PLAYER_LOADOUT_IDS);
     harness.runtimes[0]!.options.onComplete({ spentShellIdsByPlayer: [[], []] });
     const beforeChange = harness.controller.state.config;
@@ -320,9 +330,8 @@ describe('application controller', () => {
 
   it('disposes a runtime that completes synchronously during creation without leaving a live owner', () => {
     const harness = createHarness({ completeRuntimeSynchronously: true });
-    harness.dispatch({ type: 'quickStart' });
+    quickStartToMap(harness);
     harness.dispatch({ type: 'selectMap', worldId: 'terra' });
-    harness.dispatch({ type: 'openLoadout' });
     harness.loadouts[0]!.options.onDeploy(PLAYER_LOADOUT_IDS);
 
     expect(harness.controller.state.screen).toBe('ROUND_OVER');

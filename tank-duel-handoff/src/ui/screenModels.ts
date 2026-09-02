@@ -5,12 +5,16 @@ import { HE_SHELL } from '../sim/shells';
 import { PRESENTATION } from '../render/presentation';
 import { SHIPPED_GENERATORS, type GeneratorId } from '../sim/generators';
 import { SHELLS } from '../sim/shells';
-import { SHIPPED_WORLDS, type WindMode, type WorldPhysics } from '../sim/worlds';
+import { SHIPPED_WORLDS } from '../sim/worlds';
 import {
+  CPU_CREW_NAME,
+  CREW_COLOR_OPTIONS,
+  CREW_NAME_MAX_LENGTH,
   MATCH_AMMO_BOUNDS,
   MATCH_ROUND_OPTIONS,
   MATCH_TURN_TIMER_OPTIONS,
   MATCH_WIND_OPTIONS,
+  crewDisplayName,
   type MatchConfig,
   type MatchMode,
   type CpuTierId,
@@ -61,9 +65,61 @@ export interface CpuTierOptionModel {
 export interface ModeScreenModel {
   readonly id: 'MODE';
   readonly label: string;
+  readonly kicker: string;
   readonly step: string;
   readonly options: readonly ModeOptionModel[];
   readonly cpuTiers: readonly CpuTierOptionModel[];
+  /** `1v1 LOCAL SELECTED`, or the CPU line with the tier named. */
+  readonly status: string;
+  readonly backAction: FlowAction;
+  readonly continueAction: FlowAction;
+}
+
+export interface CrewSwatchModel {
+  readonly color: string;
+  readonly label: string;
+  readonly selected: boolean;
+  readonly action: FlowAction;
+}
+
+export interface CrewPanelModel {
+  readonly player: 0 | 1;
+  /** `P1` / `P2`, tinted with `color`. */
+  readonly tag: string;
+  /** The panel heading: `Player 1`, or `CPU` when crew 2 is the machine. */
+  readonly label: string;
+  /** What is in the field right now — empty while the placeholder is showing. */
+  readonly name: string;
+  readonly placeholder: string;
+  readonly color: string;
+  /** The chosen hex, uppercased, shown opposite the heading. */
+  readonly colorLabel: string;
+  readonly maxLength: number;
+  /** False for the CPU: there is no one to name, so the field is not rendered at all. */
+  readonly nameEditable: boolean;
+  /** False for the CPU, whose colour is rolled rather than chosen. */
+  readonly colorEditable: boolean;
+  /** Says why the CPU panel has no controls. Absent on a human panel. */
+  readonly note?: string;
+  /** P2's panel is a mirror of P1's, so the two tanks face each other. */
+  readonly mirrored: boolean;
+  /** `+1` for the left crew, `-1` for the right one. */
+  readonly direction: 1 | -1;
+  /** Stored 0-180 absolute; P2's display is mirrored per `spec/constants.json`. */
+  readonly angleDeg: number;
+  readonly swatches: readonly CrewSwatchModel[];
+}
+
+export interface CrewScreenModel {
+  readonly id: 'CREW';
+  readonly label: string;
+  readonly kicker: string;
+  readonly step: string;
+  readonly panels: readonly [CrewPanelModel, CrewPanelModel];
+  /** `<NAME 1> VS <NAME 2>`, with the defaults standing in for anything left blank. */
+  readonly status: string;
+  readonly backAction: FlowAction;
+  readonly continueAction: FlowAction;
 }
 
 export interface MapTileModel {
@@ -87,9 +143,9 @@ export interface MapTileModel {
 export interface MapScreenModel {
   readonly id: 'MAP';
   readonly label: string;
+  readonly kicker: string;
   readonly step: string;
   readonly tiles: readonly MapTileModel[];
-  readonly modeOptions: readonly ModeOptionModel[];
   readonly cpuTiers: readonly CpuTierOptionModel[];
 }
 
@@ -97,7 +153,7 @@ export interface CustomShellRowModel {
   readonly id: string;
   readonly name: string;
   readonly icon: string;
-  /** `3 PT`, or `LOCKED` for the free shell. */
+  /** `MASS 1.55`, or `LOCKED` for the free shell. There is no point cost to show. */
   readonly costLabel: string;
   readonly locked: boolean;
   readonly enabled: boolean;
@@ -130,33 +186,6 @@ export interface CustomScreenModel {
   readonly modeOptions: readonly ModeOptionModel[];
   readonly cpuTiers: readonly CpuTierOptionModel[];
   readonly startAction: FlowAction;
-}
-
-export interface ShellSummaryModel {
-  readonly id: string;
-  readonly name: string;
-  readonly icon: string;
-  readonly ammo: number | 'inf';
-  readonly ammoLabel: string;
-}
-
-export interface BriefingEntry {
-  readonly term: string;
-  readonly value: string;
-}
-
-export interface RoundIntroScreenModel {
-  readonly id: 'ROUND_INTRO';
-  readonly label: string;
-  readonly worldName: string;
-  readonly generatorName: string;
-  readonly rounds: MatchRounds;
-  readonly wind: MatchWind;
-  readonly turnTimer: MatchTurnTimer;
-  /** The same data the terms always carried, said in full rather than in one word. */
-  readonly briefing: readonly BriefingEntry[];
-  readonly shells: readonly ShellSummaryModel[];
-  readonly action: FlowAction;
 }
 
 export interface HowToShotModel {
@@ -239,22 +268,98 @@ export function buildTitleScreenModel(): TitleScreenModel {
 }
 
 export function buildModeScreenModel(state: AppFlowState): ModeScreenModel {
+  const cpuTiers = cpuTierModels(state.config);
   return {
     id: 'MODE',
     label: 'Choose mode',
-    step: '1 / 2',
+    kicker: 'Quick start',
+    step: 'Step 01 / 03',
     options: modeOptionModels(state),
-    cpuTiers: cpuTierModels(state.config),
+    cpuTiers,
+    status: modeStatus(state, cpuTiers),
+    backAction: { type: 'back' },
+    continueAction: { type: 'confirmMode' },
   };
+}
+
+/** The footer says what is selected, including the tier, so Continue is never a leap. */
+function modeStatus(state: AppFlowState, tiers: readonly CpuTierOptionModel[]): string {
+  const mode = selectedModeLabel(state);
+  if (state.config.mode !== 'cpu') return `${mode} selected`.toUpperCase();
+  const tier = tiers.find((option) => option.selected)?.label ?? state.config.cpuTierId;
+  return `${mode} · ${tier}`.toUpperCase();
+}
+
+/**
+ * The aiming angles the two preview tanks hold. Stored angles are 0-180 absolute and
+ * player 2's display is mirrored, so 52 and 128 are the same elevation pointing inward —
+ * the two tanks read as facing each other across the panel gap.
+ */
+const CREW_PREVIEW_ANGLES: readonly [number, number] = Object.freeze([52, 128]);
+
+const CPU_CREW_NOTE = 'Name and colour rolled by the machine. Take its colour and the two swap.';
+
+export function buildCrewScreenModel(state: AppFlowState): CrewScreenModel {
+  const { config } = state;
+  const panels = [0, 1].map((index) => {
+    const player = index === 1 ? 1 : 0;
+    const cpu = player === 1 && config.mode === 'cpu';
+    const label = cpu ? CPU_CREW_NAME : PRESENTATION.players[player].label;
+    return {
+      player,
+      tag: `P${player + 1}`,
+      label,
+      // A field showing a stale human name would read as the CPU's own.
+      name: cpu ? '' : config.crews[player].name,
+      placeholder: PRESENTATION.players[player].label,
+      color: config.crews[player].color,
+      colorLabel: config.crews[player].color.toUpperCase(),
+      maxLength: CREW_NAME_MAX_LENGTH,
+      nameEditable: !cpu,
+      colorEditable: !cpu,
+      ...(cpu ? { note: CPU_CREW_NOTE } : {}),
+      mirrored: player === 1,
+      direction: player === 0 ? 1 : -1,
+      angleDeg: CREW_PREVIEW_ANGLES[player],
+      swatches: cpu ? Object.freeze([]) : crewSwatchModels(config, player),
+    } satisfies CrewPanelModel;
+  }) as [CrewPanelModel, CrewPanelModel];
+
+  return {
+    id: 'CREW',
+    label: 'Set up your crews',
+    kicker: `Quick start · ${selectedModeLabel(state)}`,
+    step: 'Step 02 / 03',
+    panels: Object.freeze(panels) as readonly [CrewPanelModel, CrewPanelModel],
+    // Names are optional, so the status shows the matchup that would be played right now
+    // rather than telling anyone what still has to be filled in.
+    status: `${crewDisplayName(config, 0)} vs ${crewDisplayName(config, 1)}`.toUpperCase(),
+    backAction: { type: 'back' },
+    continueAction: { type: 'confirmCrews' },
+  };
+}
+
+/**
+ * Every colour stays pickable. Taking the one the other crew holds swaps the two, which is
+ * why no option is ever disabled — see `withCrewColor`.
+ */
+function crewSwatchModels(config: MatchConfig, player: 0 | 1): readonly CrewSwatchModel[] {
+  return CREW_COLOR_OPTIONS.map((color) => ({
+    color,
+    label: `${color} for ${PRESENTATION.players[player].label}`,
+    selected: config.crews[player].color === color,
+    action: { type: 'selectCrewColor', player, color },
+  }));
 }
 
 export function buildMapScreenModel(state: AppFlowState): MapScreenModel {
   return {
     id: 'MAP',
     label: 'Choose battlefield',
-    step: '2 / 2',
+    // Mode is settled two screens back and is not switchable here; the kicker reports it.
+    kicker: `Quick start · ${selectedModeLabel(state)}`,
+    step: 'Step 03 / 03',
     tiles: mapTileModels(state.mapOptions, state.config.selectedWorldId),
-    modeOptions: modeOptionModels(state),
     cpuTiers: cpuTierModels(state.config),
   };
 }
@@ -287,7 +392,7 @@ export function buildCustomScreenModel(state: AppFlowState): CustomScreenModel {
         id: shell.id,
         name: shellConfig.name,
         icon: shellConfig.icon,
-        costLabel: locked ? 'Locked' : `${shell.cost} pt`,
+        costLabel: locked ? 'Locked' : `Mass ${shell.mass}`,
         locked,
         enabled: shellConfig.enabled,
         ammo: shellConfig.ammo,
@@ -305,69 +410,12 @@ export function buildCustomScreenModel(state: AppFlowState): CustomScreenModel {
   };
 }
 
+function ammoLabel(ammo: number | 'inf'): string {
+  return ammo === 'inf' ? '∞' : String(ammo);
+}
+
 function worldLabel(id: MatchWorldId): string {
   return SHIPPED_WORLDS.find((world) => world.id === id)?.name ?? 'Random';
-}
-
-export function buildRoundIntroScreenModel(config: MatchConfig): RoundIntroScreenModel {
-  const resolvedWorldId = 'worldId' in config && typeof config.worldId === 'string'
-    ? config.worldId
-    : config.selectedWorldId;
-  const world = SHIPPED_WORLDS.find((candidate) => candidate.id === resolvedWorldId);
-  const resolvedGeneratorId = 'generatorId' in config && typeof config.generatorId === 'string'
-    ? config.generatorId
-    : config.selectedGeneratorId ?? world?.generator ?? null;
-
-  const worldName = world?.name ?? 'Random';
-  const generatorName = resolvedGeneratorId ?? 'Default';
-  return {
-    id: 'ROUND_INTRO',
-    label: 'Ready to deploy',
-    worldName,
-    generatorName,
-    rounds: config.rounds,
-    wind: config.wind,
-    turnTimer: config.turnTimer,
-    briefing: Object.freeze([
-      { term: 'World', value: world ? `${world.name} — ${lowerFirst(world.kind)}` : worldName },
-      { term: 'Terrain', value: capitalize(generatorName) },
-      { term: 'Rounds', value: `Best of ${config.rounds}` },
-      { term: 'Wind', value: windDescription(config.wind, world) },
-      { term: 'Turn timer', value: turnTimerDescription(config.turnTimer) },
-    ]),
-    shells: config.enabledShellIds.map((id) => shellSummary(config, id)),
-    action: { type: 'openLoadout' },
-  };
-}
-
-/**
- * Wind said in full: the setting, then the world's own behaviour and range from
- * `spec/worlds.json`. Nothing here describes behaviour the sim does not have — a vacuum
- * world reads as a vacuum whatever the setting says.
- */
-function windDescription(wind: MatchWind, world: WorldPhysics | undefined): string {
-  if (wind === 'off') return 'Off';
-  if (!world) return capitalize(wind);
-  if (world.windRange === 0) return 'None — vacuum';
-  return `${capitalize(wind)} — ${WIND_MODE_PHRASE[world.windMode]}, ±${world.windRange}`;
-}
-
-const WIND_MODE_PHRASE: Readonly<Record<WindMode, string>> = Object.freeze({
-  reroll: 'rerolls each turn',
-  fixed: 'fixed for the match',
-  none: 'no wind',
-});
-
-function turnTimerDescription(turnTimer: MatchTurnTimer): string {
-  return turnTimer === 'off' ? 'Off' : `${turnTimer} seconds per turn`;
-}
-
-function capitalize(value: string): string {
-  return value.charAt(0).toUpperCase() + value.slice(1);
-}
-
-function lowerFirst(value: string): string {
-  return value.charAt(0).toLowerCase() + value.slice(1);
 }
 
 const HOWTO_LEDE: readonly string[] = Object.freeze([
@@ -394,14 +442,14 @@ export function buildRoundOverScreenModel(state: AppFlowState): RoundOverScreenM
     id: 'ROUND_OVER',
     label: 'Round over',
     kicker: roundOverKicker(state),
-    headline: roundOverHeadline(result),
-    accentColor: winner === null ? null : PRESENTATION.players[winner].color,
+    headline: roundOverHeadline(state.config, result),
+    accentColor: winner === null ? null : state.config.crews[winner].color,
     players: (state.roundOver?.spentShellIdsByPlayer ?? []).map((ids, index) => {
       const player = index === 1 ? 1 : 0;
       return {
-        label: PRESENTATION.players[player].label,
+        label: crewDisplayName(state.config, player),
         tag: `P${player + 1}`,
-        color: PRESENTATION.players[player].color,
+        color: state.config.crews[player].color,
         summary: `${ids.length} ${ids.length === 1 ? 'shot' : 'shots'}`,
         winner: winner === player,
         shells: groupSpentShells(state.config, ids),
@@ -428,15 +476,18 @@ function roundOverKicker(state: AppFlowState): string {
 }
 
 /**
- * `Player 1 wins / the round`, with the verb in the winner's colour. A draw reads `Draw`
+ * `<crew> wins / the round`, with the verb in the winner's colour. A draw reads `Draw`
  * on its own; an unresolved recap keeps the plain screen label.
  */
-function roundOverHeadline(result: 0 | 1 | 'draw' | null): readonly (readonly HeadlineSpan[])[] {
+function roundOverHeadline(
+  config: MatchConfig,
+  result: 0 | 1 | 'draw' | null,
+): readonly (readonly HeadlineSpan[])[] {
   if (result === 'draw') return Object.freeze([Object.freeze([{ text: 'Draw', accent: false }])]);
   if (result === null) return Object.freeze([Object.freeze([{ text: 'Round over', accent: false }])]);
   return Object.freeze([
     Object.freeze([
-      { text: `${PRESENTATION.players[result].label} `, accent: false },
+      { text: `${crewDisplayName(config, result)} `, accent: false },
       { text: 'wins', accent: true },
     ]),
     Object.freeze([{ text: 'the round', accent: false }]),
@@ -461,6 +512,12 @@ function groupSpentShells(
 
 function actionButton(label: string, action: FlowAction): ActionButtonModel {
   return { label, action, disabled: false };
+}
+
+/** The mode this screen only reports; `MAP` is where it can still be switched. */
+function selectedModeLabel(state: AppFlowState): string {
+  return state.modeOptions.find((option) => option.id === state.config.mode)?.label ??
+    state.config.mode;
 }
 
 function modeOptionModels(state: AppFlowState): readonly ModeOptionModel[] {
@@ -528,21 +585,7 @@ function mapTileModels(
   });
 }
 
-function shellSummary(config: MatchConfig, id: string): ShellSummaryModel {
-  const shell = config.shells[id];
-  if (!shell) throw new Error(`Missing shell config for ${id}`);
-  return {
-    id,
-    name: shell.name,
-    icon: shell.icon,
-    ammo: shell.ammo,
-    ammoLabel: ammoLabel(shell.ammo),
-  };
-}
 
-function ammoLabel(ammo: number | 'inf'): string {
-  return ammo === 'inf' ? '∞' : String(ammo);
-}
 
 /**
  * The same indexing `drawHowtoScene` uses for its three trajectories, so a card and the arc

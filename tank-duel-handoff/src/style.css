@@ -17,18 +17,48 @@ body {
   background: #0e1219;
 }
 
-#field,
-#app {
-  position: fixed;
-  inset: 0;
-}
+/*
+ * `--ui-scale` is set on the root by `ui/uiScale.ts` from the viewport and the design size
+ * in `spec/presentation.json`. The value here is the fallback for a page rendered before
+ * that runs, and for anything that mounts the stylesheet without the script.
+ */
+:root { --ui-scale: 1; }
 
 #field {
+  position: fixed;
+  inset: 0;
   z-index: 0;
   width: 100%;
   height: 100%;
   display: block;
   touch-action: none;
+}
+
+/*
+ * The menus are drawn at one size and scaled to the viewport — see `ui/uiScale.ts`. The
+ * element is laid out at the design size (the viewport divided by the scale) and then
+ * scaled back down, so the layout inside never learns that the viewport is not an iPad.
+ *
+ * `transform` rather than `zoom`: it leaves layout untouched, so `100dvh` still means the
+ * viewport, and it is the same in every browser this has to run in.
+ *
+ * Nothing inside may be `position: fixed` — a transformed ancestor becomes its containing
+ * block. The touch controls, the loadout overlay and the orientation gate are all siblings
+ * of this element for that reason, and the first of those is deliberately left unscaled:
+ * a 44px hit target that shrinks with the design stops being a 44px hit target.
+ */
+#app {
+  position: fixed;
+  inset-block-start: 0;
+  inset-inline-start: 0;
+  inline-size: calc(100vw / var(--ui-scale));
+  block-size: calc(100dvh / var(--ui-scale));
+  transform: scale(var(--ui-scale));
+  transform-origin: 0 0;
+}
+
+@supports not (block-size: 100dvh) {
+  #app { block-size: calc(100vh / var(--ui-scale)); }
 }
 
 /*

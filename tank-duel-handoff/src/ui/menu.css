@@ -2,8 +2,10 @@
  * Menu chrome — "field instrument": flat surfaces, hairline rules, no radius, no shadow,
  * no gradients. Depth comes from four panel tones and the type hierarchy.
  *
- * Every screen is full-bleed on the void; the floating centred card is gone. Sizes are the
- * design's 1194x834 iPad values, per `spec/presentation.json`.
+ * Every screen is full-bleed on the void; the floating centred card is gone. Every size in
+ * this file is a design pixel at `spec/presentation.json -> designSize` (1194x834, the iPad
+ * this was built for). `#app` is scaled to whatever viewport it lands on, so there are no
+ * breakpoints here and nothing reflows: a phone gets the same layout, smaller.
  *
  * One rule worth stating: orange is never a surface. It is a 1px border, a 3px bar, a fill
  * inside a meter, a 10px square, or text — which is what keeps it legible on every world.
@@ -32,6 +34,9 @@
   grid-template-rows: auto 1fr auto;
   gap: 40px;
   block-size: 100%;
+  /* The scale has a floor, so a short enough viewport still overflows. The screen clips and
+     `.screen-body` scrolls, which keeps the header and the footer where they belong. */
+  overflow: hidden;
   padding: 56px;
   color: var(--paper);
   font-family: Archivo, system-ui, sans-serif;
@@ -52,7 +57,11 @@
 
 /* The two dense screens run tighter and fit inside 834px with no scroll. */
 .app-screen[data-screen='CUSTOM'] { grid-template-rows: auto auto 1fr auto; gap: 24px; padding: 40px 56px; }
+.app-screen[data-screen='CREW'],
 .app-screen[data-screen='MAP'] { gap: 30px; }
+/* The difficulty group lands between the cards and the footer in CPU mode, so the rows run
+   one deeper than the shared template — the implicit row it falls into is what carries it. */
+.app-screen[data-screen='MODE'] { gap: 28px; }
 .app-screen[data-screen='ROUND_OVER'] { gap: 34px; }
 
 .app-screen h1,
@@ -91,13 +100,25 @@
 
 /* Direct children only: an outcome line holds inline runs for the accent word. */
 .screen-title > span { display: block; }
+.app-screen[data-screen='CREW'] .screen-title,
 .app-screen[data-screen='CUSTOM'] .screen-title,
 .app-screen[data-screen='LOADOUT'] .screen-title { font-size: 48px; line-height: 0.94; }
 .app-screen[data-screen='ROUND_OVER'] .screen-title { font-size: 68px; line-height: 0.9; letter-spacing: -0.032em; }
 
 .rule { block-size: 1px; margin: 0; border: 0; background: var(--hairline-strong); }
 
-.screen-body { display: grid; align-content: start; min-block-size: 0; }
+/*
+ * `clip` rather than `hidden` on the inline axis, with a margin: a focus ring is 3px of
+ * outline at 3px offset, and a scroll container clips it flat against the first and last
+ * column. The block axis scrolls, which is what a viewport below the scale floor needs.
+ */
+.screen-body {
+  display: grid;
+  align-content: start;
+  min-block-size: 0;
+  overflow: clip auto;
+  overflow-clip-margin: 8px;
+}
 
 .screen-footer {
   display: flex;
@@ -215,14 +236,16 @@
 
 /* ── 02 Mode ───────────────────────────────────────────────────────────────────── */
 
-.mode-grid { grid-template-columns: 1fr 1fr; gap: 20px; }
+/* The two cards fill the row rather than sitting at a fixed height above dead space — and
+   at the scale floor a 300px minimum was one pixel taller than the row it had to fit in. */
+.mode-grid { grid-template-columns: 1fr 1fr; gap: 20px; align-content: stretch; }
 
 .mode-card {
   display: flex;
   flex-direction: column;
   justify-content: space-between;
   gap: 24px;
-  min-block-size: 300px;
+  min-block-size: 240px;
   padding: 32px;
   border: 1px solid var(--hairline);
   background: var(--panel);
@@ -303,6 +326,81 @@
 
 .mode-summary-option.is-selected { border-color: var(--menu-accent); background: var(--panel-selected); color: var(--menu-accent); }
 .mode-summary-option small { display: none; }
+
+/* ── 02b Crew setup ───────────────────────────────────────────────────────── */
+
+/*
+ * The `LOADOUT` split, reused: two equal panels that cannot push each other out of the
+ * 1194px width. Player 2's panel is a mirror, so the two tanks face each other across the
+ * gap rather than both pointing the same way.
+ */
+.crew-panels { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 22px; }
+
+.crew-panel {
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  min-inline-size: 0;
+  padding: 24px;
+  border: 1px solid var(--hairline);
+  background: var(--panel);
+}
+
+.crew-panel header { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+.crew-panel .panel-identity { display: flex; align-items: center; gap: 12px; min-inline-size: 0; }
+.crew-panel .panel-label { font-size: 19px; font-weight: 700; letter-spacing: 0.01em; text-transform: uppercase; white-space: nowrap; }
+.crew-color-label { color: var(--dim); font-family: var(--mono); font-size: 12px; letter-spacing: 0.14em; text-transform: uppercase; white-space: nowrap; }
+
+.crew-canvas {
+  display: block;
+  inline-size: 100%;
+  block-size: 150px;
+  border: 1px solid var(--hairline-faint);
+  background: var(--panel-recessed);
+}
+
+/* Recessed, not `--panel`: the field sits on a panel rather than on the void. */
+.crew-panel input { inline-size: 100%; background: var(--panel-recessed); }
+
+.crew-color-field { gap: 10px; }
+.crew-swatches { display: flex; flex-wrap: wrap; gap: 8px; }
+
+.crew-swatch {
+  display: grid;
+  place-items: center;
+  inline-size: 44px;
+  block-size: 44px;
+  padding: 0;
+  border: 1px solid rgb(201 168 124 / 16%);
+  border-radius: 0;
+  background: var(--panel-recessed);
+  cursor: pointer;
+}
+
+/* Orange stays a 1px border here as everywhere else — never the surface of the swatch. */
+.crew-swatch.is-selected { border-color: var(--menu-accent); background: var(--panel-selected); }
+.crew-swatch:focus-visible { outline: 3px solid var(--menu-accent); outline-offset: 3px; }
+.crew-swatch-chip { display: block; inline-size: 20px; block-size: 20px; }
+
+/* Stands in for the two controls the CPU panel does not have, so its lower half is not
+   simply empty next to the player's. */
+.crew-note {
+  margin: 0;
+  color: var(--dim);
+  font-family: var(--mono);
+  font-size: 11px;
+  line-height: 1.8;
+  text-transform: uppercase;
+}
+
+.crew-panel.is-mirrored .crew-note { text-align: end; }
+
+.crew-panel.is-mirrored header,
+.crew-panel.is-mirrored .panel-identity { flex-direction: row-reverse; }
+.crew-panel.is-mirrored .form-field { align-items: flex-end; }
+.crew-panel.is-mirrored input { text-align: end; }
+.crew-panel.is-mirrored .crew-swatches { justify-content: flex-end; }
 
 /* ── 03 Battlefield ────────────────────────────────────────────────────────────── */
 
@@ -404,25 +502,8 @@
 
 .ammunition-row.is-off .shell-count input { color: var(--disabled-deep); }
 
-/* ── 06 Ready to deploy ────────────────────────────────────────────────────────── */
+/* ── Shell summary lists (Round over recap) ────────────────────────────────────── */
 
-.app-screen[data-screen='ROUND_INTRO'] { grid-template-rows: 1fr; grid-template-columns: 1fr 470px; gap: 56px; }
-.intro-main { display: grid; grid-template-rows: auto 1fr auto; gap: 28px; min-block-size: 0; }
-.match-summary { display: flex; flex-direction: column; align-content: start; margin: 0; }
-
-.match-summary div {
-  display: grid;
-  grid-template-columns: 190px 1fr;
-  align-items: baseline;
-  gap: 20px;
-  padding-block: 16px;
-  border-block-end: 1px solid var(--hairline-faint);
-}
-
-.match-summary dt { color: var(--sand); font-family: var(--mono); font-size: 11px; letter-spacing: 0.22em; text-transform: uppercase; }
-.match-summary dd { margin: 0; font-size: 19px; font-weight: 600; }
-
-.shell-panel { display: flex; flex-direction: column; gap: 20px; padding: 28px; border: 1px solid rgb(201 168 124 / 16%); background: var(--panel); }
 .shell-summary { display: flex; flex-direction: column; margin: 0; padding: 0; list-style: none; }
 
 .shell-summary li {

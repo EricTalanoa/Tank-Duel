@@ -16,7 +16,7 @@ import type { GameState, Tank } from '../sim/world';
 import { simSeconds } from '../sim/world';
 import type { WorldPhysics } from '../sim/worlds';
 import { CONSTANTS } from '../sim/constants';
-import { CHROME, displayFont, monoFont, playerColor } from './palette';
+import { CHROME, displayFont, monoFont, playerColor, playerName } from './palette';
 
 export interface LoopTelemetry {
   /** Steps run on the most recent frame. */
@@ -59,7 +59,7 @@ const MARGIN = 32;
 const TOP_SCRIM = 96;
 const BOTTOM_SCRIM = 230;
 
-const NAMEPLATE = { tagWidth: 36, tagHeight: 20, tagY: 30, barWidth: 190, barHeight: 16, barY: 32, gap: 14 } as const;
+const NAMEPLATE = { nameY: 12, tagWidth: 36, tagHeight: 20, tagY: 30, barWidth: 190, barHeight: 16, barY: 32, gap: 14 } as const;
 const SOLUTION = { x: 354, width: 220, height: 122, bottomClearance: 12 } as const;
 const TELEMETRY_PANEL = { width: 210, height: 92, y: 110 } as const;
 
@@ -180,6 +180,14 @@ function drawNameplate(
     ? anchor + NAMEPLATE.tagWidth + NAMEPLATE.gap
     : anchor - NAMEPLATE.tagWidth - NAMEPLATE.gap - NAMEPLATE.barWidth;
   const health = Math.max(0, Math.round(tank.health));
+
+  // The crew's own name above their tag, in their own colour: `P1` says which side of the
+  // field, the name says who is sitting there.
+  ctx.font = monoFont(11, 700);
+  ctx.fillStyle = color;
+  ctx.textAlign = left ? 'left' : 'right';
+  ctx.fillText(track(playerName(player).toUpperCase()), left ? tagX : anchor, NAMEPLATE.nameY);
+  ctx.textAlign = 'left';
 
   ctx.fillStyle = color;
   ctx.fillRect(tagX, NAMEPLATE.tagY, NAMEPLATE.tagWidth, NAMEPLATE.tagHeight);

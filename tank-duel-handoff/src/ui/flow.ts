@@ -3,6 +3,7 @@ import {
   MATCH_WORLD_OPTIONS,
   createDefaultConfig,
   validateConfig,
+  withCrewColor,
   type MatchConfig,
   type MatchMode,
   type MatchWorldId,
@@ -12,10 +13,10 @@ import {
 export type ScreenId =
   | 'TITLE'
   | 'MODE'
+  | 'CREW'
   | 'MAP'
   | 'CUSTOM'
   | 'HOWTO'
-  | 'ROUND_INTRO'
   | 'LOADOUT'
   | 'MATCH'
   | 'ROUND_OVER';
@@ -49,16 +50,17 @@ export interface RoundOverRecap {
 
 export type FlowAction =
   | { readonly type: 'quickStart' }
-  | { readonly type: 'openMode' }
   | { readonly type: 'selectMode'; readonly mode: MatchMode }
+  | { readonly type: 'confirmMode' }
   | { readonly type: 'selectCpuTier'; readonly cpuTierId: CpuTierId }
   | { readonly type: 'openCustom' }
   | { readonly type: 'startCustom' }
   | { readonly type: 'openHowTo' }
+  | { readonly type: 'confirmCrews' }
+  | { readonly type: 'selectCrewColor'; readonly player: 0 | 1; readonly color: string }
   | { readonly type: 'back' }
   | { readonly type: 'playFromHowTo' }
   | { readonly type: 'selectMap'; readonly worldId: MatchWorldId }
-  | { readonly type: 'openLoadout' }
   | { readonly type: 'deployLoadout' }
   | { readonly type: 'completeMatch'; readonly recap: RoundOverRecap }
   | { readonly type: 'rematch'; readonly seed: number }
@@ -66,11 +68,17 @@ export type FlowAction =
   | { readonly type: 'menu' };
 
 const MODE_OPTIONS: readonly FlowModeOption[] = Object.freeze([
-  Object.freeze({ id: 'local', label: '1v1 Local', enabled: true }),
+  Object.freeze({
+    id: 'local',
+    label: '1v1 Local',
+    enabled: true,
+    note: 'Two crews, one device. Pass it across between shots.',
+  }),
   Object.freeze({
     id: 'cpu',
     label: '1 v CPU',
     enabled: true,
+    note: 'One crew against the machine. Pick a difficulty below.',
     cpuTierIds: CPU_TIER_IDS,
   }),
 ]);
@@ -84,25 +92,24 @@ export function createFlow(config: MatchConfig): AppFlowState {
 export function reduceFlow(state: AppFlowState, action: FlowAction): AppFlowState {
   switch (action.type) {
     case 'quickStart':
-      return state.screen === 'TITLE' ? createState('MAP', withConfig(state.config, {
-        path: 'quick',
-        mode: 'local',
-      })) : state;
-    case 'openMode':
-      return state.screen === 'TITLE' ? createState('MODE', state.config) : state;
+      // Mode is the first thing chosen now, so Quick Start opens it rather than assuming
+      // local — and the mode carried in from the last match is what it opens on.
+      return state.screen === 'TITLE'
+        ? createState('MODE', withConfig(state.config, { path: 'quick' }))
+        : state;
     case 'selectMode':
-      if (state.screen === 'MODE') {
-        return createState('MAP', withConfig(state.config, {
-          path: 'quick',
-          mode: action.mode,
-        }));
-      }
-      if (state.screen === 'MAP' || state.screen === 'CUSTOM') {
+      // On MODE, picking a card selects it and stays put: the CPU card's difficulty is
+      // chosen on the same screen, which an advance-on-click card would walk straight past.
+      if (state.screen === 'MODE' || state.screen === 'CREW' || state.screen === 'MAP' ||
+        state.screen === 'CUSTOM') {
         return createState(state.screen, withConfig(state.config, { mode: action.mode }));
       }
       return state;
+    case 'confirmMode':
+      return state.screen === 'MODE' ? createState('CREW', state.config) : state;
     case 'selectCpuTier':
-      if ((state.screen !== 'MODE' && state.screen !== 'MAP' && state.screen !== 'CUSTOM') ||
+      if ((state.screen !== 'MODE' && state.screen !== 'CREW' && state.screen !== 'MAP' &&
+        state.screen !== 'CUSTOM') ||
         state.config.mode !== 'cpu' || !CPU_TIER_IDS.includes(action.cpuTierId)) return state;
       return createState(state.screen, withConfig(state.config, { cpuTierId: action.cpuTierId }));
     case 'openCustom':
@@ -110,37 +117,46 @@ export function reduceFlow(state: AppFlowState, action: FlowAction): AppFlowStat
         path: 'custom',
       })) : state;
     case 'startCustom':
-      return state.screen === 'CUSTOM' ? createState('ROUND_INTRO', state.config) : state;
+      return state.screen === 'CUSTOM' ? createState('LOADOUT', state.config) : state;
     case 'openHowTo':
       return state.screen === 'TITLE' ? createState('HOWTO', state.config) : state;
+    case 'confirmCrews':
+      // Ungated. Names are decoration on a nameplate, not a prerequisite for a duel, and
+      // `crewDisplayName` already falls back to Player 1 / Player 2 everywhere one is shown.
+      return state.screen === 'CREW' ? createState('MAP', state.config) : state;
+    case 'selectCrewColor': {
+      if (state.screen !== 'CREW') return state;
+      const config = withCrewColor(state.config, action.player, action.color);
+      return config === state.config ? state : createState('CREW', config);
+    }
     case 'back':
       switch (state.screen) {
         case 'MODE':
-        case 'MAP':
         case 'CUSTOM':
         case 'HOWTO':
           return createState('TITLE', state.config);
-        case 'ROUND_INTRO':
-          return createState(state.config.path === 'custom' ? 'CUSTOM' : 'MAP', state.config);
+        case 'CREW':
+          return createState('MODE', state.config);
+        case 'MAP':
+          return createState('CREW', state.config);
         case 'LOADOUT':
-          return createState('ROUND_INTRO', state.config);
+          return createState(state.config.path === 'custom' ? 'CUSTOM' : 'MAP', state.config);
         default:
           return state;
       }
     case 'playFromHowTo':
-      return state.screen === 'HOWTO' ? createState('MAP', withConfig(state.config, {
-        path: 'quick',
-        mode: 'local',
-      })) : state;
+      return state.screen === 'HOWTO'
+        ? createState('MODE', withConfig(state.config, { path: 'quick' }))
+        : state;
     case 'selectMap':
+      // Deploy opens the loadout directly. The briefing screen that used to sit here
+      // restated choices the player had just made on the two screens behind it.
       if (state.screen !== 'MAP' || !MAP_OPTIONS.includes(action.worldId)) return state;
-      return createState('ROUND_INTRO', withConfig(state.config, {
+      return createState('LOADOUT', withConfig(state.config, {
         path: 'quick',
         selectedWorldId: action.worldId,
         selectedGeneratorId: null,
       }));
-    case 'openLoadout':
-      return state.screen === 'ROUND_INTRO' ? createState('LOADOUT', state.config) : state;
     case 'deployLoadout':
       return state.screen === 'LOADOUT' ? createState('MATCH', state.config) : state;
     case 'completeMatch':
@@ -155,7 +171,11 @@ export function reduceFlow(state: AppFlowState, action: FlowAction): AppFlowStat
     case 'changeLoadout':
       return state.screen === 'ROUND_OVER' ? createState('LOADOUT', state.config) : state;
     case 'menu':
-      return state.screen === 'ROUND_OVER' ? createState('TITLE', state.config) : state;
+      // Reachable from the match as well as the recap: the match's Menu button confirms
+      // first, so this arriving mid-round is a decision, not a stray tap.
+      return state.screen === 'ROUND_OVER' || state.screen === 'MATCH'
+        ? createState('TITLE', state.config)
+        : state;
     default:
       return assertNever(action);
   }

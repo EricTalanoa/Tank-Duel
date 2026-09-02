@@ -19,6 +19,7 @@ interface StoredMatchConfig {
   readonly rounds: MatchConfig['rounds'];
   readonly wind: MatchConfig['wind'];
   readonly turnTimer: MatchConfig['turnTimer'];
+  readonly crews: MatchConfig['crews'];
   readonly enabledShellIds: readonly string[];
   readonly shells: Readonly<Record<string, {
     readonly enabled: boolean;
@@ -59,6 +60,10 @@ function toStoredMatchConfig(config: MatchConfig): StoredMatchConfig {
     rounds: config.rounds,
     wind: config.wind,
     turnTimer: config.turnTimer,
+    crews: [
+      { name: config.crews[0].name, color: config.crews[0].color },
+      { name: config.crews[1].name, color: config.crews[1].color },
+    ],
     enabledShellIds: [...config.enabledShellIds],
     shells: Object.fromEntries(
       Object.entries(config.shells).map(([id, shell]) => [id, {

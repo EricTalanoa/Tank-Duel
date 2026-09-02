@@ -1,21 +1,125 @@
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it, vi } from 'vitest';
-import { createDefaultConfig } from './config';
+import { CREW_COLOR_OPTIONS, createDefaultConfig, withCrewName, type MatchConfig } from './config';
 import { createFlow, reduceFlow, type AppFlowState, type FlowAction } from './flow';
 import { mountAppView } from './appView';
 
+/** TITLE -> MODE, the first step of the quick-start path. */
+function modeState(): AppFlowState {
+  return reduceFlow(createFlow(createDefaultConfig()), { type: 'quickStart' });
+}
+
+/** TITLE -> MODE -> CREW. */
+function crewState(): AppFlowState {
+  return reduceFlow(modeState(), { type: 'confirmMode' });
+}
+
+/** TITLE -> MODE -> CREW -> MAP, with both crews named. */
+function mapState(): AppFlowState {
+  const crew = crewState();
+  const named = withCrewName(withCrewName(crew.config, 0, 'Ash'), 1, 'Vale');
+  return reduceFlow({ ...crew, config: named }, { type: 'confirmCrews' });
+}
+
 describe('application DOM view', () => {
+
+  it('renders the crew panels as real inputs and swatch buttons, with names optional', () => {
+    const root = createRoot();
+    const onAction = vi.fn<(action: FlowAction) => void>();
+    const onConfigChange = vi.fn<(config: MatchConfig) => void>();
+    const view = mountAppView(root as unknown as HTMLElement, { onAction, onConfigChange });
+    const crew = crewState();
+
+    view.render(crew);
+
+    // Nothing typed, and Continue still works: Player 1 and Player 2 are the defaults.
+    const continueButton = root.all('button').find((b) => b.getAttribute('aria-label') === 'Continue');
+    expect(continueButton?.disabled).toBe(false);
+    root.click(continueButton!);
+    expect(onAction).toHaveBeenLastCalledWith({ type: 'confirmCrews' });
+
+    // Every control is a real input or button, so the screen is keyboard-operable.
+    const names = root.all('input');
+    expect(names).toHaveLength(2);
+    expect(names.map((input) => input.getAttribute('maxlength'))).toEqual(['14', '14']);
+    expect(names.map((input) => input.getAttribute('placeholder'))).toEqual(['Player 1', 'Player 2']);
+
+    names[0]!.value = 'Ash';
+    root.input(names[0]!);
+    expect(onConfigChange).toHaveBeenLastCalledWith(
+      expect.objectContaining({ crews: [{ name: 'Ash', color: crew.config.crews[0].color }, crew.config.crews[1]] }),
+    );
+
+    const swatches = root.all('button').filter((b) => b.className.startsWith('crew-swatch'));
+    expect(swatches).toHaveLength(CREW_COLOR_OPTIONS.length * 2);
+    expect(swatches.filter((b) => b.getAttribute('aria-pressed') === 'true')).toHaveLength(2);
+    root.click(swatches[2]!);
+    expect(onAction).toHaveBeenLastCalledWith({
+      type: 'selectCrewColor',
+      player: 0,
+      color: CREW_COLOR_OPTIONS[2],
+    });
+  });
+
+  it('gives the CPU crew neither a name field nor a colour picker', () => {
+    const root = createRoot();
+    const onAction = vi.fn<(action: FlowAction) => void>();
+    const view = mountAppView(root as unknown as HTMLElement, { onAction });
+    const crew = crewState();
+    const cpu = reduceFlow(
+      { ...crew, config: withCrewName(crew.config, 0, 'Ash') },
+      { type: 'selectMode', mode: 'cpu' },
+    );
+
+    view.render(cpu);
+
+    // One field, one picker, one crew: two permanently disabled controls on the CPU panel
+    // would read as broken rather than as absent by design.
+    const names = root.all('input');
+    expect(names).toHaveLength(1);
+    expect(names[0]?.getAttribute('data-crew-name')).toBe('0');
+    const swatches = root.all('button').filter((b) => b.className.startsWith('crew-swatch'));
+    expect(swatches).toHaveLength(CREW_COLOR_OPTIONS.length);
+    expect(root.all('p').some((p) => p.className === 'crew-note')).toBe(true);
+
+    const continueButton = root.all('button').find((b) => b.getAttribute('aria-label') === 'Continue');
+    expect(continueButton?.disabled).toBe(false);
+    root.click(continueButton!);
+    expect(onAction).toHaveBeenLastCalledWith({ type: 'confirmCrews' });
+  });
+
+  it('selects a mode on MODE without navigating, and advances on Continue', () => {
+    const root = createRoot();
+    const onAction = vi.fn<(action: FlowAction) => void>();
+    const view = mountAppView(root as unknown as HTMLElement, { onAction });
+
+    view.render(modeState());
+
+    const cpuCard = root.all('button').find((b) => b.getAttribute('data-mode') === 'cpu');
+    expect(cpuCard?.getAttribute('aria-pressed')).toBe('false');
+    root.click(cpuCard!);
+    expect(onAction).toHaveBeenLastCalledWith({ type: 'selectMode', mode: 'cpu' });
+
+    // Difficulty is chosen on this screen once CPU is the selection, not two screens later.
+    view.render(reduceFlow(modeState(), { type: 'selectMode', mode: 'cpu' }));
+    expect(root.all('button').filter((b) => b.getAttribute('data-cpu-tier') !== null)).toHaveLength(3);
+
+    const continueButton = root.all('button').find((b) => b.getAttribute('aria-label') === 'Continue');
+    root.click(continueButton!);
+    expect(onAction).toHaveBeenLastCalledWith({ type: 'confirmMode' });
+  });
+
   it('renders a working Back button on every DOM-rendered pre-match page after TITLE', () => {
     const root = createRoot();
     const onAction = vi.fn<(action: FlowAction) => void>();
     const view = mountAppView(root as unknown as HTMLElement, { onAction });
     const title = createFlow(createDefaultConfig());
     const states = [
-      reduceFlow(title, { type: 'openMode' }),
-      reduceFlow(title, { type: 'quickStart' }),
+      modeState(),
+      crewState(),
       reduceFlow(title, { type: 'openCustom' }),
-      reduceFlow(reduceFlow(title, { type: 'quickStart' }), { type: 'selectMap', worldId: 'terra' }),
+      mapState(),
       reduceFlow(title, { type: 'openHowTo' }),
     ];
 
@@ -58,15 +162,14 @@ describe('application DOM view', () => {
     const root = createRoot();
     const onAction = vi.fn<(action: FlowAction) => void>();
     const view = mountAppView(root as unknown as HTMLElement, { onAction });
-    const map = reduceFlow(createFlow(createDefaultConfig()), { type: 'quickStart' });
+    const map = mapState();
 
     view.render(map);
 
     const random = root.all('button').find((button) => button.getAttribute('data-world-id') === 'random');
-    const cpu = root.all('button').find((button) => button.textContent.includes('1 v CPU'));
+    // Mode is not switchable here any more: it is chosen on MODE, two screens back.
+    expect(root.all('button').filter((button) => button.getAttribute('data-mode') !== null)).toHaveLength(0);
     expect(random?.textContent).toContain('Random');
-    expect(cpu?.disabled).toBe(false);
-    expect(cpu?.textContent).not.toContain('Task 12');
     expect(random?.getAttribute('type')).toBe('button');
     root.click(random!);
     expect(onAction).toHaveBeenLastCalledWith({ type: 'selectMap', worldId: 'random' });
@@ -77,8 +180,8 @@ describe('application DOM view', () => {
     const view = mountAppView(root as unknown as HTMLElement, { onAction: vi.fn() });
     const title = createFlow(createDefaultConfig());
 
-    view.render(reduceFlow(title, { type: 'openMode' }));
-    const cpu = root.all('button').find((button) => button.textContent.includes('1 v CPU'));
+    view.render(modeState());
+    const cpu = root.all('button').find((button) => button.getAttribute('data-mode') === 'cpu');
     expect(cpu?.disabled).toBe(false);
     expect(cpu?.textContent).not.toContain('Task 12');
 
@@ -97,7 +200,7 @@ describe('application DOM view', () => {
     const root = createRoot();
     const onAction = vi.fn<(action: FlowAction) => void>();
     const view = mountAppView(root as unknown as HTMLElement, { onAction });
-    const map = reduceFlow(createFlow(createDefaultConfig()), { type: 'quickStart' });
+    const map = mapState();
     const cpuMap: AppFlowState = {
       ...map,
       config: { ...map.config, mode: 'cpu', cpuTierId: 'veteran' },
@@ -124,8 +227,7 @@ describe('application DOM view', () => {
   it('omits the CPU difficulty group entirely in local mode and styles it when shown', () => {
     const root = createRoot();
     const view = mountAppView(root as unknown as HTMLElement, { onAction: vi.fn() });
-    const title = createFlow(createDefaultConfig());
-    const localMap = reduceFlow(title, { type: 'quickStart' });
+    const localMap = mapState();
 
     view.render(localMap);
     expect(localMap.config.mode).toBe('local');
@@ -165,23 +267,11 @@ describe('application DOM view', () => {
     expect(onAction).toHaveBeenLastCalledWith({ type: 'startCustom' });
   });
 
-  it('renders icon-bearing ROUND_INTRO and ROUND_OVER shell summaries safely', () => {
+  it('renders icon-bearing ROUND_OVER shell summaries safely', () => {
     const root = createRoot();
     const view = mountAppView(root as unknown as HTMLElement, { onAction: vi.fn() });
     const config = createDefaultConfig();
     const title = createFlow(config);
-    const intro = reduceFlow(
-      reduceFlow(title, { type: 'quickStart' }),
-      { type: 'selectMap', worldId: 'terra' },
-    );
-
-    view.render(intro);
-    // Masked spans, not <img>: a `currentColor` SVG loaded as an image renders black and
-    // vanishes on these panels.
-    expect(root.all('[data-icon]').map((icon) => icon.getAttribute('data-icon'))).toEqual(
-      config.enabledShellIds.map((id) => `/${config.shells[id]!.icon}`),
-    );
-    expect(root.all('img')).toHaveLength(0);
 
     const unsafeName = '<img src=x onerror=alert(1)>';
     const unsafeConfig = {
@@ -199,6 +289,9 @@ describe('application DOM view', () => {
     };
     view.render(roundOver);
     expect(root.textContent).toContain(unsafeName);
+    // Masked spans, not <img>: a `currentColor` SVG loaded as an image renders black and
+    // vanishes on these panels.
+    expect(root.all('img')).toHaveLength(0);
     expect(root.all('[data-icon]')).toHaveLength(1);
     expect(root.all('[data-icon]')[0]?.getAttribute('data-icon')).toBe('/assets/icons/mortar.svg');
   });

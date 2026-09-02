@@ -49,8 +49,7 @@
     "collisionGraceSubsteps": 14
   },
   "loadout": {
-    "points": 10,
-    "slots": 5,
+    "slots": 6,
     "freeShell": "he",
     "players": 2
   }

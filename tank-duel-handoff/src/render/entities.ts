@@ -1,6 +1,6 @@
 import { CONSTANTS } from '../sim/constants';
 import type { GameState, Tank } from '../sim/world';
-import { playerColor, tankTones } from './palette';
+import { playerColor, tankTones, tankTonesFrom } from './palette';
 import type { PlayerIndex } from '../sim/playerLoadouts';
 import { surfaceY } from '../sim/terrain';
 import { wrapX } from '../sim/wrap';
@@ -115,10 +115,17 @@ export interface TankSilhouette {
   readonly active: boolean;
   /** Omits the health rail, for scenes with no match state behind them. */
   readonly hideHealth?: boolean;
+  /**
+   * Paints the tank in this colour instead of the player's. For previews of a colour that
+   * has not been committed to the config yet.
+   */
+  readonly color?: string;
 }
 
 export function drawTankSilhouette(ctx: CanvasRenderingContext2D, tank: TankSilhouette): void {
-  const { base, dark, light } = tankTones(tank.player);
+  const { base, dark, light } = tank.color === undefined
+    ? tankTones(tank.player)
+    : tankTonesFrom(tank.color);
   const pivotY = tank.y + CONSTANTS.tank.turretPivotY;
   const angle = (tank.angleDeg * Math.PI) / 180;
   const muzzleX = tank.x + Math.cos(angle) * CONSTANTS.tank.muzzleOffset * tank.direction;

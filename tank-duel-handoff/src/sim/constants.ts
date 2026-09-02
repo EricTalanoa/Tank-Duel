@@ -49,7 +49,7 @@ export interface SettleSpec {
 }
 
 export interface LoadoutSpec {
-  readonly points: number;
+  /** Optional shells a player may take. The free shell rides on top of these. */
   readonly slots: number;
   readonly freeShell: string;
   readonly players: number;

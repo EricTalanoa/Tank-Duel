@@ -5,7 +5,11 @@ describe('presentation registry', () => {
   it('defines the landscape iPad presentation with two labelled, distinct players', () => {
     expect(PRESENTATION.targetDevice).toBe('iPad');
     expect(PRESENTATION.requiredOrientation).toBe('landscape');
-    expect(PRESENTATION.minimumLandscapeWidthPx).toBe(900);
+    // Lowered from 900 so a phone in landscape is playable; 812 is the iPhone X-and-newer
+    // landscape width, and anything under it is too short for the design to stay legible.
+    expect(PRESENTATION.minimumLandscapeWidthPx).toBe(812);
+    expect(PRESENTATION.designSize).toEqual({ width: 1194, height: 834 });
+    expect(PRESENTATION.uiScaleBounds).toEqual({ min: 0.5, max: 1.5 });
     expect(PRESENTATION.players).toEqual([
       { id: 0, label: 'Player 1', color: '#4DA3FF' },
       { id: 1, label: 'Player 2', color: '#FF5CA8' },
@@ -17,6 +21,12 @@ describe('presentation registry', () => {
     { targetDevice: 'desktop' },
     { requiredOrientation: 'portrait' },
     { minimumLandscapeWidthPx: 0 },
+    { designSize: { width: 1194 } },
+    { designSize: { width: 834, height: 1194 } },
+    { designSize: { width: 0, height: 834 } },
+    { uiScaleBounds: { min: 0, max: 1.5 } },
+    { uiScaleBounds: { min: 1.5, max: 0.5 } },
+    { uiScaleBounds: { min: 0.5 } },
     { players: [{ id: 0, label: 'Player 1', color: '#4DA3FF' }] },
     { players: [{ id: 0, label: '', color: '#4DA3FF' }, { id: 1, label: 'Player 2', color: '#FF5CA8' }] },
     { players: [{ id: 0, label: 'Player 1', color: '#4DA3FF' }, { id: 2, label: 'Player 2', color: '#FF5CA8' }] },

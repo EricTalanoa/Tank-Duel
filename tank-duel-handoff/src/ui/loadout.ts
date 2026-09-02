@@ -10,7 +10,6 @@ export interface LoadoutCardModel {
   readonly id: string;
   readonly name: string;
   readonly icon: string;
-  readonly cost: number;
   readonly ammo: number | 'inf';
   readonly mass: number;
   readonly locked: boolean;
@@ -33,11 +32,18 @@ export interface PlayerLoadoutPanelModel {
   readonly cpuTierStats?: readonly string[];
 }
 
+/** The crew identity chosen on `CREW`: what to call each player and how to tint their tag. */
+export interface LoadoutCrew {
+  readonly name: string;
+  readonly color: string;
+}
+
 export interface PlayerLoadoutEditorOptions {
   readonly enabledShellIds?: readonly string[];
   readonly initialPlayerLoadoutIds?: PlayerLoadouts;
   readonly mode?: MatchMode;
   readonly cpuTierId?: CpuTierId;
+  readonly crews?: readonly [LoadoutCrew, LoadoutCrew];
 }
 
 export interface PlayerLoadoutEditorModel {
@@ -76,7 +82,6 @@ export function loadoutCardModels(
         id: shell.id,
         name: shell.name,
         icon: shell.icon,
-        cost: shell.cost,
         ammo: shell.ammo,
         mass: shell.mass,
         locked: shell.id === CONSTANTS.loadout.freeShell,
@@ -105,16 +110,17 @@ export function createPlayerLoadoutEditorModel(
   if (!cpuTier) throw new Error(`Unknown CPU tier: ${options.cpuTierId}`);
   const initialPlayerLoadoutIds = options.initialPlayerLoadoutIds ??
     makePlayerLoadouts(STANDARD_SHELL_IDS, STANDARD_SHELL_IDS);
+  const crews = options.crews ?? defaultCrews();
   const loadouts: [Loadout, Loadout] = [
     ownedLoadout(initialPlayerLoadoutIds[0], enabledShellIds),
     ownedLoadout(mode === 'cpu' ? cpuPlayerLoadoutIds() : initialPlayerLoadoutIds[1],
       mode === 'cpu' ? STANDARD_SHELL_IDS : enabledShellIds),
   ];
   let players: [PlayerLoadoutPanelModel, PlayerLoadoutPanelModel] = [
-    playerPanelModel(0, loadouts[0], enabledShellIds),
+    playerPanelModel(0, loadouts[0], enabledShellIds, crews[0]),
     mode === 'cpu'
       ? cpuPanelModel(loadouts[1], cpuTier)
-      : playerPanelModel(1, loadouts[1], enabledShellIds),
+      : playerPanelModel(1, loadouts[1], enabledShellIds, crews[1]),
   ];
 
   return {
@@ -128,9 +134,9 @@ export function createPlayerLoadoutEditorModel(
       if (mode === 'cpu' && player === 1) return;
       toggleShell(loadouts[player], shellId);
       if (player === 0) {
-        players = [playerPanelModel(0, loadouts[0], enabledShellIds), players[1]];
+        players = [playerPanelModel(0, loadouts[0], enabledShellIds, crews[0]), players[1]];
       } else {
-        players = [players[0], playerPanelModel(1, loadouts[1], enabledShellIds)];
+        players = [players[0], playerPanelModel(1, loadouts[1], enabledShellIds, crews[1])];
       }
     },
     deployment() {
@@ -151,6 +157,7 @@ export interface MountLoadoutOptions {
   readonly initialPlayerLoadoutIds?: PlayerLoadouts;
   readonly mode?: MatchMode;
   readonly cpuTierId?: CpuTierId;
+  readonly crews?: readonly [LoadoutCrew, LoadoutCrew];
 }
 
 export interface MountedLoadout {
@@ -240,8 +247,8 @@ function renderHeader(document: Document, cpu: boolean): HTMLElement {
     textElement(
       document,
       'p',
-      `${CONSTANTS.loadout.points} points · ${CONSTANTS.loadout.slots} optional slots · ${
-        CONSTANTS.loadout.freeShell.toUpperCase()} is free`,
+      `Pick any ${CONSTANTS.loadout.slots} · ${
+        CONSTANTS.loadout.freeShell.toUpperCase()} is free and unlimited`,
       'menu-step',
     ),
   );
@@ -263,17 +270,25 @@ function ownedLoadout(initialIds: readonly string[], enabledShellIds: readonly s
   ));
 }
 
+function defaultCrews(): readonly [LoadoutCrew, LoadoutCrew] {
+  return [
+    { name: PRESENTATION.players[0].label, color: PRESENTATION.players[0].color },
+    { name: PRESENTATION.players[1].label, color: PRESENTATION.players[1].color },
+  ];
+}
+
 function playerPanelModel(
   player: PlayerIndex,
   loadout: Loadout,
   enabledShellIds: readonly string[],
+  crew: LoadoutCrew,
 ): PlayerLoadoutPanelModel {
   const deploymentIds = deploymentShellIds(loadout, enabledShellIds);
   const activeLoadout = createLoadout(deploymentIds.slice(1));
   return Object.freeze({
-    label: PRESENTATION.players[player].label,
+    label: crew.name,
     tag: `P${player + 1}`,
-    color: PRESENTATION.players[player].color,
+    color: crew.color,
     editable: true,
     deploymentIds: Object.freeze([...deploymentIds]),
     validation: Object.freeze(validateLoadout(activeLoadout)),
@@ -327,11 +342,10 @@ function renderPanel(
   return panel;
 }
 
-/** Short and nowrap: `3 PT · 4 AMMO · MASS 1.55` wrapped inside a 38px + 1fr card. */
+/** Short and nowrap: `4 AMMO · MASS 1.55` wrapped inside a 38px + 1fr card. */
 function cardMeta(card: LoadoutCardModel): string {
-  const cost = card.locked ? 'FREE' : `${card.cost}PT`;
-  const ammo = card.ammo === 'inf' ? '∞' : `${card.ammo}×`;
-  return `${cost} · ${ammo} · M${card.mass}`;
+  const ammo = card.ammo === 'inf' ? '∞ AMMO' : `${card.ammo}×`;
+  return `${ammo} · M${card.mass}`;
 }
 
 function panelHeader(
@@ -349,20 +363,20 @@ function panelHeader(
 }
 
 /**
- * Points as a fraction and as ten pips. The pips are the reason the budget reads at a
- * glance; the fraction keeps the slot count, which the pips do not show.
+ * Slots as a fraction and as one pip each. There is no point budget any more, so the pips
+ * count the same thing the fraction does — which is what makes the deck read at a glance.
  */
 function budget(document: Document, player: PlayerLoadoutPanelModel): HTMLElement {
   const wrapper = element(document, 'div', 'panel-budget');
   wrapper.append(textElement(
     document,
     'output',
-    `${player.validation.pointsUsed}/${CONSTANTS.loadout.points} PTS · ${player.validation.optionalSlotsUsed}/${CONSTANTS.loadout.slots} SLOTS`,
+    `${player.validation.optionalSlotsUsed}/${CONSTANTS.loadout.slots} SHELLS`,
   ));
   const pips = element(document, 'span', 'panel-pips');
   pips.setAttribute('aria-hidden', 'true');
-  for (let pip = 0; pip < CONSTANTS.loadout.points; pip++) {
-    pips.append(element(document, 'span', pip < player.validation.pointsUsed ? 'is-spent' : ''));
+  for (let pip = 0; pip < CONSTANTS.loadout.slots; pip++) {
+    pips.append(element(document, 'span', pip < player.validation.optionalSlotsUsed ? 'is-spent' : ''));
   }
   wrapper.append(pips);
   return wrapper;

@@ -11,6 +11,11 @@ describe('orientation gate', () => {
     [{ width: 1194, height: 834 }, false],
     [{ width: 800, height: 600 }, true],
     [{ width: 1200, height: 800 }, false],
+    // A phone in landscape is playable now; the design is scaled to fit it. 812 is the
+    // boundary, so it passes and everything under it does not.
+    [{ width: 812, height: 375 }, false],
+    [{ width: 844, height: 390 }, false],
+    [{ width: 811, height: 375 }, true],
   ] as const)('blocks %o exactly when the presentation cannot be shown', (size, blocked) => {
     expect(isPresentationBlocked(size)).toBe(blocked);
   });
@@ -37,8 +42,8 @@ describe('orientation gate', () => {
     expect(root.getAttribute('aria-hidden')).toBe('true');
     expect(root.children).toHaveLength(1);
     expect(root.children[0]?.getAttribute('role')).toBe('alertdialog');
-    expect(root.children[0]?.textContent).toContain('Rotate your iPad');
-    expect(root.children[0]?.textContent).toContain('Rotate your device to landscape');
+    expect(root.children[0]?.textContent).toContain('Rotate your device');
+    expect(root.children[0]?.textContent).toContain('Turn it to landscape');
 
     viewport.resize(1200, 800);
     expect(changes).toEqual([false, true, false]);

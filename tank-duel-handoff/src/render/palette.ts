@@ -21,8 +21,36 @@ export const PALETTE = {
   telemetry: '#8FA0B8',
 } as const;
 
+/**
+ * The crew identity the match is being played with. One resolved name and colour per
+ * player, already accounting for CPU mode, pushed in by the app controller.
+ *
+ * A module-level registry rather than a parameter threaded through every draw call: the
+ * tank tones, the projectiles, the trails, the HUD and the round-over recap all ask for a
+ * player's colour from deep inside the render tree, and `spec/presentation.json` stays the
+ * source of the defaults for anything drawn before a match is configured.
+ */
+export interface CrewIdentity {
+  readonly name: string;
+  readonly color: string;
+}
+
+let activeCrews: readonly [CrewIdentity, CrewIdentity] | null = null;
+
+export function setActiveCrews(crews: readonly [CrewIdentity, CrewIdentity] | null): void {
+  activeCrews = crews === null
+    ? null
+    : Object.freeze([Object.freeze({ ...crews[0] }), Object.freeze({ ...crews[1] })]) as
+      readonly [CrewIdentity, CrewIdentity];
+}
+
 export function playerColor(player: PlayerIndex): string {
-  return PRESENTATION.players[player].color;
+  return activeCrews?.[player].color ?? PRESENTATION.players[player].color;
+}
+
+/** The crew name to print on a nameplate, falling back to `Player 1` / `Player 2`. */
+export function playerName(player: PlayerIndex): string {
+  return activeCrews?.[player].name ?? PRESENTATION.players[player].label;
 }
 
 /** Returns a functional world accent from the validated world specification. */
@@ -153,6 +181,13 @@ export interface TankTones {
 
 /** Three tones per player from the one colour `spec/presentation.json` declares. */
 export function tankTones(player: PlayerIndex): TankTones {
-  const base = playerColor(player);
+  return tankTonesFrom(playerColor(player));
+}
+
+/**
+ * The same three tones from an arbitrary base, for a tank drawn outside a match — the crew
+ * setup preview paints the colour being chosen, which is not yet the active crew's.
+ */
+export function tankTonesFrom(base: string): TankTones {
   return { base, dark: shade(base, TANK_SHADE), light: tint(base, TANK_TINT) };
 }

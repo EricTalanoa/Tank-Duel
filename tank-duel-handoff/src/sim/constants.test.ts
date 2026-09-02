@@ -22,6 +22,9 @@ describe('constants', () => {
 
   it('exposes the spec-backed two-player loadout contract', () => {
     expect(spec.loadout.players).toBe(2);
+    // Slots are the whole budget: the point system is gone, so any six shells make a deck.
+    expect(spec.loadout.slots).toBe(6);
+    expect(spec.loadout).not.toHaveProperty('points');
     expect(PLAYER_COUNT).toBe(spec.loadout.players);
   });
 

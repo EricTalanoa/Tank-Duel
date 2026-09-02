@@ -2,23 +2,24 @@ import { SHELLS } from '../sim/shells';
 import { generateHeightmap } from '../sim/generators';
 import { createRng, hashSeed } from '../sim/rng';
 import { CONSTANTS } from '../sim/constants';
+import { drawTankSilhouette } from '../render/entities';
 import { PRESENTATION } from '../render/presentation';
-import { validateConfig, type MatchConfig, type MatchRounds, type MatchTurnTimer, type MatchWind, type MatchWorldId } from './config';
+import { validateConfig, withCrewName, type MatchConfig, type MatchRounds, type MatchTurnTimer, type MatchWind, type MatchWorldId } from './config';
 import type { AppFlowState, FlowAction } from './flow';
 import {
+  buildCrewScreenModel,
   buildCustomScreenModel,
   buildHowToScreenModel,
   buildMapScreenModel,
   buildModeScreenModel,
-  buildRoundIntroScreenModel,
   buildRoundOverScreenModel,
   buildTitleScreenModel,
   type ActionButtonModel,
   type CpuTierOptionModel,
+  type CrewPanelModel,
   type MapTileModel,
   type ModeOptionModel,
   type RoundOverShellModel,
-  type ShellSummaryModel,
 } from './screenModels';
 import './menu.css';
 
@@ -52,11 +53,17 @@ export function mountAppView(root: HTMLElement, callbacks: AppViewCallbacks): Ap
     if (action) callbacks.onAction(action);
   };
   const onChange = (event: Event): void => {
-    const control = closestElement(event.target, '[data-config-field], [data-shell-toggle], [data-shell-ammo]') as HTMLInputElement | HTMLSelectElement | null;
+    const control = closestElement(event.target, '[data-config-field], [data-crew-name], [data-shell-toggle], [data-shell-ammo]') as HTMLInputElement | HTMLSelectElement | null;
     if (!control || !root.contains(control) || control.disabled || !currentState) return;
     const field = control.getAttribute('data-config-field');
     if (field) {
       emitFieldConfig(currentState.config, field, control.value, callbacks.onConfigChange);
+      return;
+    }
+    const crewName = control.getAttribute('data-crew-name');
+    if (crewName) {
+      const player = crewName === '1' ? 1 : 0;
+      emitValidConfig(withCrewName(currentState.config, player, control.value), callbacks.onConfigChange);
       return;
     }
     const toggleId = control.getAttribute('data-shell-toggle');
@@ -80,6 +87,7 @@ export function mountAppView(root: HTMLElement, callbacks: AppViewCallbacks): Ap
       const surface = renderScreen(document, flowState, bindAction);
       root.replaceChildren(surface);
       paintTileSilhouettes(surface);
+      paintCrewTanks(surface);
       focusScreenHeading(surface);
     },
     dispose(): void {
@@ -99,9 +107,9 @@ function renderScreen(document: Document, state: AppFlowState, bind: Binder): HT
   switch (state.screen) {
     case 'TITLE': return renderTitle(document, bind);
     case 'MODE': return renderMode(document, state, bind);
+    case 'CREW': return renderCrew(document, state, bind);
     case 'MAP': return renderMap(document, state, bind);
     case 'CUSTOM': return renderCustom(document, state, bind);
-    case 'ROUND_INTRO': return renderRoundIntro(document, state.config, bind);
     case 'HOWTO': return renderHowTo(document, bind);
     case 'ROUND_OVER': return renderRoundOver(document, state, bind);
     case 'LOADOUT': return screen(document, 'Choose loadout', 'LOADOUT');
@@ -164,31 +172,38 @@ function titleRow(
   return button;
 }
 
-/** 02 — two cards; the CPU card carries the difficulty tiers below its description. */
+/**
+ * 02 — the first step, ahead of crew setup: two cards, and the shared difficulty group
+ * below them when CPU is the one selected.
+ *
+ * A card selects rather than advances. The CPU card's difficulty lives on this screen, and
+ * a card that navigated on click would carry the player past it before they saw it.
+ */
 function renderMode(document: Document, state: AppFlowState, bind: Binder): HTMLElement {
   const model = buildModeScreenModel(state);
   const surface = screen(document, model.label, model.id);
   surface.append(header(document, {
-    kicker: 'Quick start',
-    step: `Step ${model.step.replace(' / ', ' / 0').replace(/^(\d)/, '0$1')}`,
+    kicker: model.kicker,
+    step: model.step,
     title: [model.label],
   }));
 
   const body = element(document, 'div', 'screen-body mode-grid');
-  for (const option of model.options) {
-    body.append(modeCard(document, option, state.config.mode, model.cpuTiers, bind));
-  }
-  surface.append(body, footer(document, 'Choose a mode', [
-    secondaryButton(document, { label: 'Back', action: { type: 'back' }, disabled: false }, bind),
-  ]));
+  for (const option of model.options) body.append(modeCard(document, option, bind));
+  surface.append(
+    body,
+    ...cpuTierControls(document, state.config.mode, model.cpuTiers, bind),
+    footer(document, model.status, [
+      secondaryButton(document, { label: 'Back', action: model.backAction, disabled: false }, bind),
+      primaryButton(document, { label: 'Continue', action: model.continueAction, disabled: false }, bind),
+    ]),
+  );
   return surface;
 }
 
 function modeCard(
   document: Document,
   option: ModeOptionModel,
-  mode: MatchConfig['mode'],
-  tiers: readonly CpuTierOptionModel[],
   bind: Binder,
 ): HTMLButtonElement {
   const card = element(document, 'button', `mode-card${option.selected ? ' is-selected' : ''}`) as HTMLButtonElement;
@@ -199,34 +214,99 @@ function modeCard(
 
   const top = element(document, 'div', 'mode-card-top');
   top.append(
-    textElement(document, 'span', option.selected ? 'Selected' : cardState(option, mode), 'mode-card-state'),
+    textElement(document, 'span', option.selected ? 'Selected' : 'Select', 'mode-card-state'),
     element(document, 'span', 'mode-card-marker'),
   );
   const body = element(document, 'div', 'mode-card-body');
   body.append(textElement(document, 'span', option.label, 'mode-card-title'));
   if (option.note) body.append(textElement(document, 'span', option.note, 'mode-card-note'));
   card.append(top, body);
-  if (option.id === 'cpu') card.append(cpuTierTiles(document, tiers));
   bind(card, option.action);
   return card;
 }
 
-function cardState(option: ModeOptionModel, mode: MatchConfig['mode']): string {
-  return option.id === 'cpu' && mode === 'cpu' ? 'Difficulty below' : 'Select';
+/** 02b — one panel per crew, each with a live tank in the colour being chosen. */
+function renderCrew(document: Document, state: AppFlowState, bind: Binder): HTMLElement {
+  const model = buildCrewScreenModel(state);
+  const surface = screen(document, model.label, model.id);
+  surface.append(header(document, {
+    kicker: model.kicker,
+    step: model.step,
+    title: [model.label],
+  }));
+
+  const body = element(document, 'div', 'screen-body crew-panels');
+  for (const panel of model.panels) body.append(crewPanel(document, panel, bind));
+
+  surface.append(body, footer(document, model.status, [
+    secondaryButton(document, { label: 'Back', action: model.backAction, disabled: false }, bind),
+    primaryButton(document, { label: 'Continue', action: model.continueAction, disabled: false }, bind),
+  ]));
+  return surface;
 }
 
-/** Read-only tiles inside the CPU card: the medians come from `spec/cpu.json`. */
-function cpuTierTiles(document: Document, tiers: readonly CpuTierOptionModel[]): HTMLElement {
-  const grid = element(document, 'div', 'cpu-tier-grid');
-  for (const tier of tiers) {
-    const tile = element(document, 'div', 'cpu-tier-option');
-    tile.append(
-      textElement(document, 'span', tier.label),
-      textElement(document, 'small', tier.note),
-    );
-    grid.append(tile);
+function crewPanel(document: Document, model: CrewPanelModel, bind: Binder): HTMLElement {
+  const panel = element(document, 'section', `crew-panel${model.mirrored ? ' is-mirrored' : ''}`);
+  panel.setAttribute('data-player', String(model.player));
+  panel.setAttribute('aria-label', model.label);
+
+  const head = element(document, 'header');
+  const identity = element(document, 'div', 'panel-identity');
+  const tag = textElement(document, 'span', model.tag, 'player-tag');
+  tag.setAttribute('style', `--player-color: ${model.color}`);
+  identity.append(tag, textElement(document, 'span', model.label, 'panel-label'));
+  head.append(identity, textElement(document, 'span', model.colorLabel, 'crew-color-label'));
+
+  // The tank is decoration for the colour below it; the swatch buttons carry the meaning.
+  const canvas = element(document, 'canvas', 'crew-canvas') as HTMLCanvasElement;
+  canvas.setAttribute('aria-hidden', 'true');
+  canvas.setAttribute('data-crew-tank', String(model.player));
+  canvas.setAttribute('data-crew-color', model.color);
+  canvas.setAttribute('data-crew-direction', String(model.direction));
+  canvas.setAttribute('data-crew-angle', String(model.angleDeg));
+
+  // The CPU has neither field: there is no one to name, and its colour is rolled. A pair of
+  // permanently disabled controls would read as broken rather than as absent by design.
+  const fields: HTMLElement[] = [];
+  if (model.nameEditable) {
+    const nameField = element(document, 'label', 'form-field');
+    nameField.append(textElement(document, 'span', 'Crew name — optional'));
+    const input = document.createElement('input');
+    input.setAttribute('type', 'text');
+    input.setAttribute('maxlength', String(model.maxLength));
+    input.setAttribute('placeholder', model.placeholder);
+    input.setAttribute('data-crew-name', String(model.player));
+    input.value = model.name;
+    nameField.append(input);
+    fields.push(nameField);
   }
-  return grid;
+
+  if (model.colorEditable) {
+    const colorField = element(document, 'div', 'form-field crew-color-field');
+    colorField.append(textElement(document, 'span', 'Tank colour'));
+    const swatches = element(document, 'div', 'crew-swatches');
+    swatches.setAttribute('role', 'group');
+    swatches.setAttribute('aria-label', `Player ${model.player + 1} tank colour`);
+    for (const swatch of model.swatches) {
+      const button = element(document, 'button', `crew-swatch${swatch.selected ? ' is-selected' : ''}`) as HTMLButtonElement;
+      button.setAttribute('type', 'button');
+      button.setAttribute('aria-label', swatch.label);
+      button.setAttribute('aria-pressed', String(swatch.selected));
+      const chip = element(document, 'span', 'crew-swatch-chip');
+      chip.setAttribute('aria-hidden', 'true');
+      chip.setAttribute('style', `background: ${swatch.color}`);
+      button.append(chip);
+      bind(button, swatch.action);
+      swatches.append(button);
+    }
+    colorField.append(swatches);
+    fields.push(colorField);
+  }
+
+  if (model.note) fields.push(textElement(document, 'p', model.note, 'crew-note'));
+
+  panel.append(head, canvas, ...fields);
+  return panel;
 }
 
 /** 03 — seven tiles, each with a terrain silhouette and the figures being chosen between. */
@@ -234,20 +314,20 @@ function renderMap(document: Document, state: AppFlowState, bind: Binder): HTMLE
   const model = buildMapScreenModel(state);
   const surface = screen(document, model.label, model.id);
 
-  const modes = element(document, 'div', 'mode-summary');
-  modes.setAttribute('aria-label', 'Mode');
-  for (const option of model.modeOptions) modes.append(modeOptionButton(document, option, bind));
-
+  // Mode is chosen on MODE and reported here, not switched here: a toggle on this screen
+  // could flip crew 2 between a person and the machine after the crews were already set up.
   surface.append(header(document, {
-    kicker: `Quick start · ${selectedModeLabel(model.modeOptions)}`,
-    step: 'Step 02 / 02',
+    kicker: model.kicker,
+    step: model.step,
     title: [model.label],
-    aside: modes,
   }));
 
+  const spawnColors = state.config.crews.map((crew) => crew.color).join(',');
   const body = element(document, 'div', 'screen-body map-grid');
-  for (const tile of model.tiles) body.append(mapTile(document, tile, bind));
-  surface.append(...cpuTierControls(document, state.config.mode, model.cpuTiers, bind), body);
+  for (const tile of model.tiles) body.append(mapTile(document, tile, spawnColors, bind));
+  // After the body, not before it: the shared template gives its second row `1fr`, and a
+  // fieldset sitting in that row stretches to a third of the screen with nothing in it.
+  surface.append(body, ...cpuTierControls(document, state.config.mode, model.cpuTiers, bind));
   surface.append(footer(document, mapStatus(model.tiles), [
     secondaryButton(document, { label: 'Back', action: { type: 'back' }, disabled: false }, bind),
     primaryButton(document, { label: 'Deploy', action: deployAction(model.tiles), disabled: false }, bind),
@@ -255,7 +335,12 @@ function renderMap(document: Document, state: AppFlowState, bind: Binder): HTMLE
   return surface;
 }
 
-function mapTile(document: Document, tile: MapTileModel, bind: Binder): HTMLButtonElement {
+function mapTile(
+  document: Document,
+  tile: MapTileModel,
+  spawnColors: string,
+  bind: Binder,
+): HTMLButtonElement {
   const classes = ['map-tile'];
   if (tile.random) classes.push('is-random');
   if (tile.selected) classes.push('is-selected');
@@ -268,6 +353,7 @@ function mapTile(document: Document, tile: MapTileModel, bind: Binder): HTMLButt
   canvas.setAttribute('aria-hidden', 'true');
   canvas.setAttribute('data-tile-generator', tile.generator ?? '');
   canvas.setAttribute('data-tile-field-width', String(tile.fieldWidth));
+  canvas.setAttribute('data-tile-spawn-colors', spawnColors);
   if (tile.accent) canvas.setAttribute('data-tile-accent', tile.accent);
 
   const heading = element(document, 'div', 'tile-heading');
@@ -367,38 +453,15 @@ function renderCustom(document: Document, state: AppFlowState, bind: Binder): HT
 
   surface.append(
     fields,
-    ...cpuTierControls(document, state.config.mode, model.cpuTiers, bind),
     ammunition,
+    // Below the list rather than above it, for the same reason as MAP: the row it would
+    // otherwise land in is the one that stretches.
+    ...cpuTierControls(document, state.config.mode, model.cpuTiers, bind),
     footer(document, model.summary, [
       secondaryButton(document, { label: 'Back', action: { type: 'back' }, disabled: false }, bind),
       primaryButton(document, { label: 'Start match', action: model.startAction, disabled: false }, bind),
     ]),
   );
-  return surface;
-}
-
-/** 06 — briefing on the left, the shells actually in play on the right. */
-function renderRoundIntro(document: Document, config: MatchConfig, bind: Binder): HTMLElement {
-  const model = buildRoundIntroScreenModel(config);
-  const surface = screen(document, model.label, model.id);
-
-  const main = element(document, 'div', 'intro-main');
-  const summary = element(document, 'dl', 'match-summary');
-  for (const entry of model.briefing) appendTerm(document, summary, entry.term, entry.value);
-  const deploy = primaryButton(document, { label: 'Choose loadout', action: model.action, disabled: false }, bind);
-  deploy.className = 'menu-button is-wide';
-  main.append(header(document, { kicker: 'Briefing', title: [model.label] }), summary, deploy);
-
-  const panel = element(document, 'section', 'shell-panel');
-  panel.setAttribute('aria-label', 'Shells in play');
-  panel.append(
-    textElement(document, 'span', 'Shells in play', 'section-label'),
-    shellSummaryList(document, model.shells),
-  );
-
-  surface.append(main, panel, footer(document, 'Review match settings', [
-    secondaryButton(document, { label: 'Back', action: { type: 'back' }, disabled: false }, bind),
-  ]));
   return surface;
 }
 
@@ -570,10 +633,6 @@ function modeOptionButton(document: Document, option: ModeOptionModel, bind: Bin
   return button;
 }
 
-function selectedModeLabel(options: readonly ModeOptionModel[]): string {
-  return options.find((option) => option.selected)?.label ?? '';
-}
-
 /**
  * Only CPU mode has a difficulty to choose. Rendering the group in local mode would put three
  * permanently disabled buttons on every menu screen, which reads as broken rather than inactive.
@@ -634,21 +693,6 @@ function inputField(document: Document, labelText: string, field: string, value:
   return label;
 }
 
-function shellSummaryList(document: Document, shells: readonly ShellSummaryModel[]): HTMLElement {
-  const list = element(document, 'ul', 'shell-summary');
-  for (const shell of shells) {
-    const item = element(document, 'li');
-    item.setAttribute('data-shell-id', shell.id);
-    item.append(
-      shellIcon(document, shell.icon),
-      textElement(document, 'span', shell.name),
-      textElement(document, 'span', `${shell.ammoLabel} ammo`, 'shell-ammo'),
-    );
-    list.append(item);
-  }
-  return list;
-}
-
 function spentShellList(document: Document, shells: readonly RoundOverShellModel[]): HTMLElement {
   const list = element(document, 'ul', 'shell-summary');
   for (const shell of shells) {
@@ -689,11 +733,6 @@ function lines(
   return node;
 }
 
-function appendTerm(document: Document, list: HTMLElement, term: string, value: string): void {
-  const row = element(document, 'div');
-  row.append(textElement(document, 'dt', term), textElement(document, 'dd', value));
-  list.append(row);
-}
 
 /**
  * Draws each battlefield tile's terrain from its own generator at a fixed preview seed, so
@@ -768,13 +807,72 @@ function paintTileSilhouette(canvas: HTMLCanvasElement): void {
   ctx.lineWidth = 1.5;
   ctx.stroke();
 
-  // Both spawns, at the same fraction of the field the world inserts them at.
+  // Both spawns, at the same fraction of the field the world inserts them at, in the
+  // colours the crews chose one screen earlier.
   const inset = CONSTANTS.spawnInsetPx / fieldWidth;
-  PRESENTATION.players.forEach((player, index) => {
+  spawnColors(canvas).forEach((color, index) => {
     const x = TILE_PREVIEW.width * (index === 0 ? inset : 1 - inset);
-    ctx.fillStyle = player.color;
+    ctx.fillStyle = color;
     ctx.fillRect(x - 3, surfaceAt(x) - 4, 6, 4);
   });
+}
+
+function spawnColors(canvas: HTMLCanvasElement): readonly string[] {
+  const declared = (canvas.getAttribute('data-tile-spawn-colors') ?? '')
+    .split(',')
+    .filter((color) => /^#[0-9A-Fa-f]{6}$/.test(color));
+  return declared.length === 2 ? declared : PRESENTATION.players.map((player) => player.color);
+}
+
+/**
+ * The two preview tanks, painted at the colour currently selected rather than the active
+ * match's. Runs after mount for the laid-out box, and does nothing without a 2D context,
+ * which is the headless case.
+ */
+const CREW_PREVIEW = { groundFraction: 0.74, scale: 2.6 } as const;
+
+function paintCrewTanks(surface: HTMLElement): void {
+  const canvases = surface.querySelectorAll?.<HTMLCanvasElement>('canvas[data-crew-tank]');
+  if (!canvases) return;
+  for (const canvas of Array.from(canvases)) paintCrewTank(canvas);
+}
+
+function paintCrewTank(canvas: HTMLCanvasElement): void {
+  const bounds = canvas.getBoundingClientRect?.();
+  if (!bounds) return;
+  const ratio = Math.min(globalThis.devicePixelRatio || 1, 2);
+  const width = Math.max(1, Math.round(bounds.width));
+  const height = Math.max(1, Math.round(bounds.height));
+  canvas.width = width * ratio;
+  canvas.height = height * ratio;
+  const ctx = canvas.getContext?.('2d');
+  if (!ctx) return;
+  ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
+  ctx.clearRect(0, 0, width, height);
+
+  // The same sand hairline the map tile previews stand their spawn marks on.
+  const groundY = Math.round(height * CREW_PREVIEW.groundFraction);
+  ctx.fillStyle = 'rgba(201,168,124,0.06)';
+  ctx.fillRect(0, groundY, width, height - groundY);
+  ctx.fillStyle = 'rgba(201,168,124,0.24)';
+  ctx.fillRect(0, groundY, width, 1);
+
+  const color = canvas.getAttribute('data-crew-color');
+  ctx.save();
+  ctx.translate(width / 2, groundY);
+  ctx.scale(CREW_PREVIEW.scale, CREW_PREVIEW.scale);
+  drawTankSilhouette(ctx, {
+    x: 0,
+    y: 0,
+    direction: canvas.getAttribute('data-crew-direction') === '-1' ? -1 : 1,
+    player: canvas.getAttribute('data-crew-tank') === '1' ? 1 : 0,
+    angleDeg: Number(canvas.getAttribute('data-crew-angle')) || 0,
+    health: 100,
+    active: false,
+    hideHealth: true,
+    ...(color === null ? {} : { color }),
+  });
+  ctx.restore();
 }
 
 function emitFieldConfig(config: MatchConfig, field: string, value: string, callback: AppViewCallbacks['onConfigChange']): void {

@@ -2,12 +2,15 @@ import { resolveGeneratorId } from '../sim/generators';
 import { makePlayerLoadouts, type PlayerLoadouts } from '../sim/playerLoadouts';
 import { createRng, hashSeed } from '../sim/rng';
 import { resolveWorldId, worldById } from '../sim/worlds';
+import { setActiveCrews } from '../render/palette';
 import type { AppView, AppViewCallbacks } from '../ui/appView';
 import { cpuPlayerLoadoutIds } from '../ui/loadout';
 import {
   createDefaultConfig,
+  crewDisplayName,
   resolveMatchConfig,
   validateConfig,
+  withRolledCpuColor,
   type MatchConfig,
   type ResolvedMatchConfig,
 } from '../ui/config';
@@ -33,17 +36,28 @@ export interface AppControllerLoadoutOptions {
   readonly initialPlayerLoadoutIds?: PlayerLoadouts;
   readonly mode: MatchConfig['mode'];
   readonly cpuTierId: MatchConfig['cpuTierId'];
+  /** Resolved crew name and colour per player, so the panels are the players' own. */
+  readonly crews: readonly [
+    { readonly name: string; readonly color: string },
+    { readonly name: string; readonly color: string },
+  ];
 }
 
 export interface AppControllerRuntimeOptions {
   readonly config: ResolvedMatchConfig;
   readonly playerLoadoutIds: PlayerLoadouts;
   readonly onComplete: (recap: RoundOverRecap) => void;
+  /** Rebuild this round from turn one. Same seed, so the same battlefield comes back. */
+  readonly onReset: () => void;
+  /** Abandon the match for the title screen. The caller confirms before calling this. */
+  readonly onExit: () => void;
 }
 
 export interface AppControllerDependencies {
   readonly storage: StorageLike;
   readonly location: AppControllerLocation;
+  /** The one impure source the flow needs: the CPU's tank colour. Injectable for tests. */
+  readonly random?: () => number;
   readonly createView: (callbacks: AppViewCallbacks) => AppView;
   readonly createTitleScene: () => PausableDisposable;
   readonly createHowtoScene: () => PausableDisposable;
@@ -80,11 +94,12 @@ export function createAppController(dependencies: AppControllerDependencies): Ap
       transition(action);
     },
     onConfigChange(config) {
-      if (disposed || state.screen !== 'CUSTOM') return;
+      if (disposed || (state.screen !== 'CUSTOM' && state.screen !== 'CREW')) return;
       const validated = validateConfig(config);
       if (!validated || sameConfig(state.config, validated)) return;
       state = Object.freeze({ ...state, config: guardedSave(dependencies.storage, validated) });
       resolvedConfig = null;
+      publishCrews(state.config);
       view.render(state);
     },
   };
@@ -107,7 +122,17 @@ export function createAppController(dependencies: AppControllerDependencies): Ap
       const prior = resolvedConfig ?? resolveMatchConfig(previousState.config, createRng(previousState.config.seed));
       resolvedConfig = Object.freeze({ ...prior, seed: state.config.seed });
     } else if (action.type === 'menu' || action.type === 'quickStart' || action.type === 'openCustom') {
+      // The deck survives on purpose: a player who leaves mid-match and starts another one
+      // gets the loadout they last built back, and a stale deck cannot deploy on its own
+      // because `startRuntime` also needs the resolved config that was just cleared.
       resolvedConfig = null;
+    }
+
+    // Crew 2 stops being a person the moment CPU is picked, so its colour is rolled here
+    // rather than chosen on CREW. The reducer stays pure; this is where the die lives.
+    if (previousState.config.mode !== 'cpu' && state.config.mode === 'cpu') {
+      const rolled = withRolledCpuColor(state.config, (dependencies.random ?? Math.random)());
+      if (rolled !== state.config) state = Object.freeze({ ...state, config: rolled });
     }
 
     if (!sameConfig(previousState.config, state.config)) {
@@ -127,6 +152,7 @@ export function createAppController(dependencies: AppControllerDependencies): Ap
 
   function renderAndEnter(): void {
     if (disposed) return;
+    publishCrews(state.config);
     view.render(renderState(state, resolvedConfig));
     if (state.screen === 'TITLE') {
       activeScene = dependencies.createTitleScene();
@@ -140,6 +166,10 @@ export function createAppController(dependencies: AppControllerDependencies): Ap
         enabledShellIds: state.config.enabledShellIds,
         mode: state.config.mode,
         cpuTierId: state.config.cpuTierId,
+        crews: [
+          { name: crewDisplayName(state.config, 0), color: state.config.crews[0].color },
+          { name: crewDisplayName(state.config, 1), color: state.config.crews[1].color },
+        ],
         onDeploy(loadouts) {
           if (disposed || state.screen !== 'LOADOUT' || generation !== loadoutGeneration) return;
           // Copy in: the deploying screen keeps no handle on what the controller now owns.
@@ -178,6 +208,20 @@ export function createAppController(dependencies: AppControllerDependencies): Ap
           return;
         }
         transition({ type: 'completeMatch', recap });
+      },
+      /**
+       * A reset is a new runtime over the same resolved config, not a flow transition: the
+       * screen does not change, and `createWorld` is seeded, so the identical battlefield
+       * comes back with both tanks at full health on turn one.
+       */
+      onReset() {
+        if (disposed || generation !== runtimeGeneration || state.screen !== 'MATCH') return;
+        disposeRuntime();
+        startRuntime();
+      },
+      onExit() {
+        if (disposed || generation !== runtimeGeneration || state.screen !== 'MATCH') return;
+        transition({ type: 'menu' });
       },
     });
     creating = false;
@@ -271,10 +315,24 @@ function renderState(
   resolvedConfig: ResolvedMatchConfig | null,
 ): AppFlowState {
   if (!resolvedConfig || state.screen === 'TITLE' || state.screen === 'MODE' ||
-    state.screen === 'MAP' || state.screen === 'CUSTOM' || state.screen === 'HOWTO') {
+    state.screen === 'CREW' || state.screen === 'MAP' || state.screen === 'CUSTOM' ||
+    state.screen === 'HOWTO') {
     return state;
   }
+  // LOADOUT, MATCH and ROUND_OVER see the resolved world rather than the selection.
   return Object.freeze({ ...state, config: resolvedConfig });
+}
+
+/**
+ * Hands the render layer the crew identity the rest of the app draws with. Everything from
+ * `tankTones` to the HUD nameplate asks `palette` for a player's colour, so this one push
+ * is what makes a colour chosen on `CREW` reach the tank, the trail and the recap.
+ */
+function publishCrews(config: MatchConfig): void {
+  setActiveCrews([
+    { name: crewDisplayName(config, 0), color: config.crews[0].color },
+    { name: crewDisplayName(config, 1), color: config.crews[1].color },
+  ]);
 }
 
 function sameConfig(left: MatchConfig, right: MatchConfig): boolean {

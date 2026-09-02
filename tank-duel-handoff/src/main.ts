@@ -7,9 +7,11 @@ import { createRng, hashSeed } from './sim/rng';
 import { mountAppView } from './ui/appView';
 import { mountLoadout } from './ui/loadout';
 import { mountOrientationGate } from './ui/orientationGate';
+import { mountUiScale } from './ui/uiScale';
 import './style.css';
 import './ui/loadout.css';
 import './ui/touchControls.css';
+import './ui/matchChrome.css';
 import './ui/orientationGate.css';
 
 const canvas = document.querySelector<HTMLCanvasElement>('#field');
@@ -36,18 +38,19 @@ const controller = createAppController({
     resizeSceneCanvas(canvas);
     return createHowtoScene(canvas, sceneOptions('howto'));
   },
-  mountLoadout: ({ onDeploy, onBack, enabledShellIds, initialPlayerLoadoutIds, mode, cpuTierId }) => mountLoadout(
+  mountLoadout: ({ onDeploy, onBack, enabledShellIds, initialPlayerLoadoutIds, mode, cpuTierId, crews }) => mountLoadout(
     appSurface,
     {
       enabledShellIds,
       mode,
       cpuTierId,
+      crews,
       onDeploy,
       onBack,
       ...(initialPlayerLoadoutIds === undefined ? {} : { initialPlayerLoadoutIds }),
     },
   ),
-  createMatchRuntime: ({ config, playerLoadoutIds, onComplete }) => createMatchRuntime({
+  createMatchRuntime: ({ config, playerLoadoutIds, onComplete, onReset, onExit }) => createMatchRuntime({
     canvas,
     controlRoot: appSurface,
     hudChrome: { showTelemetry: devTelemetryEnabled() },
@@ -60,6 +63,8 @@ const controller = createAppController({
     },
     playerLoadoutIds,
     onComplete,
+    onReset,
+    onExit,
   }),
 });
 
@@ -67,7 +72,12 @@ const orientationGate = mountOrientationGate(appSurface, globalThis, (blocked) =
   controller.setPresentationBlocked(blocked);
 });
 
+// One number on the root element; the stylesheets decide what scales with it. The canvas
+// scenes are not among them — they redraw at the viewport's own resolution.
+const uiScale = mountUiScale(document.documentElement, globalThis);
+
 globalThis.addEventListener('pagehide', () => {
+  uiScale.dispose();
   orientationGate.dispose();
   controller.dispose();
 }, { once: true });

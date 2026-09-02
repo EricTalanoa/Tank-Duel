@@ -39,6 +39,11 @@ import {
   type TouchControlCallbacks,
   type TouchControlState,
 } from '../ui/touchControls';
+import {
+  mountMatchChrome,
+  type MatchChromeCallbacks,
+  type MountedMatchChrome,
+} from '../ui/matchChrome';
 import { createEffects, type EffectsEngine } from '../render/effects';
 import { motionPolicy } from '../render/motion';
 import {
@@ -92,6 +97,7 @@ export interface MatchRuntimeDependencies {
   attachControls(options: AimControlsOptions): Controls;
   attachPointerDragControls?(canvas: HTMLCanvasElement, options: PointerDragControlsOptions): Controls;
   mountTouchControls?(root: HTMLElement, callbacks: TouchControlCallbacks): MountedTouchControls;
+  mountMatchChrome?(root: HTMLElement, callbacks: MatchChromeCallbacks): MountedMatchChrome;
 }
 
 export interface CreateMatchRuntimeOptions {
@@ -101,6 +107,10 @@ export interface CreateMatchRuntimeOptions {
   /** Both players' complete decks, already validated by `makePlayerLoadouts`. */
   readonly playerLoadoutIds: PlayerLoadouts;
   readonly onComplete: (recap: RoundOverRecap) => void;
+  /** Restart this round on the same battlefield. Omitted, and the Reset button is not shown. */
+  readonly onReset?: () => void;
+  /** Abandon the match. Omitted, and the Menu button is not shown. */
+  readonly onExit?: () => void;
   /** HUD chrome the simulation does not own: rounds, turn timer, the dev telemetry flag. */
   readonly hudChrome?: HudChrome;
   readonly dependencies?: Partial<MatchRuntimeDependencies>;
@@ -132,6 +142,7 @@ const BROWSER_DEPENDENCIES: MatchRuntimeDependencies = {
   attachControls: (options) => attachAimControls(window, options),
   attachPointerDragControls,
   mountTouchControls,
+  mountMatchChrome,
 };
 
 export function createMatchRuntime(options: CreateMatchRuntimeOptions): MatchRuntime {
@@ -235,6 +246,16 @@ export function createMatchRuntime(options: CreateMatchRuntimeOptions): MatchRun
       onFire: fireOnce,
     })
     : null;
+  // Only mounted when the owner supplied somewhere for the two buttons to go. A runtime
+  // created without them — a test, or a headless harness — renders no match chrome at all.
+  const matchChrome = options.controlRoot && dependencies.mountMatchChrome &&
+    (options.onReset || options.onExit)
+    ? dependencies.mountMatchChrome(options.controlRoot, {
+      onReset: () => { if (!disposed) options.onReset?.(); },
+      onExit: () => { if (!disposed) options.onExit?.(); },
+    })
+    : null;
+
   let dragOrigin: TouchAimPoint | null = null;
   const pointerControls = options.controlRoot && dependencies.attachPointerDragControls
     ? dependencies.attachPointerDragControls(options.canvas, {
@@ -411,6 +432,7 @@ export function createMatchRuntime(options: CreateMatchRuntimeOptions): MatchRun
       controls.dispose();
       pointerControls?.dispose();
       touchControls?.dispose();
+      matchChrome?.dispose();
       reducedMotion.dispose();
       if (import.meta.env.DEV && inspectionTarget['__tankDuel'] === inspection) {
         delete inspectionTarget['__tankDuel'];

@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import {
   createDefaultConfig,
+  withCrewColor,
+  withCrewName,
   type MatchConfig,
 } from './config';
 import {
@@ -118,5 +120,21 @@ describe('match config storage', () => {
     );
 
     expect(loadLastConfig(storage)).toEqual(createDefaultConfig());
+  });
+
+  it('round-trips crew names and colours, which are match configuration like any other', () => {
+    const storage = createMemoryStorage();
+    const config = withCrewColor(
+      withCrewName(withCrewName(createDefaultConfig(), 0, 'Ash'), 1, 'Vale'),
+      1,
+      '#7BD389',
+    );
+
+    saveLastConfig(storage, config);
+
+    expect(loadLastConfig(storage).crews).toEqual([
+      { name: 'Ash', color: config.crews[0].color },
+      { name: 'Vale', color: '#7BD389' },
+    ]);
   });
 });

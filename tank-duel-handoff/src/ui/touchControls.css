@@ -34,13 +34,22 @@
 .touch-fire { min-inline-size: 44px; min-block-size: 44px; border: 1px solid rgb(201 168 124 / 30%); background: rgb(15 20 28 / 92%); color: #f6eadc; }
 .touch-step-buttons button { padding: 0 12px; font-size: 24px; }
 
-.touch-deck { grid-column: 3; display: grid; justify-content: center; gap: 7px; padding: 9px 8px 11px; border: 1px solid rgb(201 168 124 / 24%); background: rgb(10 13 18 / 90%); }
+/*
+ * A single full-width track, not a centred auto one. The deck's column is whatever is left
+ * between the canvas firing-solution panel and Fire, and a centred max-content row of chips
+ * spills out of it in both directions on a narrow viewport — over the panel on one side and
+ * off the screen on the other. Constrained and scrollable, it stays inside its column.
+ */
+.touch-deck { grid-column: 3; display: grid; grid-template-columns: minmax(0, 1fr); gap: 7px; padding: 9px 8px 11px; border: 1px solid rgb(201 168 124 / 24%); background: rgb(10 13 18 / 90%); }
 .touch-deck-label { color: #c9a87c; font: 700 10px/1 'JetBrains Mono', monospace; letter-spacing: 0.24em; text-align: center; }
-.touch-shells { display: flex; justify-content: center; gap: 7px; }
-.touch-shell { position: relative; display: grid; grid-template-rows: 30px auto; place-items: center; gap: 5px; min-inline-size: 70px; min-block-size: 68px; padding: 8px 5px 6px; }
+.touch-shells { display: flex; justify-content: safe center; gap: 7px; max-inline-size: 100%; overflow-x: auto; scrollbar-width: none; }
+.touch-shells::-webkit-scrollbar { display: none; }
+/* Sized so a full deck — the free shell plus six picks — fits its column at the design
+   width without scrolling. */
+.touch-shell { position: relative; display: grid; grid-template-rows: 30px auto; place-items: center; gap: 5px; min-inline-size: 60px; min-block-size: 68px; padding: 8px 4px 6px; }
 .touch-shell .shell-icon { inline-size: 30px; block-size: 30px; }
 .touch-shell small { position: absolute; inset: 2px auto auto 4px; color: #8fa0b8; font: 9px 'JetBrains Mono', monospace; }
-.touch-shell-name { max-inline-size: 68px; overflow: hidden; color: #b9c4d2; font: 700 9px/1.1 'JetBrains Mono', monospace; text-align: center; text-overflow: ellipsis; white-space: nowrap; }
+.touch-shell-name { max-inline-size: 58px; overflow: hidden; color: #b9c4d2; font: 700 9px/1.1 'JetBrains Mono', monospace; text-align: center; text-overflow: ellipsis; white-space: nowrap; }
 .touch-shell.is-selected { border-color: #ff8c42; background: rgb(255 140 66 / 18%); color: #ffb17e; }
 .touch-shell.is-selected .touch-shell-name { color: #ffc39d; }
 .touch-shell:disabled { opacity: 0.4; }
@@ -60,4 +69,12 @@
   .touch-aim-group { grid-template-columns: 1fr; }
   .touch-step-buttons { display: none; }
   .touch-fire { min-block-size: 52px; }
+
+  /* A phone in landscape leaves the deck a narrow column, so the chips come down to what
+     still reads: icon, number, no name. They stay 44px-tall targets and the row scrolls. */
+  .touch-deck { gap: 5px; padding: 6px 5px 7px; }
+  .touch-shells { gap: 5px; }
+  .touch-shell { grid-template-rows: 24px; min-inline-size: 46px; min-block-size: 46px; padding: 6px 4px; }
+  .touch-shell .shell-icon { inline-size: 24px; block-size: 24px; }
+  .touch-shell-name { display: none; }
 }
