@@ -1,4 +1,4 @@
-import { createDefaultConfig, validateConfig, type MatchConfig } from './config';
+import { createDefaultConfig, validateConfig, type CrewConfig, type MatchConfig } from './config';
 
 export interface StorageLike {
   getItem(key: string): string | null;
@@ -7,7 +7,8 @@ export interface StorageLike {
 }
 
 export const MATCH_CONFIG_STORAGE_KEY = 'tank-duel:last-match-config';
-export const MATCH_CONFIG_STORAGE_VERSION = 1;
+/** Bumped to 2 when crews joined the config: a version-1 payload has no crews to read. */
+export const MATCH_CONFIG_STORAGE_VERSION = 2;
 
 interface StoredMatchConfig {
   readonly path: MatchConfig['path'];
@@ -19,6 +20,7 @@ interface StoredMatchConfig {
   readonly rounds: MatchConfig['rounds'];
   readonly wind: MatchConfig['wind'];
   readonly turnTimer: MatchConfig['turnTimer'];
+  readonly crews: readonly [CrewConfig, CrewConfig];
   readonly enabledShellIds: readonly string[];
   readonly shells: Readonly<Record<string, {
     readonly enabled: boolean;
@@ -59,6 +61,7 @@ function toStoredMatchConfig(config: MatchConfig): StoredMatchConfig {
     rounds: config.rounds,
     wind: config.wind,
     turnTimer: config.turnTimer,
+    crews: [{ ...config.crews[0] }, { ...config.crews[1] }],
     enabledShellIds: [...config.enabledShellIds],
     shells: Object.fromEntries(
       Object.entries(config.shells).map(([id, shell]) => [id, {

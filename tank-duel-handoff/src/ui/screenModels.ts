@@ -7,10 +7,16 @@ import { SHIPPED_GENERATORS, type GeneratorId } from '../sim/generators';
 import { SHELLS } from '../sim/shells';
 import { SHIPPED_WORLDS, type WindMode, type WorldPhysics } from '../sim/worlds';
 import {
+  CPU_CREW_NAME,
+  CREW_COLOR_OPTIONS,
+  CREW_NAME_MAX_LENGTH,
+  CREW_SCREEN_STEP,
   MATCH_AMMO_BOUNDS,
   MATCH_ROUND_OPTIONS,
   MATCH_TURN_TIMER_OPTIONS,
   MATCH_WIND_OPTIONS,
+  crewLabel,
+  crewsNamed,
   type MatchConfig,
   type MatchMode,
   type CpuTierId,
@@ -64,6 +70,47 @@ export interface ModeScreenModel {
   readonly step: string;
   readonly options: readonly ModeOptionModel[];
   readonly cpuTiers: readonly CpuTierOptionModel[];
+}
+
+export interface CrewSwatchModel {
+  readonly value: string;
+  /** Named for a screen reader: the swatch is a colour, so the hex is the only label there is. */
+  readonly label: string;
+  readonly selected: boolean;
+}
+
+export interface CrewPanelModel {
+  readonly player: 0 | 1;
+  /** `P1` / `P2`, tinted with this crew's colour. */
+  readonly tag: string;
+  /** `Player 1` / `Player 2`, or `CPU` once player 2 is the machine. */
+  readonly label: string;
+  /** What the field holds: what was typed, or the CPU's fixed name. */
+  readonly name: string;
+  readonly placeholder: string;
+  readonly nameDisabled: boolean;
+  readonly nameMaxLength: number;
+  readonly color: string;
+  /** The chosen hex, as the panel header prints it. */
+  readonly colorLabel: string;
+  readonly swatchGroupLabel: string;
+  readonly swatches: readonly CrewSwatchModel[];
+  /** Preview aim, stored 0-180 absolute; player 2's is mirrored per `spec/constants.json`. */
+  readonly previewAngleDeg: number;
+  readonly previewDirection: 1 | -1;
+}
+
+export interface CrewScreenModel {
+  readonly id: 'CREW';
+  readonly label: string;
+  readonly kicker: string;
+  readonly step: string;
+  readonly crews: readonly [CrewPanelModel, CrewPanelModel];
+  /** The matchup once both crews are named, and what is still missing until then. */
+  readonly status: string;
+  readonly ready: boolean;
+  readonly backAction: FlowAction;
+  readonly continueAction: FlowAction;
 }
 
 export interface MapTileModel {
@@ -248,6 +295,59 @@ export function buildModeScreenModel(state: AppFlowState): ModeScreenModel {
   };
 }
 
+/**
+ * The two crews, facing each other: player 1 on the left aiming right, player 2 on the right
+ * aiming left. Both preview angles are stored absolute, which is why the mirrored panel reads
+ * 128 rather than 52.
+ */
+const CREW_PREVIEW_ANGLE_DEG = 52;
+
+export function buildCrewScreenModel(state: AppFlowState): CrewScreenModel {
+  const { config } = state;
+  const ready = crewsNamed(config);
+  return {
+    id: 'CREW',
+    label: 'Name your crews',
+    kicker: `Quick start · ${modeOptionModels(state).find((option) => option.selected)?.label ?? ''}`,
+    step: CREW_SCREEN_STEP,
+    crews: Object.freeze([crewPanelModel(config, 0), crewPanelModel(config, 1)]) as
+      readonly [CrewPanelModel, CrewPanelModel],
+    status: ready
+      ? `${crewLabel(config, 0)} vs ${crewLabel(config, 1)}`.toUpperCase()
+      : 'Name both crews to continue',
+    ready,
+    backAction: { type: 'back' },
+    continueAction: { type: 'confirmCrews' },
+  };
+}
+
+function crewPanelModel(config: MatchConfig, player: 0 | 1): CrewPanelModel {
+  const crew = config.crews[player];
+  const isCpu = player === 1 && config.mode === 'cpu';
+  const label = isCpu ? CPU_CREW_NAME : PRESENTATION.players[player].label;
+  return {
+    player,
+    tag: `P${player + 1}`,
+    label,
+    // The CPU names itself, so the field shows that name rather than an empty box the
+    // player cannot fill in. Whatever crew 2 typed in local mode is kept in config.
+    name: isCpu ? CPU_CREW_NAME : crew.name,
+    placeholder: label,
+    nameDisabled: isCpu,
+    nameMaxLength: CREW_NAME_MAX_LENGTH,
+    color: crew.color,
+    colorLabel: crew.color.toUpperCase(),
+    swatchGroupLabel: `${PRESENTATION.players[player].label} tank colour`,
+    swatches: CREW_COLOR_OPTIONS.map((value) => ({
+      value,
+      label: `${value.toUpperCase()} for ${PRESENTATION.players[player].label}`,
+      selected: value.toUpperCase() === crew.color.toUpperCase(),
+    })),
+    previewAngleDeg: player === 0 ? CREW_PREVIEW_ANGLE_DEG : 180 - CREW_PREVIEW_ANGLE_DEG,
+    previewDirection: player === 0 ? 1 : -1,
+  };
+}
+
 export function buildMapScreenModel(state: AppFlowState): MapScreenModel {
   return {
     id: 'MAP',
@@ -329,6 +429,7 @@ export function buildRoundIntroScreenModel(config: MatchConfig): RoundIntroScree
     wind: config.wind,
     turnTimer: config.turnTimer,
     briefing: Object.freeze([
+      { term: 'Crews', value: `${crewLabel(config, 0)} vs ${crewLabel(config, 1)}` },
       { term: 'World', value: world ? `${world.name} — ${lowerFirst(world.kind)}` : worldName },
       { term: 'Terrain', value: capitalize(generatorName) },
       { term: 'Rounds', value: `Best of ${config.rounds}` },
@@ -394,14 +495,14 @@ export function buildRoundOverScreenModel(state: AppFlowState): RoundOverScreenM
     id: 'ROUND_OVER',
     label: 'Round over',
     kicker: roundOverKicker(state),
-    headline: roundOverHeadline(result),
-    accentColor: winner === null ? null : PRESENTATION.players[winner].color,
+    headline: roundOverHeadline(state.config, result),
+    accentColor: winner === null ? null : state.config.crews[winner].color,
     players: (state.roundOver?.spentShellIdsByPlayer ?? []).map((ids, index) => {
       const player = index === 1 ? 1 : 0;
       return {
-        label: PRESENTATION.players[player].label,
+        label: crewLabel(state.config, player),
         tag: `P${player + 1}`,
-        color: PRESENTATION.players[player].color,
+        color: state.config.crews[player].color,
         summary: `${ids.length} ${ids.length === 1 ? 'shot' : 'shots'}`,
         winner: winner === player,
         shells: groupSpentShells(state.config, ids),
@@ -428,15 +529,18 @@ function roundOverKicker(state: AppFlowState): string {
 }
 
 /**
- * `Player 1 wins / the round`, with the verb in the winner's colour. A draw reads `Draw`
+ * `<crew> wins / the round`, with the verb in the winner's colour. A draw reads `Draw`
  * on its own; an unresolved recap keeps the plain screen label.
  */
-function roundOverHeadline(result: 0 | 1 | 'draw' | null): readonly (readonly HeadlineSpan[])[] {
+function roundOverHeadline(
+  config: MatchConfig,
+  result: 0 | 1 | 'draw' | null,
+): readonly (readonly HeadlineSpan[])[] {
   if (result === 'draw') return Object.freeze([Object.freeze([{ text: 'Draw', accent: false }])]);
   if (result === null) return Object.freeze([Object.freeze([{ text: 'Round over', accent: false }])]);
   return Object.freeze([
     Object.freeze([
-      { text: `${PRESENTATION.players[result].label} `, accent: false },
+      { text: `${crewLabel(config, result)} `, accent: false },
       { text: 'wins', accent: true },
     ]),
     Object.freeze([{ text: 'the round', accent: false }]),

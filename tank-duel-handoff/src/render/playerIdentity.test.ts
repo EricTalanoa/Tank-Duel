@@ -1,4 +1,4 @@
-import { expect, test } from 'vitest';
+import { afterEach, expect, test } from 'vitest';
 import type { GameState } from '../sim/world';
 import { createWorld } from '../sim/world';
 import type { PresentationEvent } from '../sim/presentation';
@@ -73,12 +73,38 @@ function combatState(activePlayer: 0 | 1): GameState {
   } as unknown as GameState;
 }
 
+// The active crews are process-wide, so no test may leave one behind for the next.
+afterEach(() => palette.setActiveCrews(null));
+
 test('maps each player index to its presentation color', () => {
   // Break caught: removing or misrouting the render-layer player identity mapping.
   const playerColor = (palette as unknown as { readonly playerColor: PlayerColor }).playerColor;
 
   expect(playerColor(0)).toBe(PRESENTATION.players[0].color);
   expect(playerColor(1)).toBe(PRESENTATION.players[1].color);
+});
+
+test('follows the crews once a match config names them, and falls back when none does', () => {
+  // Break caught: the Crew screen's colours stopping at the menu, so the tank, its trails,
+  // its projectiles and the HUD all keep painting the presentation defaults.
+  palette.setActiveCrews([
+    { name: 'Hammer', color: '#7BD389' },
+    { name: '  ', color: '#4FC3D9' },
+  ]);
+
+  expect(palette.playerColor(0)).toBe('#7BD389');
+  expect(palette.tankTones(0)).toEqual({
+    base: '#7BD389',
+    dark: palette.shade('#7BD389', palette.TANK_SHADE),
+    light: palette.tint('#7BD389', palette.TANK_TINT),
+  });
+  expect(palette.playerLabel(0)).toBe('Hammer');
+  // A crew that only typed spaces has not named itself.
+  expect(palette.playerLabel(1)).toBe(PRESENTATION.players[1].label);
+
+  palette.setActiveCrews(null);
+  expect(palette.playerColor(0)).toBe(PRESENTATION.players[0].color);
+  expect(palette.playerLabel(0)).toBe(PRESENTATION.players[0].label);
 });
 
 test('renders every player-owned combat surface with its owner color', () => {

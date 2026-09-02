@@ -3,7 +3,7 @@ import { makePlayerLoadouts, type PlayerLoadouts } from '../sim/playerLoadouts';
 import { hashSeed } from '../sim/rng';
 import { STANDARD_SHELL_IDS } from '../sim/weapons';
 import { SHIPPED_WORLDS } from '../sim/worlds';
-import { createDefaultConfig, validateConfig, type MatchConfig } from '../ui/config';
+import { createDefaultConfig, validateConfig, withCrewName, type MatchConfig } from '../ui/config';
 import type { AppViewCallbacks } from '../ui/appView';
 import type { AppFlowState, FlowAction, RoundOverRecap } from '../ui/flow';
 import { loadLastConfig, saveLastConfig, type StorageLike } from '../ui/storage';
@@ -146,7 +146,7 @@ describe('application controller', () => {
     harness.controller.setPresentationBlocked(true);
     expect(harness.titleScenes[0]?.pauseStates).toEqual([true]);
 
-    harness.dispatch({ type: 'quickStart' });
+    harness.quickStart();
     harness.dispatch({ type: 'selectMap', worldId: 'terra' });
     harness.dispatch({ type: 'openLoadout' });
     const loadout = harness.loadouts[0];
@@ -164,7 +164,7 @@ describe('application controller', () => {
     const harness = createHarness();
 
     expect(harness.controller.resolvedConfig).toBeNull();
-    harness.dispatch({ type: 'quickStart' });
+    harness.quickStart();
     expect(harness.controller.resolvedConfig).toBeNull();
 
     harness.dispatch({ type: 'selectMap', worldId: 'random' });
@@ -224,7 +224,7 @@ describe('application controller', () => {
 
   it('keeps the deployed decks after the deploying caller mutates the arrays it passed', () => {
     const harness = createHarness();
-    harness.dispatch({ type: 'quickStart' });
+    harness.quickStart();
     harness.dispatch({ type: 'selectMap', worldId: 'terra' });
     harness.dispatch({ type: 'openLoadout' });
 
@@ -245,7 +245,7 @@ describe('application controller', () => {
   it('disposes loadout on deploy, completes once, and rematches with deep-equal resolved settings except seed', () => {
     const storage = new MemoryStorage();
     const harness = createHarness({ storage });
-    harness.dispatch({ type: 'quickStart' });
+    harness.quickStart();
     harness.dispatch({ type: 'selectMap', worldId: 'random' });
     harness.dispatch({ type: 'openLoadout' });
 
@@ -293,7 +293,7 @@ describe('application controller', () => {
 
   it('preserves settings and the previous deck for Change Loadout, then disposes its overlay on controller disposal', () => {
     const harness = createHarness();
-    harness.dispatch({ type: 'quickStart' });
+    harness.quickStart();
     harness.dispatch({ type: 'selectMap', worldId: 'terra' });
     harness.dispatch({ type: 'openLoadout' });
     harness.loadouts[0]!.options.onDeploy(PLAYER_LOADOUT_IDS);
@@ -320,7 +320,7 @@ describe('application controller', () => {
 
   it('disposes a runtime that completes synchronously during creation without leaving a live owner', () => {
     const harness = createHarness({ completeRuntimeSynchronously: true });
-    harness.dispatch({ type: 'quickStart' });
+    harness.quickStart();
     harness.dispatch({ type: 'selectMap', worldId: 'terra' });
     harness.dispatch({ type: 'openLoadout' });
     harness.loadouts[0]!.options.onDeploy(PLAYER_LOADOUT_IDS);
@@ -462,7 +462,18 @@ function createHarness(options: Readonly<{
     get maxActiveRuntimes() { return maxActiveRuntimes; },
     dispatch(action: FlowAction) { requiredCallbacks().onAction(action); },
     changeConfig(config: MatchConfig) { requiredCallbacks().onConfigChange?.(config); },
+    /** TITLE through Crew setup to the battlefield, the way Quick Start now runs. */
+    quickStart() {
+      requiredCallbacks().onAction({ type: 'quickStart' });
+      requiredCallbacks().onConfigChange?.(namedCrews(controller.state.config));
+      requiredCallbacks().onAction({ type: 'confirmCrews' });
+    },
   };
+}
+
+/** Both crews named, so `confirmCrews` will hand the flow on to the battlefield. */
+function namedCrews(config: MatchConfig): MatchConfig {
+  return withCrewName(withCrewName(config, 0, 'Hammer'), 1, 'Anvil');
 }
 
 function disposableRecord(): DisposableRecord {

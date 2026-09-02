@@ -16,7 +16,7 @@ import type { GameState, Tank } from '../sim/world';
 import { simSeconds } from '../sim/world';
 import type { WorldPhysics } from '../sim/worlds';
 import { CONSTANTS } from '../sim/constants';
-import { CHROME, displayFont, monoFont, playerColor } from './palette';
+import { CHROME, displayFont, monoFont, playerColor, playerLabel } from './palette';
 
 export interface LoopTelemetry {
   /** Steps run on the most recent frame. */
@@ -59,7 +59,15 @@ const MARGIN = 32;
 const TOP_SCRIM = 96;
 const BOTTOM_SCRIM = 230;
 
-const NAMEPLATE = { tagWidth: 36, tagHeight: 20, tagY: 30, barWidth: 190, barHeight: 16, barY: 32, gap: 14 } as const;
+const NAMEPLATE = {
+  tagWidth: 36, tagHeight: 20, tagY: 30, barWidth: 190, barHeight: 16, barY: 32, gap: 14,
+  /**
+   * The crew name is anchored to the viewport edge and the turn state sits inboard of it, so
+   * the name needs a column of its own: 14 characters — the cap `CREW_NAME_MAX_LENGTH` puts on
+   * it — at mono 10px, with enough slack that a fallback mono still clears the state label.
+   */
+  identityY: 58, nameColumn: 104,
+} as const;
 const SOLUTION = { x: 354, width: 220, height: 122, bottomClearance: 12 } as const;
 const TELEMETRY_PANEL = { width: 210, height: 92, y: 110 } as const;
 
@@ -208,10 +216,19 @@ function drawNameplate(
     NAMEPLATE.barY + 1,
   );
 
+  // Who this is, then whether it is their turn: the crew name reads at the outer edge, in
+  // that crew's own colour, so the two nameplates are told apart before either is read.
   const active = state.activePlayer === player;
+  ctx.font = monoFont(10, 700);
+  ctx.fillStyle = color;
+  ctx.fillText(playerLabel(player).toUpperCase(), left ? tagX : anchor, NAMEPLATE.identityY);
   ctx.font = monoFont(10);
   ctx.fillStyle = active ? CHROME.action : CHROME.dim;
-  ctx.fillText(active ? 'YOUR TURN' : 'WAITING', left ? tagX : anchor, 58);
+  ctx.fillText(
+    active ? 'YOUR TURN' : 'WAITING',
+    left ? tagX + NAMEPLATE.nameColumn : anchor - NAMEPLATE.nameColumn,
+    NAMEPLATE.identityY,
+  );
   ctx.textAlign = 'left';
 }
 

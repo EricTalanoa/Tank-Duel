@@ -46,6 +46,7 @@ describe('match config storage', () => {
       wind: 'light',
       turnTimer: '15',
       seed: 0x1234abcd,
+      crews: [{ name: 'Hammer', color: '#7BD389' }, { name: 'Anvil', color: '#FF5C5C' }],
       shells: {
         ...defaults.shells,
         cluster: {
@@ -58,7 +59,8 @@ describe('match config storage', () => {
 
     saveLastConfig(storage, config);
 
-    expect(storage.map.get(MATCH_CONFIG_STORAGE_KEY)).toContain('"version":1');
+    expect(storage.map.get(MATCH_CONFIG_STORAGE_KEY))
+      .toContain(`"version":${MATCH_CONFIG_STORAGE_VERSION}`);
     expect(loadLastConfig(storage)).toEqual(config);
   });
 
@@ -102,6 +104,19 @@ describe('match config storage', () => {
         },
       },
     })],
+    ['crews sharing one colour', withPayload({
+      ...createDefaultConfig(),
+      crews: [{ name: 'Hammer', color: '#7BD389' }, { name: 'Anvil', color: '#7BD389' }],
+    })],
+    ['crew name past the cap', withPayload({
+      ...createDefaultConfig(),
+      crews: [{ name: 'A'.repeat(15), color: '#7BD389' }, { name: 'Anvil', color: '#FF5C5C' }],
+    })],
+    ['missing crews', withPayload(
+      Object.fromEntries(
+        Object.entries(createDefaultConfig()).filter(([key]) => key !== 'crews'),
+      ),
+    )],
     ['ammo below range', withPayload({
       ...createDefaultConfig(),
       shells: {

@@ -1,4 +1,5 @@
 import rawScreens from '../../spec/screens.json';
+import { PRESENTATION } from '../render/presentation';
 import { CONSTANTS } from '../sim/constants';
 import { CPU_TIERS, type CpuTierId } from '../sim/cpu';
 import { resolveGeneratorId, SHIPPED_GENERATORS, type GeneratorId } from '../sim/generators';
@@ -24,6 +25,16 @@ export interface MatchShellConfig {
   readonly defaultAmmo: number | 'inf';
 }
 
+/**
+ * Who is fighting, as the players named themselves. `name` is what was typed — empty while
+ * the Crew screen is still being filled in — so the effective label goes through
+ * `crewLabel`, which supplies the presentation default and the CPU's fixed name.
+ */
+export interface CrewConfig {
+  readonly name: string;
+  readonly color: string;
+}
+
 export interface MatchConfig {
   readonly path: MatchPath;
   readonly mode: MatchMode;
@@ -34,6 +45,7 @@ export interface MatchConfig {
   readonly rounds: MatchRounds;
   readonly wind: MatchWind;
   readonly turnTimer: MatchTurnTimer;
+  readonly crews: readonly [CrewConfig, CrewConfig];
   readonly enabledShellIds: readonly string[];
   readonly shells: Readonly<Record<string, MatchShellConfig>>;
 }
@@ -99,6 +111,30 @@ export const DEFAULT_ENABLED_SHELL_IDS: readonly string[] = Object.freeze(
   [...PLAYABLE_SHELL_IDS],
 );
 
+const CREW_SCREEN = screenById('CREW');
+
+/** Long enough for a squad name, short enough to stay on one line in the HUD nameplate. */
+export const CREW_NAME_MAX_LENGTH = readNameLimit(CREW_SCREEN.nameLimit);
+
+/** `1 / 2` from spec, rendered as the `Step 01 / 02` the header prints. */
+export const CREW_SCREEN_STEP = readStep(CREW_SCREEN.step);
+
+/** Crew 2 in `cpu` mode. Fixed, so the field is disabled rather than asking for a name. */
+export const CPU_CREW_NAME = 'CPU';
+
+const CREW_COLOR_PATTERN = /^#[0-9A-Fa-f]{6}$/;
+
+/**
+ * The order the swatches are offered in: the two `spec/presentation.json` defaults first,
+ * then one accent per shipped world. The values are read from spec rather than retyped, and
+ * a new world has to be placed in this order rather than silently dropping off the picker.
+ */
+const CREW_ACCENT_WORLD_ORDER: readonly WorldId[] = Object.freeze([
+  'terra', 'rust', 'selene', 'ferrum', 'hollow', 'vesper',
+]);
+
+export const CREW_COLOR_OPTIONS: readonly string[] = Object.freeze(buildCrewColorOptions());
+
 const SHIPPED_WORLD_IDS = new Set<string>(SHIPPED_WORLDS.map((world) => world.id));
 const SHIPPED_GENERATOR_IDS = new Set<string>(SHIPPED_GENERATORS);
 const MATCH_ROUND_SET = new Set<number>(MATCH_ROUND_OPTIONS);
@@ -122,9 +158,56 @@ export function createDefaultConfig(): MatchConfig {
     rounds: MATCH_ROUND_OPTIONS[1] ?? MATCH_ROUND_OPTIONS[0] ?? 3,
     wind: MATCH_WIND_OPTIONS.at(-1) ?? 'full',
     turnTimer: MATCH_TURN_TIMER_OPTIONS[0] ?? 'off',
+    crews: defaultCrews(),
     enabledShellIds: enabledShellIdsFor(shells),
     shells,
   });
+}
+
+/** Unnamed until the Crew screen says otherwise; the presentation colours are the defaults. */
+function defaultCrews(): readonly [CrewConfig, CrewConfig] {
+  return freezeCrews([
+    { name: '', color: PRESENTATION.players[0].color },
+    { name: '', color: PRESENTATION.players[1].color },
+  ]);
+}
+
+/**
+ * What this crew is called on every surface that names it. In `cpu` mode player 2 is the
+ * CPU whatever was typed before the mode changed, and an unnamed crew falls back to its
+ * `spec/presentation.json` label rather than showing a blank.
+ */
+export function crewLabel(config: MatchConfig, player: 0 | 1): string {
+  if (player === 1 && config.mode === 'cpu') return CPU_CREW_NAME;
+  const name = config.crews[player].name.trim();
+  return name.length > 0 ? name : PRESENTATION.players[player].label;
+}
+
+/** The Continue gate: both crews named, or player 1 alone when player 2 is the CPU. */
+export function crewsNamed(config: MatchConfig): boolean {
+  return config.crews.every((crew, player) =>
+    (player === 1 && config.mode === 'cpu') || crew.name.trim().length > 0);
+}
+
+export function withCrewName(config: MatchConfig, player: 0 | 1, name: string): MatchConfig {
+  const crews = config.crews.map((crew, index) => (
+    index === player ? { ...crew, name: name.slice(0, CREW_NAME_MAX_LENGTH) } : crew));
+  return validateConfig({ ...config, crews }) ?? config;
+}
+
+/**
+ * Picking the colour the other crew holds hands that crew this picker's previous colour.
+ * The two must stay distinct — `validatePresentation` throws on equal player colours and the
+ * same invariant holds here — and swapping keeps every option pickable rather than
+ * greying half the palette out.
+ */
+export function withCrewColor(config: MatchConfig, player: 0 | 1, color: string): MatchConfig {
+  const previous = config.crews[player].color;
+  const crews = config.crews.map((crew, index) => {
+    if (index === player) return { ...crew, color };
+    return sameColor(crew.color, color) ? { ...crew, color: previous } : crew;
+  });
+  return validateConfig({ ...config, crews }) ?? config;
 }
 
 export function validateConfig(value: unknown): MatchConfig | null {
@@ -153,6 +236,9 @@ export function validateConfig(value: unknown): MatchConfig | null {
   if (typeof wind !== 'string' || !MATCH_WIND_SET.has(wind)) return null;
   if (typeof turnTimer !== 'string' || !MATCH_TURN_TIMER_SET.has(turnTimer)) return null;
 
+  const crews = validateCrews(value.crews);
+  if (!crews) return null;
+
   const shells = validateShellConfig(shellValue);
   if (!shells) return null;
 
@@ -171,6 +257,7 @@ export function validateConfig(value: unknown): MatchConfig | null {
     rounds: rounds as MatchRounds,
     wind: wind as MatchWind,
     turnTimer: turnTimer as MatchTurnTimer,
+    crews,
     enabledShellIds,
     shells,
   });
@@ -192,6 +279,56 @@ export function resolveMatchConfig(config: MatchConfig, seedRng: Rng): ResolvedM
     worldId: world.id,
     generatorId,
   });
+}
+
+function buildCrewColorOptions(): readonly string[] {
+  const ordered = new Set<string>(CREW_ACCENT_WORLD_ORDER);
+  const unplaced = SHIPPED_WORLDS.filter((world) => !ordered.has(world.id));
+  if (unplaced.length > 0) {
+    throw new Error(`Missing crew swatch order for ${unplaced.map((world) => world.id).join(', ')}`);
+  }
+
+  const options: string[] = [];
+  const seen = new Set<string>();
+  for (const color of [
+    ...PRESENTATION.players.map((player) => player.color),
+    ...CREW_ACCENT_WORLD_ORDER.map((id) => worldById(id).palette.accent),
+  ]) {
+    const key = color.toUpperCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    options.push(color);
+  }
+  return options;
+}
+
+function validateCrews(value: unknown): readonly [CrewConfig, CrewConfig] | null {
+  if (!Array.isArray(value) || value.length !== 2) return null;
+  const first = validateCrew(value[0]);
+  const second = validateCrew(value[1]);
+  if (!first || !second) return null;
+  // The same invariant `validatePresentation` enforces: two tanks the player cannot tell apart
+  // is a broken match, not a preference.
+  if (sameColor(first.color, second.color)) return null;
+  return freezeCrews([first, second]);
+}
+
+function validateCrew(value: unknown): CrewConfig | null {
+  if (!isRecord(value)) return null;
+  const name = value.name;
+  const color = value.color;
+  if (typeof name !== 'string' || name.length > CREW_NAME_MAX_LENGTH) return null;
+  if (typeof color !== 'string' || !CREW_COLOR_PATTERN.test(color)) return null;
+  return { name, color };
+}
+
+function freezeCrews(crews: readonly [CrewConfig, CrewConfig]): readonly [CrewConfig, CrewConfig] {
+  return Object.freeze([Object.freeze(crews[0]), Object.freeze(crews[1])]) as
+    readonly [CrewConfig, CrewConfig];
+}
+
+function sameColor(left: string, right: string): boolean {
+  return left.toUpperCase() === right.toUpperCase();
 }
 
 function buildShellConfig(enabledShellIds: readonly string[]): Readonly<Record<string, MatchShellConfig>> {
@@ -305,6 +442,20 @@ function readStringArray(value: unknown): string[] {
     throw new Error('Expected a string array in spec/screens.json');
   }
   return [...value];
+}
+
+function readNameLimit(value: unknown): number {
+  if (!Number.isInteger(value) || Number(value) < 1) {
+    throw new Error('Expected CREW.nameLimit in spec/screens.json');
+  }
+  return Number(value);
+}
+
+function readStep(value: unknown): string {
+  if (typeof value !== 'string' || !/^\d+ \/ \d+$/.test(value)) {
+    throw new Error('Expected a `n / n` step in spec/screens.json');
+  }
+  return `Step ${value.split(' / ').map((part) => part.padStart(2, '0')).join(' / ')}`;
 }
 
 function readAmmoBounds(value: unknown): AmmoBounds {

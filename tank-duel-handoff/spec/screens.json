@@ -34,8 +34,19 @@
       ]
     },
     {
+      "id": "CREW",
+      "from": "Quick Start",
+      "step": "1 / 2",
+      "fields": [
+        "crew name",
+        "tank colour"
+      ],
+      "nameLimit": 14,
+      "$note": "Both crews must be named before Continue. In 1 v CPU crew two is fixed to CPU and only its colour stays editable. The colours offered are the two presentation.json defaults plus one accent per shipped world, and the two crews are always distinct."
+    },
+    {
       "id": "MAP",
-      "from": "MODE",
+      "from": "CREW",
       "step": "2 / 2",
       "options": [
         "terra",

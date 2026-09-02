@@ -304,6 +304,72 @@
 .mode-summary-option.is-selected { border-color: var(--menu-accent); background: var(--panel-selected); color: var(--menu-accent); }
 .mode-summary-option small { display: none; }
 
+/* ── 02b Crew setup ────────────────────────────────────────────────────────────── */
+
+/* Same 30px rhythm as Battlefield: the two screens are one step apart and should not
+   breathe differently. */
+.app-screen[data-screen='CREW'] { gap: 30px; }
+.app-screen[data-screen='CREW'] .screen-title { font-size: 48px; line-height: 0.94; }
+
+.crew-panels { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 22px; }
+
+.crew-panel {
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  min-inline-size: 0;
+  padding: 24px;
+  border: 1px solid var(--hairline);
+  background: var(--panel);
+}
+
+.crew-panel > header { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+.crew-identity { display: flex; align-items: center; gap: 12px; min-inline-size: 0; }
+
+/* Stated here rather than borrowed from `loadout.css`: this screen must stand up on the one
+   stylesheet `appView.ts` imports. */
+.crew-panel .panel-label { font-size: 19px; font-weight: 700; letter-spacing: 0.01em; text-transform: uppercase; white-space: nowrap; }
+
+.crew-hex { color: var(--dim); font-family: var(--mono); font-size: 12px; letter-spacing: 0.14em; text-transform: uppercase; white-space: nowrap; }
+
+.crew-preview {
+  display: block;
+  inline-size: 100%;
+  block-size: 150px;
+  border: 1px solid var(--hairline-faint);
+  background: var(--panel-recessed);
+}
+
+/* The field sits on a panel rather than on the void, so it recesses instead of matching it. */
+.app-screen[data-screen='CREW'] input { inline-size: 100%; background: var(--panel-recessed); }
+
+.crew-colour { gap: 10px; }
+.crew-swatches { display: flex; flex-wrap: wrap; gap: 8px; }
+
+.crew-swatch {
+  display: grid;
+  place-items: center;
+  inline-size: 44px;
+  block-size: 44px;
+  padding: 0;
+  border: 1px solid rgb(201 168 124 / 16%);
+  background: var(--panel-recessed);
+  cursor: pointer;
+}
+
+/* Orange stays a 1px border here too — never the swatch's surface. */
+.crew-swatch.is-selected { border-color: var(--menu-accent); background: var(--panel-selected); }
+.crew-swatch:focus-visible { outline: 3px solid var(--menu-accent); outline-offset: 3px; }
+.crew-swatch-chip { display: block; inline-size: 20px; block-size: 20px; }
+
+/* Player 2 is the crew on the right of the field, so its panel reads outward from that edge. */
+.crew-panel[data-player='1'] > header,
+.crew-panel[data-player='1'] .crew-identity { flex-direction: row-reverse; }
+.crew-panel[data-player='1'] .form-field { align-items: flex-end; }
+.crew-panel[data-player='1'] input { text-align: end; }
+.crew-panel[data-player='1'] .crew-swatches { justify-content: flex-end; }
+
 /* ── 03 Battlefield ────────────────────────────────────────────────────────────── */
 
 .map-grid { grid-template-columns: repeat(4, 1fr); gap: 16px; }

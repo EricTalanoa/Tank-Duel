@@ -1,4 +1,4 @@
-import { PRESENTATION } from '../render/presentation';
+import { playerColor, playerLabel } from '../render/palette';
 import { CONSTANTS } from '../sim/constants';
 import { cpuTierById, type CpuTier } from '../sim/cpu';
 import { createLoadout, toggleShell, validateLoadout, type Loadout, type LoadoutValidation } from '../sim/loadout';
@@ -22,7 +22,7 @@ export interface PlayerLoadoutPanelModel {
   readonly label: string;
   /** `P1` / `P2`, or `CPU` for the read-only panel. */
   readonly tag: string;
-  /** The tag chip's fill: the player colour from `spec/presentation.json`. */
+  /** The tag chip's fill: this crew's chosen colour. */
   readonly color: string | null;
   readonly editable: boolean;
   readonly deploymentIds: readonly string[];
@@ -271,9 +271,10 @@ function playerPanelModel(
   const deploymentIds = deploymentShellIds(loadout, enabledShellIds);
   const activeLoadout = createLoadout(deploymentIds.slice(1));
   return Object.freeze({
-    label: PRESENTATION.players[player].label,
+    // The crew named itself on the Crew screen; `P1`/`P2` stays as the tag beside it.
+    label: playerLabel(player),
     tag: `P${player + 1}`,
-    color: PRESENTATION.players[player].color,
+    color: playerColor(player),
     editable: true,
     deploymentIds: Object.freeze([...deploymentIds]),
     validation: Object.freeze(validateLoadout(activeLoadout)),

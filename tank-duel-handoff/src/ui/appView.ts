@@ -2,10 +2,20 @@ import { SHELLS } from '../sim/shells';
 import { generateHeightmap } from '../sim/generators';
 import { createRng, hashSeed } from '../sim/rng';
 import { CONSTANTS } from '../sim/constants';
-import { PRESENTATION } from '../render/presentation';
-import { validateConfig, type MatchConfig, type MatchRounds, type MatchTurnTimer, type MatchWind, type MatchWorldId } from './config';
+import { drawTankSilhouette } from '../render/entities';
+import {
+  validateConfig,
+  withCrewColor,
+  withCrewName,
+  type MatchConfig,
+  type MatchRounds,
+  type MatchTurnTimer,
+  type MatchWind,
+  type MatchWorldId,
+} from './config';
 import type { AppFlowState, FlowAction } from './flow';
 import {
+  buildCrewScreenModel,
   buildCustomScreenModel,
   buildHowToScreenModel,
   buildMapScreenModel,
@@ -15,6 +25,7 @@ import {
   buildTitleScreenModel,
   type ActionButtonModel,
   type CpuTierOptionModel,
+  type CrewPanelModel,
   type MapTileModel,
   type ModeOptionModel,
   type RoundOverShellModel,
@@ -45,18 +56,36 @@ export function mountAppView(root: HTMLElement, callbacks: AppViewCallbacks): Ap
     button.setAttribute('data-flow-action', id);
   };
   const onClick = (event: Event): void => {
-    const control = closestElement(event.target, '[data-flow-action]');
+    const control = closestElement(event.target, '[data-flow-action], [data-crew-color]');
     if (!control || !root.contains(control) || (control as HTMLButtonElement).disabled) return;
+
+    // A swatch changes configuration rather than navigating, so it is the one control that
+    // goes to `onConfigChange` from a click rather than from `change`.
+    const color = control.getAttribute('data-crew-color');
+    if (color !== null && currentState) {
+      emitValidConfig(
+        withCrewColor(currentState.config, crewPlayer(control), color),
+        callbacks.onConfigChange,
+      );
+      return;
+    }
     const id = control.getAttribute('data-flow-action');
     const action = id === null ? undefined : actions.get(id);
     if (action) callbacks.onAction(action);
   };
   const onChange = (event: Event): void => {
-    const control = closestElement(event.target, '[data-config-field], [data-shell-toggle], [data-shell-ammo]') as HTMLInputElement | HTMLSelectElement | null;
+    const control = closestElement(event.target, '[data-config-field], [data-crew-name], [data-shell-toggle], [data-shell-ammo]') as HTMLInputElement | HTMLSelectElement | null;
     if (!control || !root.contains(control) || control.disabled || !currentState) return;
     const field = control.getAttribute('data-config-field');
     if (field) {
       emitFieldConfig(currentState.config, field, control.value, callbacks.onConfigChange);
+      return;
+    }
+    if (control.getAttribute('data-crew-name') !== null) {
+      emitValidConfig(
+        withCrewName(currentState.config, crewPlayer(control), control.value),
+        callbacks.onConfigChange,
+      );
       return;
     }
     const toggleId = control.getAttribute('data-shell-toggle');
@@ -77,10 +106,14 @@ export function mountAppView(root: HTMLElement, callbacks: AppViewCallbacks): Ap
       currentState = flowState;
       nextActionId = 0;
       actions = new Map<string, FlowAction>();
+      const focus = captureFieldFocus(document, root);
       const surface = renderScreen(document, flowState, bindAction);
       root.replaceChildren(surface);
-      paintTileSilhouettes(surface);
-      focusScreenHeading(surface);
+      paintTileSilhouettes(surface, crewColors(flowState.config));
+      paintCrewPreviews(surface);
+      // A render the player caused by typing must not take the caret away, nor re-announce
+      // a screen they never left.
+      if (!restoreFieldFocus(surface, focus)) focusScreenHeading(surface);
     },
     dispose(): void {
       if (disposed) return;
@@ -99,6 +132,7 @@ function renderScreen(document: Document, state: AppFlowState, bind: Binder): HT
   switch (state.screen) {
     case 'TITLE': return renderTitle(document, bind);
     case 'MODE': return renderMode(document, state, bind);
+    case 'CREW': return renderCrew(document, state, bind);
     case 'MAP': return renderMap(document, state, bind);
     case 'CUSTOM': return renderCustom(document, state, bind);
     case 'ROUND_INTRO': return renderRoundIntro(document, state.config, bind);
@@ -227,6 +261,86 @@ function cpuTierTiles(document: Document, tiers: readonly CpuTierOptionModel[]):
     grid.append(tile);
   }
   return grid;
+}
+
+/** 02b — one panel per crew: a name, a colour, and the tank that colour is going on. */
+function renderCrew(document: Document, state: AppFlowState, bind: Binder): HTMLElement {
+  const model = buildCrewScreenModel(state);
+  const surface = screen(document, model.label, model.id);
+
+  surface.append(header(document, {
+    kicker: model.kicker,
+    step: model.step,
+    title: [model.label],
+  }));
+
+  const body = element(document, 'div', 'screen-body crew-panels');
+  for (const crew of model.crews) body.append(crewPanel(document, crew));
+
+  surface.append(body, footer(document, model.status, [
+    secondaryButton(document, { label: 'Back', action: model.backAction, disabled: false }, bind),
+    primaryButton(document, {
+      label: 'Continue',
+      action: model.continueAction,
+      disabled: !model.ready,
+    }, bind),
+  ]));
+  return surface;
+}
+
+/** Named and coloured here only: nothing on this panel navigates, so it takes no binder. */
+function crewPanel(document: Document, crew: CrewPanelModel): HTMLElement {
+  const panel = element(document, 'section', 'crew-panel');
+  panel.setAttribute('aria-label', crew.label);
+  panel.setAttribute('data-player', String(crew.player));
+
+  const head = element(document, 'header');
+  const identity = element(document, 'div', 'crew-identity');
+  const tag = textElement(document, 'span', crew.tag, 'player-tag');
+  tag.setAttribute('style', `--player-color: ${crew.color}`);
+  identity.append(tag, textElement(document, 'span', crew.label, 'panel-label'));
+  head.append(identity, textElement(document, 'span', crew.colorLabel, 'crew-hex'));
+
+  const preview = element(document, 'canvas', 'crew-preview') as HTMLCanvasElement;
+  preview.setAttribute('aria-hidden', 'true');
+  preview.setAttribute('data-crew-preview', String(crew.player));
+  preview.setAttribute('data-crew-preview-color', crew.color);
+  preview.setAttribute('data-crew-preview-angle', String(crew.previewAngleDeg));
+  preview.setAttribute('data-crew-preview-direction', String(crew.previewDirection));
+
+  const nameField = element(document, 'label', 'form-field crew-name');
+  nameField.append(textElement(document, 'span', 'Crew name'));
+  const input = document.createElement('input');
+  input.setAttribute('type', 'text');
+  input.setAttribute('maxlength', String(crew.nameMaxLength));
+  input.setAttribute('placeholder', crew.placeholder);
+  input.setAttribute('data-crew-name', String(crew.player));
+  input.value = crew.name;
+  input.disabled = crew.nameDisabled;
+  nameField.append(input);
+
+  const colorField = element(document, 'div', 'form-field crew-colour');
+  colorField.append(textElement(document, 'span', 'Tank colour'));
+  const swatches = element(document, 'div', 'crew-swatches');
+  swatches.setAttribute('role', 'group');
+  swatches.setAttribute('aria-label', crew.swatchGroupLabel);
+  for (const swatch of crew.swatches) {
+    const button = element(document, 'button', `crew-swatch${swatch.selected ? ' is-selected' : ''}`) as HTMLButtonElement;
+    button.setAttribute('type', 'button');
+    button.setAttribute('aria-label', swatch.label);
+    button.setAttribute('aria-pressed', String(swatch.selected));
+    button.setAttribute('data-crew-color', swatch.value);
+    button.setAttribute('data-crew-player', String(crew.player));
+    const chip = element(document, 'span', 'crew-swatch-chip');
+    chip.setAttribute('aria-hidden', 'true');
+    chip.setAttribute('style', `background: ${swatch.value}`);
+    button.append(chip);
+    swatches.append(button);
+  }
+  colorField.append(swatches);
+
+  panel.append(head, preview, nameField, colorField);
+  return panel;
 }
 
 /** 03 — seven tiles, each with a terrain silhouette and the figures being chosen between. */
@@ -705,13 +819,13 @@ function appendTerm(document: Document, list: HTMLElement, term: string, value: 
 const TILE_PREVIEW_SEED = hashSeed('tank-duel:map-preview');
 const TILE_PREVIEW = { width: 246, height: 76 } as const;
 
-function paintTileSilhouettes(surface: HTMLElement): void {
+function paintTileSilhouettes(surface: HTMLElement, spawnColors: readonly string[]): void {
   const canvases = surface.querySelectorAll?.<HTMLCanvasElement>('canvas[data-tile-generator]');
   if (!canvases) return;
-  for (const canvas of Array.from(canvases)) paintTileSilhouette(canvas);
+  for (const canvas of Array.from(canvases)) paintTileSilhouette(canvas, spawnColors);
 }
 
-function paintTileSilhouette(canvas: HTMLCanvasElement): void {
+function paintTileSilhouette(canvas: HTMLCanvasElement, spawnColors: readonly string[]): void {
   const generator = canvas.getAttribute('data-tile-generator');
   const accent = canvas.getAttribute('data-tile-accent');
   canvas.width = TILE_PREVIEW.width;
@@ -768,13 +882,78 @@ function paintTileSilhouette(canvas: HTMLCanvasElement): void {
   ctx.lineWidth = 1.5;
   ctx.stroke();
 
-  // Both spawns, at the same fraction of the field the world inserts them at.
+  // Both spawns, at the same fraction of the field the world inserts them at, in the colours
+  // the crews chose — the tile is a preview of this match, not of a default one.
   const inset = CONSTANTS.spawnInsetPx / fieldWidth;
-  PRESENTATION.players.forEach((player, index) => {
+  spawnColors.forEach((color, index) => {
     const x = TILE_PREVIEW.width * (index === 0 ? inset : 1 - inset);
-    ctx.fillStyle = player.color;
+    ctx.fillStyle = color;
     ctx.fillRect(x - 3, surfaceAt(x) - 4, 6, 4);
   });
+}
+
+/**
+ * The crew's tank at 2.6x on its own strip of ground, repainted on every render so a colour
+ * change shows immediately.
+ *
+ * Runs after mount because it needs the canvas' laid-out width, and sizes the backing store
+ * by `devicePixelRatio` the way `resizeSceneCanvas` in `src/main.ts` does. Silently does
+ * nothing without a 2D context, which is the headless case.
+ */
+const CREW_PREVIEW = { groundFraction: 0.74, scale: 2.6 } as const;
+
+function paintCrewPreviews(surface: HTMLElement): void {
+  const canvases = surface.querySelectorAll?.<HTMLCanvasElement>('canvas[data-crew-preview]');
+  if (!canvases) return;
+  for (const canvas of Array.from(canvases)) paintCrewPreview(canvas);
+}
+
+function paintCrewPreview(canvas: HTMLCanvasElement): void {
+  const color = canvas.getAttribute('data-crew-preview-color');
+  const bounds = canvas.getBoundingClientRect?.();
+  if (!bounds) return;
+  const ratio = Math.min(globalThis.devicePixelRatio || 1, 2);
+  const width = Math.max(1, Math.round(bounds.width));
+  const height = Math.max(1, Math.round(bounds.height));
+  canvas.width = Math.max(1, Math.round(width * ratio));
+  canvas.height = Math.max(1, Math.round(height * ratio));
+  const ctx = canvas.getContext?.('2d');
+  if (!ctx) return;
+  ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
+  ctx.clearRect(0, 0, width, height);
+
+  // The same sand hairline the battlefield tiles stand their terrain on.
+  const groundY = Math.round(height * CREW_PREVIEW.groundFraction);
+  ctx.fillStyle = 'rgba(201,168,124,0.06)';
+  ctx.fillRect(0, groundY, width, height - groundY);
+  ctx.fillStyle = 'rgba(201,168,124,0.24)';
+  ctx.fillRect(0, groundY, width, 1);
+
+  ctx.save();
+  ctx.translate(width / 2, groundY);
+  ctx.scale(CREW_PREVIEW.scale, CREW_PREVIEW.scale);
+  drawTankSilhouette(ctx, {
+    x: 0,
+    y: 0,
+    direction: canvas.getAttribute('data-crew-preview-direction') === '-1' ? -1 : 1,
+    player: canvas.getAttribute('data-crew-preview') === '1' ? 1 : 0,
+    angleDeg: Number(canvas.getAttribute('data-crew-preview-angle')),
+    health: CONSTANTS.damage.startingHealth,
+    active: false,
+    hideHealth: true,
+    ...(color === null ? {} : { color }),
+  });
+  ctx.restore();
+}
+
+function crewColors(config: MatchConfig): readonly string[] {
+  return config.crews.map((crew) => crew.color);
+}
+
+/** `data-crew-player` on a swatch, `data-crew-name` on the field: both name a crew index. */
+function crewPlayer(control: Element): 0 | 1 {
+  const value = control.getAttribute('data-crew-player') ?? control.getAttribute('data-crew-name');
+  return value === '1' ? 1 : 0;
 }
 
 function emitFieldConfig(config: MatchConfig, field: string, value: string, callback: AppViewCallbacks['onConfigChange']): void {
@@ -806,6 +985,48 @@ function emitValidConfig(value: unknown, callback: AppViewCallbacks['onConfigCha
 
 function displayOption(value: string): string {
   return value === 'default' ? 'Default' : value.charAt(0).toUpperCase() + value.slice(1);
+}
+
+/**
+ * Which field was being edited, so a re-render can put the player back in it.
+ *
+ * Every render replaces the whole surface, which is what keeps the view a pure function of
+ * flow state — but a field that reports each keystroke would otherwise lose focus and its
+ * caret on the first character typed. The attributes below already identify a field
+ * uniquely, so they double as the key across a rebuild.
+ */
+const FIELD_KEYS: readonly string[] = Object.freeze(['data-crew-name', 'data-config-field']);
+
+interface FieldFocus {
+  readonly selector: string;
+  readonly start: number | null;
+  readonly end: number | null;
+}
+
+function captureFieldFocus(document: Document, root: HTMLElement): FieldFocus | null {
+  const active = document.activeElement as HTMLInputElement | null;
+  if (!active || !root.contains?.(active)) return null;
+  for (const key of FIELD_KEYS) {
+    const value = active.getAttribute?.(key);
+    if (value === null || value === undefined) continue;
+    return {
+      selector: `[${key}="${value}"]`,
+      start: typeof active.selectionStart === 'number' ? active.selectionStart : null,
+      end: typeof active.selectionEnd === 'number' ? active.selectionEnd : null,
+    };
+  }
+  return null;
+}
+
+function restoreFieldFocus(surface: HTMLElement, focus: FieldFocus | null): boolean {
+  if (!focus) return false;
+  const field = surface.querySelector?.<HTMLInputElement>(focus.selector);
+  if (!field || field.disabled) return false;
+  field.focus?.();
+  if (focus.start !== null && typeof field.setSelectionRange === 'function') {
+    field.setSelectionRange(focus.start, focus.end ?? focus.start);
+  }
+  return true;
 }
 
 function focusScreenHeading(surface: HTMLElement): void {
