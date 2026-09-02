@@ -5,7 +5,7 @@
   "windCoefficient": 0.00038,
   "substeps": 8,
   "fieldHeight": 560,
-  "defaultFieldWidth": 1000,
+  "defaultFieldWidth": 1200,
   "spawnInsetPx": 150,
   "camera": {
     "aimPaddingPx": 80

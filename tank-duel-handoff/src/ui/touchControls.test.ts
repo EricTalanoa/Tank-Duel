@@ -66,7 +66,51 @@ describe('touch control surface', () => {
     expect(root.find('[data-angle]')?.value).toBe('47');
     expect(root.find('[data-power]')?.value).toBe('68');
   });
+
+  it('marks the selected shell in the shared action accent and masks each spec icon', () => {
+    // Break caught: the deck losing the icons and selection marker the canvas HUD used to own.
+    const root = new FakeElement('div');
+    const onShell = vi.fn();
+    const controls = mountTouchControls(root as unknown as HTMLElement, {
+      onAngle: vi.fn(), onPower: vi.fn(), onShell, onFire: vi.fn(),
+    });
+    controls.render({
+      angleDeg: 45,
+      power: 70,
+      canAim: true,
+      canFire: true,
+      shells: [
+        { slot: 1, id: 'he', name: 'HE Shell', icon: 'assets/icons/he.svg', selected: true, disabled: false },
+        { slot: 2, id: 'mortar', name: 'Heavy Mortar', icon: 'assets/icons/mortar.svg', selected: false, disabled: true },
+      ],
+    });
+
+    const selected = root.find('[data-shell-slot="1"]')!;
+    const spent = root.find('[data-shell-slot="2"]')!;
+    expect(selected.className).toContain('is-selected');
+    expect(selected.getAttribute('aria-pressed')).toBe('true');
+    expect(spent.className).not.toContain('is-selected');
+    expect(spent.getAttribute('aria-pressed')).toBe('false');
+    expect(spent.disabled).toBe(true);
+
+    // Icons are CSS-masked rather than <img>, so the spec path has to survive into the style.
+    expect(collect(root)
+      .map((node) => node.getAttribute('style'))
+      .filter((style): style is string => style !== null))
+      .toEqual([
+        '--icon: url("/assets/icons/he.svg")',
+        '--icon: url("/assets/icons/mortar.svg")',
+      ]);
+
+    spent.click();
+    expect(onShell).not.toHaveBeenCalled();
+    controls.dispose();
+  });
 });
+
+function collect(node: FakeElement): FakeElement[] {
+  return [node, ...node.children.flatMap(collect)];
+}
 
 function allText(node: FakeElement): string {
   return `${node.textContent} ${node.children.map(allText).join(' ')}`.trim();

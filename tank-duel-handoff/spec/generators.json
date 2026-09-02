@@ -15,11 +15,11 @@
     "maxAttempts": 20,
     "fallbackSeeds": {
       "terra:hills": 2, "terra:canyon": 1, "terra:craters": 6, "terra:plates": 11, "terra:spires": 1318,
-      "vesper:hills": 13, "vesper:canyon": 3, "vesper:craters": 45, "vesper:plates": 9, "vesper:spires": 981,
+      "vesper:hills": 2, "vesper:canyon": 3, "vesper:craters": 6, "vesper:plates": 2, "vesper:spires": 72,
       "rust:hills": 3, "rust:canyon": 1, "rust:craters": 11, "rust:plates": 1, "rust:spires": 11,
       "selene:hills": 1, "selene:canyon": 1, "selene:craters": 1, "selene:plates": 1, "selene:spires": 1,
-      "ferrum:hills": 11, "ferrum:canyon": 1, "ferrum:craters": 5, "ferrum:plates": 5, "ferrum:spires": 1135,
-      "terra:ring": 1, "vesper:ring": 63, "rust:ring": 2, "selene:ring": 1, "ferrum:ring": 123,
+      "ferrum:hills": 2, "ferrum:canyon": 1, "ferrum:craters": 6, "ferrum:plates": 4, "ferrum:spires": 124,
+      "terra:ring": 6, "vesper:ring": 6, "rust:ring": 2, "selene:ring": 1, "ferrum:ring": 6,
       "hollow:ring": 6
     }
   }

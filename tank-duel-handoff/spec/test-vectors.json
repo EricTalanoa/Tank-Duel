@@ -104,6 +104,6 @@
     "mirv": 1191,
     "napalm": 1134
   },
-  "spawnGapPx": 700,
-  "$assertion": "Every value in shellMaxRangeOnTerra must exceed spawnGapPx."
+  "spawnGapPx": 900,
+  "$assertion": "shellMaxRangeOnTerra records base-mass reach; every shell must clear spawnGapPx at the effective mass Terra ships."
 }

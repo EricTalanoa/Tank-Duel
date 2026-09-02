@@ -14,7 +14,7 @@ import {
 } from './screenModels';
 
 describe('screen models', () => {
-  it('keeps Random in the MAP tile grid and renders enabled spec-backed CPU tiers', () => {
+  it('builds the MAP tile grid from the shipped rotation and renders enabled spec-backed CPU tiers', () => {
     const state = createFlow(createDefaultConfig());
     const title = buildTitleScreenModel();
     const mode = buildModeScreenModel(state);
@@ -22,7 +22,6 @@ describe('screen models', () => {
 
     expect(title.buttons.map((button) => button.label)).toEqual([
       'Quick Start',
-      'Custom Game',
       'How to Play',
     ]);
     expect(title.corner).toEqual(['Settings']);
@@ -33,8 +32,8 @@ describe('screen models', () => {
     });
     expect(mode.cpuTiers.map(({ id, label }) => ({ id, label })))
       .toEqual(CPU_TIERS.map(({ id, name }) => ({ id, label: name })));
-    expect(map.tiles.filter((tile) => tile.id === 'random')).toHaveLength(1);
-    expect(map.tiles.at(-1)).toMatchObject({ id: 'random', name: 'Random' });
+    expect(map.tiles.map((tile) => tile.id)).toEqual(['terra', 'rust', 'selene', 'ferrum']);
+    expect(map.tiles.at(-1)).toMatchObject({ id: 'ferrum', name: 'Ferrum' });
     expect(map.modeOptions.find((option) => option.id === 'cpu')).toMatchObject({
       label: '1 v CPU',
       disabled: false,

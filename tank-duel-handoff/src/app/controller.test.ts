@@ -160,25 +160,46 @@ describe('application controller', () => {
     harness.controller.dispose();
   });
 
-  it('resolves Random at map selection, not earlier, and shows the concrete intro configuration', () => {
+  it('resolves the battlefield at map selection, not earlier, and shows the concrete intro configuration', () => {
     const harness = createHarness();
 
     expect(harness.controller.resolvedConfig).toBeNull();
     harness.dispatch({ type: 'quickStart' });
     expect(harness.controller.resolvedConfig).toBeNull();
 
-    harness.dispatch({ type: 'selectMap', worldId: 'random' });
+    harness.dispatch({ type: 'selectMap', worldId: 'ferrum' });
+
+    const resolved = harness.controller.resolvedConfig;
+    expect(harness.controller.state.screen).toBe('ROUND_INTRO');
+    expect(resolved?.selectedWorldId).toBe('ferrum');
+    expect(resolved?.worldId).toBe('ferrum');
+    expect(harness.rendered.at(-1)?.config).toMatchObject({
+      selectedWorldId: 'ferrum',
+      worldId: resolved?.worldId,
+      generatorId: resolved?.generatorId,
+    });
+    expect(harness.runtimes).toHaveLength(0);
+    harness.controller.dispose();
+  });
+
+  it('resolves Random to a concrete shipped world when a Custom game starts', () => {
+    // Random left the Quick Start grid but stays a valid saved and Custom selection.
+    const harness = createHarness();
+    harness.dispatch({ type: 'openCustom' });
+    harness.changeConfig(configWith({
+      ...harness.controller.state.config,
+      path: 'custom',
+      selectedWorldId: 'random',
+    }));
+    expect(harness.controller.resolvedConfig).toBeNull();
+
+    harness.dispatch({ type: 'startCustom' });
 
     const resolved = harness.controller.resolvedConfig;
     expect(harness.controller.state.screen).toBe('ROUND_INTRO');
     expect(resolved?.selectedWorldId).toBe('random');
     expect(SHIPPED_WORLDS.map((world) => world.id)).toContain(resolved?.worldId);
     expect(resolved?.worldId).not.toBe('random');
-    expect(harness.rendered.at(-1)?.config).toMatchObject({
-      selectedWorldId: 'random',
-      worldId: resolved?.worldId,
-      generatorId: resolved?.generatorId,
-    });
     expect(harness.runtimes).toHaveLength(0);
     harness.controller.dispose();
   });
@@ -245,8 +266,14 @@ describe('application controller', () => {
   it('disposes loadout on deploy, completes once, and rematches with deep-equal resolved settings except seed', () => {
     const storage = new MemoryStorage();
     const harness = createHarness({ storage });
-    harness.dispatch({ type: 'quickStart' });
-    harness.dispatch({ type: 'selectMap', worldId: 'random' });
+    // Random goes in through Custom so the rematch has a resolved world to keep.
+    harness.dispatch({ type: 'openCustom' });
+    harness.changeConfig(configWith({
+      ...harness.controller.state.config,
+      path: 'custom',
+      selectedWorldId: 'random',
+    }));
+    harness.dispatch({ type: 'startCustom' });
     harness.dispatch({ type: 'openLoadout' });
 
     expect(harness.loadouts).toHaveLength(1);

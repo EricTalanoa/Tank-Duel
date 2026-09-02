@@ -54,7 +54,7 @@ describe('application DOM view', () => {
     expect(onAction).toHaveBeenLastCalledWith({ type: 'quickStart' });
   });
 
-  it('renders Random and enabled CPU mode as keyboard-operable MAP buttons', () => {
+  it('renders the shipped rotation and enabled CPU mode as keyboard-operable MAP buttons', () => {
     const root = createRoot();
     const onAction = vi.fn<(action: FlowAction) => void>();
     const view = mountAppView(root as unknown as HTMLElement, { onAction });
@@ -62,14 +62,18 @@ describe('application DOM view', () => {
 
     view.render(map);
 
-    const random = root.all('button').find((button) => button.getAttribute('data-world-id') === 'random');
+    const worldIds = root.all('button')
+      .map((button) => button.getAttribute('data-world-id'))
+      .filter((id): id is string => id !== null);
+    const ferrum = root.all('button').find((button) => button.getAttribute('data-world-id') === 'ferrum');
     const cpu = root.all('button').find((button) => button.textContent.includes('1 v CPU'));
-    expect(random?.textContent).toContain('Random');
+    expect(worldIds).toEqual(['terra', 'rust', 'selene', 'ferrum']);
+    expect(ferrum?.textContent).toContain('Ferrum');
     expect(cpu?.disabled).toBe(false);
     expect(cpu?.textContent).not.toContain('Task 12');
-    expect(random?.getAttribute('type')).toBe('button');
-    root.click(random!);
-    expect(onAction).toHaveBeenLastCalledWith({ type: 'selectMap', worldId: 'random' });
+    expect(ferrum?.getAttribute('type')).toBe('button');
+    root.click(ferrum!);
+    expect(onAction).toHaveBeenLastCalledWith({ type: 'selectMap', worldId: 'ferrum' });
   });
 
   it('shows enabled CPU selection and labelled, locked HE controls with shell icons', () => {

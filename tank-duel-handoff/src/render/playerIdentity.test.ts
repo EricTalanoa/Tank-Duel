@@ -131,12 +131,11 @@ test('keeps shell feedback functional while player muzzle and HUD feedback follo
 
   const world = createWorld(7);
   const hudContext = new RecordingContext();
-  const icon = { complete: true, naturalWidth: 1 } as HTMLImageElement;
-  const icons = new Map([[world.arsenals[0].slots[0]!.shell.icon, icon]]);
-  drawHud(hudContext as unknown as CanvasRenderingContext2D, world, { stepsThisFrame: 1, alpha: 0 }, icons);
+  drawHud(hudContext as unknown as CanvasRenderingContext2D, world, { stepsThisFrame: 1, alpha: 0 });
   world.activePlayer = 1;
-  drawHud(hudContext as unknown as CanvasRenderingContext2D, world, { stepsThisFrame: 1, alpha: 0 }, icons);
+  drawHud(hudContext as unknown as CanvasRenderingContext2D, world, { stepsThisFrame: 1, alpha: 0 });
   expect(hudContext.fills.map((fill) => fill.color)).toEqual(expect.arrayContaining(colors));
-  expect(hudContext.strokeRects).toContain('#FF8C42');
-  expect(hudContext.images).toHaveLength(2);
+  // The ammunition deck moved to the DOM touch surface, so its icons and its
+  // action-accent selection marker are asserted in src/ui/touchControls.test.ts.
+  expect(hudContext.images).toHaveLength(0);
 });
