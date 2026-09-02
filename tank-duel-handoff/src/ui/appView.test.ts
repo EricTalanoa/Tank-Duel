@@ -1,9 +1,20 @@
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it, vi } from 'vitest';
-import { createDefaultConfig } from './config';
+import { createDefaultConfig, withCrewName, type MatchConfig } from './config';
 import { createFlow, reduceFlow, type AppFlowState, type FlowAction } from './flow';
 import { mountAppView } from './appView';
+
+/** Both crews named, which is what Crew setup asks for before it hands over to MAP. */
+function namedConfig(config: MatchConfig = createDefaultConfig()): MatchConfig {
+  return withCrewName(withCrewName(config, 0, 'Hammer'), 1, 'Anvil');
+}
+
+/** TITLE through Crew setup to the battlefield, the way Quick Start now runs. */
+function mapState(config: MatchConfig = createDefaultConfig()): AppFlowState {
+  const crew = reduceFlow(createFlow(config), { type: 'quickStart' });
+  return reduceFlow({ ...crew, config: namedConfig(crew.config) }, { type: 'confirmCrews' });
+}
 
 describe('application DOM view', () => {
   it('renders a working Back button on every DOM-rendered pre-match page after TITLE', () => {
@@ -15,7 +26,8 @@ describe('application DOM view', () => {
       reduceFlow(title, { type: 'openMode' }),
       reduceFlow(title, { type: 'quickStart' }),
       reduceFlow(title, { type: 'openCustom' }),
-      reduceFlow(reduceFlow(title, { type: 'quickStart' }), { type: 'selectMap', worldId: 'terra' }),
+      mapState(),
+      reduceFlow(mapState(), { type: 'selectMap', worldId: 'terra' }),
       reduceFlow(title, { type: 'openHowTo' }),
     ];
 
@@ -54,11 +66,90 @@ describe('application DOM view', () => {
     expect(onAction).toHaveBeenLastCalledWith({ type: 'quickStart' });
   });
 
+  it('names, colours and gates the two crew panels through delegated config changes', () => {
+    const root = createRoot();
+    const onAction = vi.fn<(action: FlowAction) => void>();
+    const onConfigChange = vi.fn();
+    const view = mountAppView(root as unknown as HTMLElement, { onAction, onConfigChange });
+    const crew = reduceFlow(createFlow(createDefaultConfig()), { type: 'quickStart' });
+
+    view.render(crew);
+
+    // Continue is inert until both crews are named; Back always works.
+    const continueButton = root.all('button').find((button) => button.getAttribute('aria-label') === 'Continue')!;
+    expect(continueButton.disabled).toBe(true);
+    root.click(continueButton);
+    expect(onAction).not.toHaveBeenCalled();
+
+    const nameField = root.first('[data-crew-name="0"]')!;
+    expect(nameField.tagName).toBe('INPUT');
+    expect(nameField.getAttribute('maxlength')).toBe('14');
+    expect(nameField.getAttribute('placeholder')).toBe('Player 1');
+    nameField.value = 'Hammer';
+    root.input(nameField);
+    expect(onConfigChange.mock.calls[0]![0].crews[0]).toEqual({ name: 'Hammer', color: '#4DA3FF' });
+
+    // Eight swatches per crew, the chosen one pressed, and taking the other crew's colour
+    // hands that crew the colour this one was holding.
+    const swatches = root.all('button').filter((button) => button.getAttribute('data-crew-player') === '0');
+    expect(swatches).toHaveLength(8);
+    expect(swatches.map((button) => button.getAttribute('aria-pressed'))).toEqual([
+      'true', 'false', 'false', 'false', 'false', 'false', 'false', 'false',
+    ]);
+    root.click(swatches[1]!);
+    expect(onConfigChange.mock.calls[1]![0].crews.map((entry: { color: string }) => entry.color))
+      .toEqual(['#FF5CA8', '#4DA3FF']);
+    expect(onAction).not.toHaveBeenCalled();
+
+    view.render({ ...crew, config: namedConfig(crew.config) });
+    const ready = root.all('button').find((button) => button.getAttribute('aria-label') === 'Continue')!;
+    expect(ready.disabled).toBe(false);
+    root.click(ready);
+    expect(onAction).toHaveBeenLastCalledWith({ type: 'confirmCrews' });
+  });
+
+  it('keeps the caret in a field across the re-render its own keystroke caused', () => {
+    // Break caught: every render replacing the surface and focusing the heading, so a crew
+    // name could only ever be one character long.
+    const root = createRoot();
+    const onConfigChange = vi.fn();
+    const view = mountAppView(root as unknown as HTMLElement, { onAction: vi.fn(), onConfigChange });
+    const crew = reduceFlow(createFlow(createDefaultConfig()), { type: 'quickStart' });
+
+    view.render(crew);
+    expect(root.ownerDocument.activeElement?.tagName).toBe('H1');
+
+    const field = root.first('[data-crew-name="0"]')!;
+    field.focus();
+    field.value = 'H';
+    root.input(field);
+    view.render({ ...crew, config: onConfigChange.mock.calls[0]![0] });
+
+    const restored = root.ownerDocument.activeElement!;
+    expect(restored.tagName).toBe('INPUT');
+    expect(restored.getAttribute('data-crew-name')).toBe('0');
+    expect(restored.value).toBe('H');
+  });
+
+  it('disables only the CPU crew name field and keeps its colour pickable', () => {
+    const root = createRoot();
+    const view = mountAppView(root as unknown as HTMLElement, { onAction: vi.fn() });
+    const crew = reduceFlow(createFlow(createDefaultConfig()), { type: 'quickStart' });
+
+    view.render({ ...crew, config: { ...crew.config, mode: 'cpu' } });
+
+    expect(root.first('[data-crew-name="0"]')?.disabled).toBe(false);
+    expect(root.first('[data-crew-name="1"]')?.disabled).toBe(true);
+    expect(root.first('[data-crew-name="1"]')?.value).toBe('CPU');
+    expect(root.all('button').filter((button) => button.getAttribute('data-crew-player') === '1')
+      .every((button) => !button.disabled)).toBe(true);
+  });
+
   it('renders Random and enabled CPU mode as keyboard-operable MAP buttons', () => {
     const root = createRoot();
     const onAction = vi.fn<(action: FlowAction) => void>();
     const view = mountAppView(root as unknown as HTMLElement, { onAction });
-    const map = reduceFlow(createFlow(createDefaultConfig()), { type: 'quickStart' });
+    const map = mapState();
 
     view.render(map);
 
@@ -97,7 +188,7 @@ describe('application DOM view', () => {
     const root = createRoot();
     const onAction = vi.fn<(action: FlowAction) => void>();
     const view = mountAppView(root as unknown as HTMLElement, { onAction });
-    const map = reduceFlow(createFlow(createDefaultConfig()), { type: 'quickStart' });
+    const map = mapState();
     const cpuMap: AppFlowState = {
       ...map,
       config: { ...map.config, mode: 'cpu', cpuTierId: 'veteran' },
@@ -124,8 +215,7 @@ describe('application DOM view', () => {
   it('omits the CPU difficulty group entirely in local mode and styles it when shown', () => {
     const root = createRoot();
     const view = mountAppView(root as unknown as HTMLElement, { onAction: vi.fn() });
-    const title = createFlow(createDefaultConfig());
-    const localMap = reduceFlow(title, { type: 'quickStart' });
+    const localMap = mapState();
 
     view.render(localMap);
     expect(localMap.config.mode).toBe('local');
@@ -168,12 +258,9 @@ describe('application DOM view', () => {
   it('renders icon-bearing ROUND_INTRO and ROUND_OVER shell summaries safely', () => {
     const root = createRoot();
     const view = mountAppView(root as unknown as HTMLElement, { onAction: vi.fn() });
-    const config = createDefaultConfig();
+    const config = namedConfig();
     const title = createFlow(config);
-    const intro = reduceFlow(
-      reduceFlow(title, { type: 'quickStart' }),
-      { type: 'selectMap', worldId: 'terra' },
-    );
+    const intro = reduceFlow(mapState(config), { type: 'selectMap', worldId: 'terra' });
 
     view.render(intro);
     // Masked spans, not <img>: a `currentColor` SVG loaded as an image renders black and

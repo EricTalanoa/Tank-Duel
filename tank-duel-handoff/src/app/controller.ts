@@ -1,3 +1,4 @@
+import { setActiveCrews } from '../render/palette';
 import { resolveGeneratorId } from '../sim/generators';
 import { makePlayerLoadouts, type PlayerLoadouts } from '../sim/playerLoadouts';
 import { createRng, hashSeed } from '../sim/rng';
@@ -6,6 +7,7 @@ import type { AppView, AppViewCallbacks } from '../ui/appView';
 import { cpuPlayerLoadoutIds } from '../ui/loadout';
 import {
   createDefaultConfig,
+  crewLabel,
   resolveMatchConfig,
   validateConfig,
   type MatchConfig,
@@ -80,16 +82,18 @@ export function createAppController(dependencies: AppControllerDependencies): Ap
       transition(action);
     },
     onConfigChange(config) {
-      if (disposed || state.screen !== 'CUSTOM') return;
+      if (disposed || (state.screen !== 'CUSTOM' && state.screen !== 'CREW')) return;
       const validated = validateConfig(config);
       if (!validated || sameConfig(state.config, validated)) return;
       state = Object.freeze({ ...state, config: guardedSave(dependencies.storage, validated) });
       resolvedConfig = null;
+      publishCrews(state.config);
       view.render(state);
     },
   };
 
   view = dependencies.createView(callbacks);
+  publishCrews(state.config);
   renderAndEnter();
 
   function transition(action: FlowAction): void {
@@ -113,7 +117,20 @@ export function createAppController(dependencies: AppControllerDependencies): Ap
     if (!sameConfig(previousState.config, state.config)) {
       state = Object.freeze({ ...state, config: guardedSave(dependencies.storage, state.config) });
     }
+    publishCrews(state.config);
     renderAndEnter();
+  }
+
+  /**
+   * The render layer owns no state, so the crews it draws with are pushed down from here —
+   * the one place that knows which match config is live. Every colour and name downstream,
+   * tank tones through the HUD, follows from this call.
+   */
+  function publishCrews(config: MatchConfig): void {
+    setActiveCrews([
+      { name: crewLabel(config, 0), color: config.crews[0].color },
+      { name: crewLabel(config, 1), color: config.crews[1].color },
+    ]);
   }
 
   function leaveScreen(screen: AppFlowState['screen']): void {
@@ -217,6 +234,7 @@ export function createAppController(dependencies: AppControllerDependencies): Ap
     dispose() {
       if (disposed) return;
       disposed = true;
+      setActiveCrews(null);
       disposeRuntime();
       disposeOwned(activeScene);
       activeScene = null;
@@ -271,7 +289,8 @@ function renderState(
   resolvedConfig: ResolvedMatchConfig | null,
 ): AppFlowState {
   if (!resolvedConfig || state.screen === 'TITLE' || state.screen === 'MODE' ||
-    state.screen === 'MAP' || state.screen === 'CUSTOM' || state.screen === 'HOWTO') {
+    state.screen === 'CREW' || state.screen === 'MAP' || state.screen === 'CUSTOM' ||
+    state.screen === 'HOWTO') {
     return state;
   }
   return Object.freeze({ ...state, config: resolvedConfig });

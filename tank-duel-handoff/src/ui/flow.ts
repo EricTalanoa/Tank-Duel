@@ -2,6 +2,7 @@ import {
   CPU_TIER_IDS,
   MATCH_WORLD_OPTIONS,
   createDefaultConfig,
+  crewsNamed,
   validateConfig,
   type MatchConfig,
   type MatchMode,
@@ -12,6 +13,7 @@ import {
 export type ScreenId =
   | 'TITLE'
   | 'MODE'
+  | 'CREW'
   | 'MAP'
   | 'CUSTOM'
   | 'HOWTO'
@@ -55,6 +57,7 @@ export type FlowAction =
   | { readonly type: 'openCustom' }
   | { readonly type: 'startCustom' }
   | { readonly type: 'openHowTo' }
+  | { readonly type: 'confirmCrews' }
   | { readonly type: 'back' }
   | { readonly type: 'playFromHowTo' }
   | { readonly type: 'selectMap'; readonly worldId: MatchWorldId }
@@ -84,7 +87,7 @@ export function createFlow(config: MatchConfig): AppFlowState {
 export function reduceFlow(state: AppFlowState, action: FlowAction): AppFlowState {
   switch (action.type) {
     case 'quickStart':
-      return state.screen === 'TITLE' ? createState('MAP', withConfig(state.config, {
+      return state.screen === 'TITLE' ? createState('CREW', withConfig(state.config, {
         path: 'quick',
         mode: 'local',
       })) : state;
@@ -97,7 +100,7 @@ export function reduceFlow(state: AppFlowState, action: FlowAction): AppFlowStat
           mode: action.mode,
         }));
       }
-      if (state.screen === 'MAP' || state.screen === 'CUSTOM') {
+      if (state.screen === 'CREW' || state.screen === 'MAP' || state.screen === 'CUSTOM') {
         return createState(state.screen, withConfig(state.config, { mode: action.mode }));
       }
       return state;
@@ -113,13 +116,19 @@ export function reduceFlow(state: AppFlowState, action: FlowAction): AppFlowStat
       return state.screen === 'CUSTOM' ? createState('ROUND_INTRO', state.config) : state;
     case 'openHowTo':
       return state.screen === 'TITLE' ? createState('HOWTO', state.config) : state;
+    case 'confirmCrews':
+      return state.screen === 'CREW' && crewsNamed(state.config)
+        ? createState('MAP', state.config)
+        : state;
     case 'back':
       switch (state.screen) {
         case 'MODE':
-        case 'MAP':
+        case 'CREW':
         case 'CUSTOM':
         case 'HOWTO':
           return createState('TITLE', state.config);
+        case 'MAP':
+          return createState('CREW', state.config);
         case 'ROUND_INTRO':
           return createState(state.config.path === 'custom' ? 'CUSTOM' : 'MAP', state.config);
         case 'LOADOUT':
@@ -128,7 +137,7 @@ export function reduceFlow(state: AppFlowState, action: FlowAction): AppFlowStat
           return state;
       }
     case 'playFromHowTo':
-      return state.screen === 'HOWTO' ? createState('MAP', withConfig(state.config, {
+      return state.screen === 'HOWTO' ? createState('CREW', withConfig(state.config, {
         path: 'quick',
         mode: 'local',
       })) : state;

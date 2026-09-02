@@ -21,8 +21,34 @@ export const PALETTE = {
   telemetry: '#8FA0B8',
 } as const;
 
+/**
+ * Who is currently fighting, as the Crew screen named them.
+ *
+ * The render layer owns no state, so this is not one: it is the one identity the app layer
+ * hands down when a match config changes, and `null` means "nobody has said", which is what
+ * the `spec/presentation.json` defaults are for. Everything downstream — tank tones,
+ * projectiles, trails, muzzle flashes, the HUD — reads it through `playerColor` and
+ * `playerLabel` and so picks a crew's choice up for free.
+ */
+export interface PlayerIdentity {
+  readonly name: string;
+  readonly color: string;
+}
+
+let activeCrews: readonly [PlayerIdentity, PlayerIdentity] | null = null;
+
+export function setActiveCrews(crews: readonly [PlayerIdentity, PlayerIdentity] | null): void {
+  activeCrews = crews;
+}
+
 export function playerColor(player: PlayerIndex): string {
-  return PRESENTATION.players[player].color;
+  return activeCrews?.[player].color ?? PRESENTATION.players[player].color;
+}
+
+/** The crew's name, falling back to the presentation label while nobody has chosen one. */
+export function playerLabel(player: PlayerIndex): string {
+  const name = activeCrews?.[player].name.trim() ?? '';
+  return name.length > 0 ? name : PRESENTATION.players[player].label;
 }
 
 /** Returns a functional world accent from the validated world specification. */
@@ -151,8 +177,12 @@ export interface TankTones {
   readonly light: string;
 }
 
-/** Three tones per player from the one colour `spec/presentation.json` declares. */
+/** Three tones per player from the one colour that player's crew is flying. */
 export function tankTones(player: PlayerIndex): TankTones {
-  const base = playerColor(player);
+  return tonesFrom(playerColor(player));
+}
+
+/** The same three tones from a colour in hand, for previews of a colour not yet chosen. */
+export function tonesFrom(base: string): TankTones {
   return { base, dark: shade(base, TANK_SHADE), light: tint(base, TANK_TINT) };
 }

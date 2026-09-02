@@ -1,6 +1,6 @@
 import { CONSTANTS } from '../sim/constants';
 import type { GameState, Tank } from '../sim/world';
-import { playerColor, tankTones } from './palette';
+import { playerColor, tankTones, tonesFrom } from './palette';
 import type { PlayerIndex } from '../sim/playerLoadouts';
 import { surfaceY } from '../sim/terrain';
 import { wrapX } from '../sim/wrap';
@@ -115,10 +115,18 @@ export interface TankSilhouette {
   readonly active: boolean;
   /** Omits the health rail, for scenes with no match state behind them. */
   readonly hideHealth?: boolean;
+  /**
+   * Paints this colour instead of the player's. Only the crew-setup preview uses it: that
+   * screen is choosing a colour, so it must show the swatch under the cursor rather than
+   * whatever the match config currently holds.
+   */
+  readonly color?: string;
 }
 
 export function drawTankSilhouette(ctx: CanvasRenderingContext2D, tank: TankSilhouette): void {
-  const { base, dark, light } = tankTones(tank.player);
+  const { base, dark, light } = tank.color === undefined
+    ? tankTones(tank.player)
+    : tonesFrom(tank.color);
   const pivotY = tank.y + CONSTANTS.tank.turretPivotY;
   const angle = (tank.angleDeg * Math.PI) / 180;
   const muzzleX = tank.x + Math.cos(angle) * CONSTANTS.tank.muzzleOffset * tank.direction;
